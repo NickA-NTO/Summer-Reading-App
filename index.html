@@ -758,121 +758,105 @@
    - Blue palette, split hero, stats strip, category quick-nav chips
 --------------------------------------------------------------------------- */
 
-/* ---------- 1. Real K-2 book catalog ---------- */
+/* ---------- 1. Reading Spine K-2 catalog (organized by grade) ---------- */
 const CATEGORIES = [
   {
-    id: "funny", title: "Funny", sub: "Books that make you laugh", icon: "😂",
+    id: "k", title: "Grade K", sub: "Picture books and read-alouds", icon: "🌱",
     books: [
-      { id: "f1", isbn: "9780803736801", title: "Dragons Love Tacos", author: "Adam Rubin", age: "Ages 4–8",
-        palette: ["#ff6b35","#f7c948"],
-        blurb: "Dragons love tacos — they love chicken tacos, beef tacos, big tacos, and teeny tiny tacos. But whatever you do, never give a dragon spicy salsa." },
-      { id: "f2", isbn: "9780399255373", title: "The Day the Crayons Quit", author: "Drew Daywalt", age: "Ages 3–7",
-        palette: ["#ef4444","#f59e0b"],
-        blurb: "When Duncan opens his crayon box, he finds a stack of letters. The crayons have had enough — and each one has something to say." },
-      { id: "f3", isbn: "9780786819881", title: "Don't Let the Pigeon Drive the Bus!", author: "Mo Willems", age: "Ages 2–6",
-        palette: ["#3b82f6","#fbbf24"],
-        blurb: "The bus driver has to leave for a bit — and the Pigeon would really, really like to drive the bus. Will you let him?" },
-      { id: "f4", isbn: "9780689832130", title: "Click, Clack, Moo: Cows That Type", author: "Doreen Cronin", age: "Ages 4–8",
-        palette: ["#dc2626","#1e293b"],
-        blurb: "Farmer Brown's cows find a typewriter, and now they have demands. Soon the hens want in too. A barnyard labor dispute begins." },
-      { id: "f5", isbn: "9780061906220", title: "Pete the Cat: I Love My White Shoes", author: "Eric Litwin", age: "Ages 4–8",
-        palette: ["#1e3a8a","#f8fafc"],
-        blurb: "Pete the cat is walking down the street in his brand-new white shoes. What happens when they get a little muddy? Pete keeps singing." },
-      { id: "f6", isbn: "9780545402873", title: "There Was an Old Lady Who Swallowed a Fly", author: "Lucille Colandro", age: "Ages 4–7",
-        palette: ["#16a34a","#fbbf24"],
-        blurb: "She swallowed a fly. We don't know why. But she keeps swallowing bigger and bigger things, and kids will love guessing what comes next." },
-    ],
-  },
-  {
-    id: "adventure", title: "Adventures", sub: "Big trips and brave kids", icon: "🗺️",
-    books: [
-      { id: "a1", isbn: "9780064431781", title: "Where the Wild Things Are", author: "Maurice Sendak", age: "Ages 4–8",
-        palette: ["#0f766e","#fde68a"],
-        blurb: "Max is sent to bed without supper, and a forest grows in his room. He sails off to where the wild things are — and becomes their king." },
-      { id: "a2", isbn: "9780670867332", title: "The Snowy Day", author: "Ezra Jack Keats", age: "Ages 3–6",
-        palette: ["#bae6fd","#1e3a8a"],
-        blurb: "Peter wakes up to a city covered in snow. He makes tracks, builds a snowman, and tries to save a snowball in his pocket for tomorrow." },
-      { id: "a3", isbn: "9780399257742", title: "Last Stop on Market Street", author: "Matt de la Peña", age: "Ages 3–7",
-        palette: ["#f97316","#7c2d12"],
-        blurb: "Every Sunday CJ and his nana ride the bus across town. CJ asks why they don't have a car — and Nana shows him all the beautiful things he's been missing." },
-      { id: "a4", isbn: "9780763660536", title: "Journey", author: "Aaron Becker", age: "Ages 4–8",
-        palette: ["#dc2626","#7c3aed"],
-        blurb: "A lonely girl draws a magic door on her bedroom wall and steps through into a fantastical world. A wordless adventure full of wonder." },
-      { id: "a5", isbn: "9780689815829", title: "We're Going on a Bear Hunt", author: "Michael Rosen", age: "Ages 3–7",
-        palette: ["#15803d","#92400e"],
-        blurb: "Swishy swashy! Splash splosh! A family stomps, splashes, and squelches through long grass, a river, and mud to find a bear." },
-      { id: "a6", isbn: "9780399242861", title: "How to Catch a Star", author: "Oliver Jeffers", age: "Ages 3–7",
-        palette: ["#1e293b","#fbbf24"],
-        blurb: "A boy loves stars so much he decides to catch one. He tries jumping, climbing, and even sailing out to sea. A quiet little classic." },
-    ],
-  },
-  {
-    id: "animals", title: "Animals", sub: "Furry, scaly, and feathery friends", icon: "🐾",
-    books: [
-      { id: "n1", isbn: "9780399226908", title: "The Very Hungry Caterpillar", author: "Eric Carle", age: "Ages 2–5",
+      { id: "k01", isbn: "9780399226908", title: "The Very Hungry Caterpillar", author: "Eric Carle", age: "Ages 2–5",
         palette: ["#22c55e","#facc15"],
         blurb: "In the light of the moon, a little egg lay on a leaf. The caterpillar that hatches is very, very hungry — and what he eats next is delicious." },
-      { id: "n2", isbn: "9780805047905", title: "Brown Bear, Brown Bear, What Do You See?", author: "Bill Martin Jr.", age: "Ages 2–5",
-        palette: ["#92400e","#fbbf24"],
-        blurb: "Brown Bear sees a red bird. Red bird sees a yellow duck. A rhythmic chain of colors and animals that kids learn by heart." },
-      { id: "n3", isbn: "9780545392556", title: "Giraffes Can't Dance", author: "Giles Andreae", age: "Ages 3–7",
-        palette: ["#facc15","#f97316"],
-        blurb: "Gerald is a tall, awkward giraffe who can't dance — until a wise cricket teaches him that sometimes you just need a different song." },
-      { id: "n4", isbn: "9780060245863", title: "If You Give a Mouse a Cookie", author: "Laura Numeroff", age: "Ages 4–8",
+      { id: "k02", isbn: "9780394800011", title: "The Cat in the Hat", author: "Dr. Seuss", age: "Ages 4–7",
+        palette: ["#dc2626","#f8fafc"],
+        blurb: "On a cold, wet day, Sally and her brother are stuck inside — until a tall cat in a red striped hat arrives and turns the whole house upside down." },
+      { id: "k03", isbn: "9780689815829", title: "We're Going on a Bear Hunt", author: "Michael Rosen", age: "Ages 3–7",
+        palette: ["#15803d","#92400e"],
+        blurb: "Swishy swashy! Splash splosh! A family stomps, splashes, and squelches through long grass, a river, and mud to find a bear." },
+      { id: "k04", isbn: "9780140563665", title: "Goldilocks and the Three Bears", author: "James Marshall", age: "Ages 4–7",
+        palette: ["#fbbf24","#92400e"],
+        blurb: "A nosy little girl wanders into a bear family's house and tries every chair, every bowl, and every bed. The bears come home with quite a surprise." },
+      { id: "k05", isbn: "9780689843976", title: "Mother Goose's Nursery Rhymes", author: "Iona Opie (ed.)", age: "Ages 2–6",
+        palette: ["#fda4af","#bae6fd"],
+        blurb: "A classic collection of rhymes and verses — from Humpty Dumpty to Jack and Jill — perfect for reading aloud, singing, and learning by heart." },
+      { id: "k06", isbn: "9780142403877", title: "The Gruffalo", author: "Julia Donaldson", age: "Ages 3–7",
+        palette: ["#7c2d12","#f97316"],
+        blurb: "A clever little mouse takes a walk through the deep dark wood and meets a fox, an owl, and a snake — and then something far scarier. Or is it?" },
+      { id: "k07", isbn: "9780060245863", title: "If You Give a Mouse a Cookie", author: "Laura Numeroff", age: "Ages 4–8",
         palette: ["#a16207","#fde68a"],
         blurb: "Give a mouse a cookie, and he'll ask for a glass of milk. Then a straw. Then a napkin. A funny chain of one-thing-leads-to-another." },
-      { id: "n5", isbn: "9780152802172", title: "Stellaluna", author: "Janell Cannon", age: "Ages 4–8",
-        palette: ["#1e1b4b","#a78bfa"],
-        blurb: "Knocked from her mother's safe embrace, a baby fruit bat lands in a bird's nest and is raised like a bird — until she finds her own family again." },
-      { id: "n6", isbn: "9781558580091", title: "The Rainbow Fish", author: "Marcus Pfister", age: "Ages 3–6",
-        palette: ["#0ea5e9","#a78bfa"],
-        blurb: "The most beautiful fish in the ocean discovers that being beautiful isn't enough. A gentle story about sharing what makes you special." },
+      { id: "k08", isbn: "9780394800165", title: "Green Eggs and Ham", author: "Dr. Seuss", age: "Ages 4–7",
+        palette: ["#16a34a","#f472b6"],
+        blurb: "Sam-I-am will not stop offering green eggs and ham. Not in a house, not with a mouse — but maybe, just maybe, one tiny taste?" },
     ],
   },
   {
-    id: "science", title: "Science", sub: "How things work", icon: "🔬",
+    id: "g1", title: "Grade 1", sub: "Easy readers and first chapter books", icon: "📖",
     books: [
-      { id: "s1", isbn: "9781419721373", title: "Ada Twist, Scientist", author: "Andrea Beaty", age: "Ages 5–8",
-        palette: ["#0891b2","#fbbf24"],
-        blurb: "Ada Twist asks questions about everything — why? what? how? When a stinky smell takes over the house, she launches an experiment." },
-      { id: "s2", isbn: "9781419708459", title: "Rosie Revere, Engineer", author: "Andrea Beaty", age: "Ages 5–8",
-        palette: ["#be185d","#fde68a"],
-        blurb: "Rosie loves to invent — but she's afraid to fail. Her great-great-aunt Rose shows her that the only true failure is quitting." },
-      { id: "s3", isbn: "9781938298073", title: "What Do You Do With an Idea?", author: "Kobi Yamada", age: "Ages 5–8",
-        palette: ["#fbbf24","#f59e0b"],
-        blurb: "A boy has an idea — a small, strange one. He's not sure what to do with it. But the more he tends to it, the bigger it grows." },
-      { id: "s4", isbn: "9780590407601", title: "The Magic School Bus Inside the Earth", author: "Joanna Cole", age: "Ages 6–9",
-        palette: ["#dc2626","#fde68a"],
-        blurb: "Ms. Frizzle's class boards the bus and drives straight down into the Earth, learning about rocks, layers, and volcanoes along the way." },
-      { id: "s5", isbn: "9780810911062", title: "Iggy Peck, Architect", author: "Andrea Beaty", age: "Ages 5–8",
+      { id: "a01", isbn: "9780723247708", title: "The Tale of Peter Rabbit", author: "Beatrix Potter", age: "Ages 4–7",
+        palette: ["#1e40af","#fde68a"],
+        blurb: "Naughty Peter Rabbit sneaks into Mr. McGregor's garden — and almost doesn't make it home for tea. A timeless tale with beautiful watercolor pictures." },
+      { id: "a02", isbn: "9780064440349", title: "Owl at Home", author: "Arnold Lobel", age: "Ages 4–8",
+        palette: ["#1e1b4b","#fbbf24"],
+        blurb: "Owl invites Winter in for tea, talks to two big bumps under his blanket, and tries to find his upstairs and his downstairs at the same time. Gentle, funny chapter stories." },
+      { id: "a03", isbn: "9780064440202", title: "Frog and Toad Are Friends", author: "Arnold Lobel", age: "Ages 4–8",
+        palette: ["#65a30d","#7c2d12"],
+        blurb: "Frog and Toad do everything together — even when they disagree about almost everything. Five sweet stories about best friends." },
+      { id: "a04", isbn: "9780440461265", title: "Nate the Great", author: "Marjorie Weinman Sharmat", age: "Ages 6–8",
+        palette: ["#f97316","#1e3a8a"],
+        blurb: "Nate is a kid detective, and his friend Annie has lost a picture. Time to put on the detective hat — and have some pancakes." },
+      { id: "a05", isbn: "9780689810046", title: "Henry and Mudge: The First Book", author: "Cynthia Rylant", age: "Ages 5–7",
+        palette: ["#a16207","#22c55e"],
+        blurb: "Henry has no brothers and no sisters, so his parents get him a dog. Mudge grows from 7 pounds to 180 pounds — and becomes Henry's best friend." },
+      { id: "a06", isbn: "9780763619619", title: "The Dot", author: "Peter H. Reynolds", age: "Ages 5–8",
+        palette: ["#a855f7","#f59e0b"],
+        blurb: "Vashti is sure she can't draw. Her teacher says: 'Just make a mark and see where it takes you.' What starts as one tiny dot becomes something amazing." },
+      { id: "a07", isbn: "9780064431781", title: "Where the Wild Things Are", author: "Maurice Sendak", age: "Ages 4–8",
         palette: ["#0f766e","#fde68a"],
-        blurb: "Iggy has been building since he was two — towers from diapers, castles from pancakes. When his class gets stranded, his building skills save the day." },
-      { id: "s6", isbn: "9780545324427", title: "Look Up! Bird-Watching in Your Own Backyard", author: "Annette LeBlanc Cate", age: "Ages 6–9",
-        palette: ["#16a34a","#0ea5e9"],
-        blurb: "A funny, friendly intro to birding for kids — anywhere they live, with whatever's outside the window. Sparrows count!" },
+        blurb: "Max is sent to bed without supper, and a forest grows in his room. He sails off to where the wild things are — and becomes their king." },
+      { id: "a08", isbn: "9780140502411", title: "The Story about Ping", author: "Marjorie Flack", age: "Ages 4–8",
+        palette: ["#fbbf24","#0ea5e9"],
+        blurb: "Ping is a duck who lives on a boat on the Yangtze River. One night he misses the boat home — and has a great adventure before finding his family again." },
+      { id: "a09", isbn: "9780140501735", title: "Corduroy", author: "Don Freeman", age: "Ages 3–7",
+        palette: ["#22c55e","#fbbf24"],
+        blurb: "Corduroy is a small teddy bear in a big department store. He's been waiting a long time for someone to take him home — and tonight he sets out to find his missing button." },
+      { id: "a10", isbn: "9780786818709", title: "Knuffle Bunny", author: "Mo Willems", age: "Ages 3–6",
+        palette: ["#fda4af","#0d9488"],
+        blurb: "Trixie can't talk yet. So when she loses her favorite bunny at the laundromat, telling Daddy what's wrong is the hardest part. A super-funny first adventure." },
+      { id: "a11", isbn: "9780688159320", title: "The Ugly Duckling", author: "Hans Christian Andersen", age: "Ages 4–8",
+        palette: ["#94a3b8","#fde68a"],
+        blurb: "A little duckling doesn't look like the others. He travels through a long winter feeling all alone — until one spring day he discovers exactly who he is." },
     ],
   },
   {
-    id: "feelings", title: "Feelings", sub: "Stories about how we feel", icon: "💙",
+    id: "g2", title: "Grade 2", sub: "Chapter books and beloved classics", icon: "📚",
     books: [
-      { id: "h1", isbn: "9780316450010", title: "The Color Monster", author: "Anna Llenas", age: "Ages 3–6",
-        palette: ["#1e3a8a","#fbbf24"],
-        blurb: "The Color Monster has all his feelings mixed up. A small friend helps him sort them out, one color at a time." },
-      { id: "h2", isbn: "9780439598385", title: "A Bad Case of Stripes", author: "David Shannon", age: "Ages 5–8",
-        palette: ["#dc2626","#fbbf24"],
-        blurb: "Camilla Cream tries so hard to fit in that she breaks out in stripes — then spots, then stars. A wild story about being yourself." },
-      { id: "h3", isbn: "9780978507510", title: "Have You Filled a Bucket Today?", author: "Carol McCloud", age: "Ages 4–9",
-        palette: ["#0ea5e9","#fde68a"],
-        blurb: "Everyone carries an invisible bucket. Kind acts fill other people's buckets — and yours, too. A favorite in K-2 classrooms." },
-      { id: "h4", isbn: "9781626726826", title: "After the Fall", author: "Dan Santat", age: "Ages 4–8",
-        palette: ["#1e3a8a","#f59e0b"],
-        blurb: "After his great fall, Humpty Dumpty is scared of heights. A beautiful story about getting back up — even when you're afraid." },
-      { id: "h5", isbn: "9781582464503", title: "The Invisible Boy", author: "Trudy Ludwig", age: "Ages 6–9",
-        palette: ["#9ca3af","#dbeafe"],
-        blurb: "Brian feels invisible at school — until a new student notices him. A quiet story about inclusion and the power of being seen." },
-      { id: "h6", isbn: "9780735229358", title: "The Rabbit Listened", author: "Cori Doerrfeld", age: "Ages 3–6",
-        palette: ["#fda4af","#fde68a"],
-        blurb: "When something sad happens to Taylor, all the animals know exactly what Taylor should do. But Rabbit just sits and listens." },
+      { id: "b01", isbn: "9780140544510", title: "The True Story of the Three Little Pigs", author: "Jon Scieszka", age: "Ages 5–8",
+        palette: ["#7c2d12","#f9a8d4"],
+        blurb: "You think you know the story? Well, the wolf says everyone got it wrong. He just had a cold, and was borrowing a cup of sugar. A hilarious retelling." },
+      { id: "b02", isbn: "9780399214578", title: "Owl Moon", author: "Jane Yolen", age: "Ages 4–8",
+        palette: ["#1e3a8a","#e0e7ff"],
+        blurb: "Late one winter night, a girl and her father walk through the snowy woods to look for an owl. A quiet, beautiful book that whispers." },
+      { id: "b03", isbn: "9780385077255", title: "The Velveteen Rabbit", author: "Margery Williams", age: "Ages 5–9",
+        palette: ["#f9a8d4","#92400e"],
+        blurb: "A toy rabbit longs to be Real. With the love of one little boy and some skin-horse wisdom, he learns what really makes something real." },
+      { id: "b04", isbn: "9780689852916", title: "The Lighthouse Family: The Storm", author: "Cynthia Rylant", age: "Ages 6–9",
+        palette: ["#0369a1","#fde68a"],
+        blurb: "A cat, a dog, and three little mice live in a lighthouse on the sea. When a storm rolls in, they help a stranded sailor — and a family is born. Series book 1." },
+      { id: "b05", isbn: "9780064421751", title: "Flat Stanley: His Original Adventure", author: "Jeff Brown", age: "Ages 6–9",
+        palette: ["#fbbf24","#0ea5e9"],
+        blurb: "When a bulletin board falls on Stanley, he wakes up flat as a pancake — only half an inch thick. Now he can slide under doors, fly like a kite, and even be mailed in an envelope." },
+      { id: "b06", isbn: "9780763622701", title: "Mercy Watson to the Rescue", author: "Kate DiCamillo", age: "Ages 6–8",
+        palette: ["#f472b6","#fbbf24"],
+        blurb: "Mercy is a pig who LOVES buttered toast. One night she crawls into her humans' bed, the bed collapses, and a chaotic 'rescue' begins." },
+      { id: "b07", isbn: "9780142410349", title: "Fantastic Mr. Fox", author: "Roald Dahl", age: "Ages 7–10",
+        palette: ["#ea580c","#1c1917"],
+        blurb: "Three nasty farmers are out to catch Mr. Fox. But Mr. Fox is faster, smarter, and has a brilliant plan. A short, thrilling Roald Dahl classic." },
+      { id: "b08", isbn: "9781534452954", title: "Geeger the Robot Goes to School", author: "Jarrett Lerner", age: "Ages 6–8",
+        palette: ["#94a3b8","#06b6d4"],
+        blurb: "Geeger the robot eats banana peels for breakfast and is about to start his very first day of school. What if the other kids don't like robots?" },
+      { id: "b09", isbn: "9781405272223", title: "The Magic Faraway Tree", author: "Enid Blyton", age: "Ages 7–10",
+        palette: ["#15803d","#a855f7"],
+        blurb: "At the top of a magical tree, a different fantastic land arrives every day. The kids climb up to find Birthday Land, the Land of Topsy-Turvy, the Land of Sweets…" },
     ],
   },
 ];
@@ -892,36 +876,55 @@ function coverGradient(book) {
    Per-user app data (votes, reads, comments) still lives in localStorage,
    keyed by the user's verified Google email. */
 const DATA_KEY = email => "rs.data." + email.toLowerCase();
+// Bump this when the catalog changes — returning users get fresh seeded
+// counts instead of orphaned data tied to deleted book IDs.
+const DATA_VERSION = 2;
 
 function loadData(email) {
-  try { return JSON.parse(localStorage.getItem(DATA_KEY(email)) || "null") || defaultData(); }
-  catch { return defaultData(); }
+  try {
+    const d = JSON.parse(localStorage.getItem(DATA_KEY(email)) || "null");
+    if (d && d.version === DATA_VERSION) return d;
+    // Stale or missing — start fresh, but preserve the user's streak history
+    // (it doesn't reference any book IDs so it's safe to carry over).
+    const fresh = defaultData();
+    if (d && Array.isArray(d.streakDays)) fresh.streakDays = d.streakDays;
+    saveData(email, fresh);
+    return fresh;
+  } catch { return defaultData(); }
 }
 function saveData(email, data) { localStorage.setItem(DATA_KEY(email), JSON.stringify(data)); }
 
 function defaultData() {
   return {
+    version: DATA_VERSION,
     read: {},
     votes: {},
     streakDays: [],         // YYYY-MM-DD strings of days a book was marked read
     comments: {
-      f1: [{ name: "Sara (Gr 2)",  text: "I want tacos now. Best book ever.",          ts: Date.now()-86400000 }],
-      f3: [{ name: "Ben (Gr 1)",   text: "I read it in my pigeon voice. So funny.",    ts: Date.now()-43200000 }],
-      a1: [{ name: "Avery (Gr 2)", text: "The wild things are scary AND cool.",        ts: Date.now()-172800000 }],
-      n1: [{ name: "Marco (Gr K)", text: "I counted all the fruits!",                  ts: Date.now()-10800000 }],
-      h1: [{ name: "Lila (Gr 1)",  text: "Helped me name my feelings when I was mad.", ts: Date.now()-7200000  }],
+      k01: [{ name: "Marco (Gr K)",  text: "I counted all the fruits at the end!",     ts: Date.now()-10800000 }],
+      k06: [{ name: "Sara (Gr K)",   text: "The Gruffalo is scary AND so funny.",      ts: Date.now()-86400000 }],
+      k02: [{ name: "Ava (Gr K)",    text: "Thing 1 and Thing 2 make me laugh.",       ts: Date.now()-21600000 }],
+      a07: [{ name: "Avery (Gr 1)",  text: "The wild things are my favorite.",         ts: Date.now()-172800000 }],
+      a03: [{ name: "Ben (Gr 1)",    text: "Frog and Toad are the best friends ever.", ts: Date.now()-43200000 }],
+      a06: [{ name: "Lila (Gr 1)",   text: "I made a dot too! Mine was purple.",       ts: Date.now()-7200000  }],
+      b07: [{ name: "Owen (Gr 2)",   text: "Mr. Fox tricked them all. So cool.",       ts: Date.now()-3600000  }],
+      b01: [{ name: "Kai (Gr 2)",    text: "I felt kinda bad for the wolf actually.",  ts: Date.now()-25200000 }],
+      b06: [{ name: "Nora (Gr 2)",   text: "I want to make buttered toast now.",       ts: Date.now()-14400000 }],
     },
     counts: {
-      f1: { up: 142, down: 4 },  f2: { up: 198, down: 6 },  f3: { up: 221, down: 3 },
-      f4: { up: 87,  down: 5 },  f5: { up: 156, down: 4 },  f6: { up: 64,  down: 7 },
-      a1: { up: 312, down: 8 },  a2: { up: 175, down: 3 },  a3: { up: 128, down: 2 },
-      a4: { up: 91,  down: 1 },  a5: { up: 134, down: 6 },  a6: { up: 78,  down: 2 },
-      n1: { up: 401, down: 5 },  n2: { up: 263, down: 4 },  n3: { up: 117, down: 2 },
-      n4: { up: 168, down: 3 },  n5: { up: 96,  down: 2 },  n6: { up: 144, down: 3 },
-      s1: { up: 102, down: 2 },  s2: { up: 88,  down: 3 },  s3: { up: 121, down: 1 },
-      s4: { up: 153, down: 6 },  s5: { up: 74,  down: 2 },  s6: { up: 41,  down: 3 },
-      h1: { up: 119, down: 2 },  h2: { up: 86,  down: 4 },  h3: { up: 145, down: 1 },
-      h4: { up: 162, down: 2 },  h5: { up: 93,  down: 1 },  h6: { up: 108, down: 1 },
+      // Grade K
+      k01: { up: 412, down: 5 }, k02: { up: 356, down: 8 }, k03: { up: 198, down: 3 },
+      k04: { up: 142, down: 4 }, k05: { up: 88,  down: 2 }, k06: { up: 284, down: 4 },
+      k07: { up: 176, down: 3 }, k08: { up: 248, down: 6 },
+      // Grade 1
+      a01: { up: 187, down: 3 }, a02: { up: 96,  down: 2 }, a03: { up: 221, down: 3 },
+      a04: { up: 124, down: 5 }, a05: { up: 142, down: 4 }, a06: { up: 165, down: 2 },
+      a07: { up: 312, down: 8 }, a08: { up: 78,  down: 2 }, a09: { up: 156, down: 4 },
+      a10: { up: 134, down: 6 }, a11: { up: 104, down: 3 },
+      // Grade 2
+      b01: { up: 198, down: 6 }, b02: { up: 121, down: 1 }, b03: { up: 162, down: 2 },
+      b04: { up: 84,  down: 1 }, b05: { up: 145, down: 1 }, b06: { up: 174, down: 2 },
+      b07: { up: 263, down: 4 }, b08: { up: 91,  down: 4 }, b09: { up: 153, down: 6 },
     },
   };
 }
@@ -1127,7 +1130,8 @@ function renderStats() {
 
 /* ---------- 8. Hero billboard ---------- */
 function renderHero() {
-  const favorites = ["n1", "a1", "f1", "s1", "h1", "f2"];
+  // Rotating featured picks — one well-loved book from each grade plus a few classics
+  const favorites = ["k01", "k06", "a07", "a03", "b07", "b01"];
   const idx = Math.floor((Date.now() / (1000*60*60*6)) % favorites.length);
   featuredBook = BOOK_BY_ID[favorites[idx]];
 
