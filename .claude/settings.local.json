@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m http.server 8000)",
+      "PowerShell(\\(Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.InterfaceAlias -notmatch 'Loopback' -and $_.IPAddress -notmatch '^169\\\\.' } | Select-Object -First 1\\).IPAddress)",
+      "Bash(vercel --version)",
+      "Bash(vercel whoami *)",
+      "Bash(vercel deploy *)",
+      "Bash(gh --version)",
+      "Bash(gh auth *)",
+      "Bash(git init *)",
+      "Bash(git add *)",
+      "Bash(git -c user.email=\"nick.alsford@trilogy.com\" -c user.name=\"NickA-NTO\" commit -m \"Initial commit: Reading Spine K-2 app with Google OAuth \\(alpha.school\\)\")"
+    ]
+  }
+}

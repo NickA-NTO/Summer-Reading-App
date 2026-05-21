@@ -1,0 +1,1464 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Reading Spine — Alpha School</title>
+<link rel="preconnect" href="https://covers.openlibrary.org" crossorigin />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #06090f;
+    --bg-2: #0e131c;
+    --panel: #131a26;
+    --panel-2: #1a2231;
+    --line: rgba(255,255,255,.08);
+    --line-2: rgba(255,255,255,.14);
+    --ink: #f5f7fb;
+    --muted: #93a0b8;
+    --muted-2: #6b7892;
+    --accent:    #2563eb;   /* Alpha blue */
+    --accent-2:  #3b82f6;   /* Lighter */
+    --accent-3:  #1d4ed8;   /* Deeper */
+    --accent-glow: rgba(37,99,235,.45);
+    --good: #46d369;
+    --bad:  #e87c7c;
+    --warm: #f59e0b;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg); color: var(--ink);
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    letter-spacing: -0.01em;
+  }
+  body {
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(37,99,235,.10), transparent 60%),
+      radial-gradient(900px 500px at -10% 30%, rgba(37,99,235,.05), transparent 60%),
+      var(--bg);
+    min-height: 100vh;
+  }
+  button { font-family: inherit; cursor: pointer; }
+  img { display: block; }
+  a { color: inherit; text-decoration: none; }
+
+  /* =================== Login =================== */
+  #login {
+    position: fixed; inset: 0; z-index: 50;
+    display: grid; place-items: center; padding: 24px;
+    background:
+      radial-gradient(800px 500px at 70% 30%, rgba(37,99,235,.20), transparent 60%),
+      radial-gradient(700px 400px at 20% 80%, rgba(29,78,216,.14), transparent 60%),
+      #04060b;
+  }
+  .login-card {
+    width: min(440px, 100%);
+    background: rgba(10,14,22,.85);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 44px 48px;
+    box-shadow: 0 30px 80px rgba(0,0,0,.6);
+  }
+  .logo-wrap { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; }
+  .logo-mark {
+    width: 34px; height: 34px; border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-3));
+    display: grid; place-items: center;
+    box-shadow: 0 6px 20px var(--accent-glow);
+    color: #fff; font-weight: 900; font-size: 18px;
+  }
+  .logo {
+    font-weight: 800; font-size: 20px; letter-spacing: -0.02em;
+    color: var(--ink);
+  }
+  .logo .by { color: var(--muted); font-weight: 500; font-size: 12px; display: block; letter-spacing: 0.04em; }
+  .login-card h2 {
+    font-size: 26px; font-weight: 700; margin: 8px 0 18px;
+  }
+  .field { margin-bottom: 12px; }
+  .field input {
+    width: 100%;
+    background: #1a2231; color: var(--ink);
+    border: 1px solid var(--line); border-radius: 8px;
+    padding: 14px 16px;
+    font-size: 15px; outline: none;
+    transition: border-color .15s, background .15s;
+  }
+  .field input::placeholder { color: #6b7892; }
+  .field input:focus { background: #1f2839; border-color: var(--accent); }
+  .primary {
+    width: 100%; padding: 13px 18px; margin-top: 10px;
+    border: none; border-radius: 8px;
+    background: linear-gradient(180deg, var(--accent), var(--accent-3));
+    color: #fff; font-weight: 700; font-size: 15px;
+    box-shadow: 0 8px 24px rgba(37,99,235,.35);
+    transition: transform .08s, box-shadow .15s;
+  }
+  .primary:hover { box-shadow: 0 10px 28px rgba(37,99,235,.5); }
+  .primary:active { transform: translateY(1px); }
+  .hint { color: var(--muted); font-size: 13px; margin-top: 18px; line-height: 1.55; }
+  .err { color: #ff7a7a; font-size: 13px; min-height: 18px; margin-top: 10px; }
+
+  /* =================== Header =================== */
+  header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 20;
+    transition: background .25s ease, border-color .25s ease;
+    background: linear-gradient(180deg, rgba(6,9,15,.85) 0%, rgba(6,9,15,0) 100%);
+    border-bottom: 1px solid transparent;
+  }
+  header.scrolled {
+    background: rgba(6,9,15,.88);
+    backdrop-filter: blur(14px);
+    border-bottom-color: var(--line);
+  }
+  .nav {
+    max-width: 1600px; margin: 0 auto;
+    padding: 16px 40px;
+    display: flex; align-items: center; gap: 24px;
+  }
+  .brand-wrap { display: flex; align-items: center; gap: 10px; }
+  .brand-mark {
+    width: 28px; height: 28px; border-radius: 7px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-3));
+    display: grid; place-items: center;
+    color: #fff; font-weight: 900; font-size: 14px;
+    box-shadow: 0 4px 14px var(--accent-glow);
+  }
+  .brand {
+    font-weight: 800; font-size: 17px; letter-spacing: -0.02em;
+    line-height: 1;
+  }
+  .brand .sub { display: block; color: var(--muted); font-size: 10px; font-weight: 500; letter-spacing: 0.1em; margin-top: 3px; }
+  .nav-links { display: flex; gap: 22px; font-size: 14px; }
+  .nav-links a {
+    color: var(--muted); opacity: 1;
+    transition: color .15s;
+    position: relative; padding: 4px 0;
+  }
+  .nav-links a:hover { color: var(--ink); }
+  .nav-links a.active { color: var(--ink); font-weight: 600; }
+  .nav-links a.active::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: -6px;
+    height: 2px; border-radius: 2px;
+    background: var(--accent);
+  }
+  .spacer { flex: 1; }
+
+  /* TTS toggle switch */
+  .tts-wrap {
+    display: flex; align-items: center; gap: 9px;
+    font-size: 11px; color: var(--muted);
+    user-select: none;
+    background: rgba(255,255,255,.04);
+    padding: 6px 10px 6px 12px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+  }
+  .tts-wrap .lbl { font-weight: 600; letter-spacing: 0.02em; font-size: 12px; color: #c4cde0; }
+  .switch {
+    position: relative; width: 38px; height: 22px;
+    background: #303a4d; border-radius: 999px;
+    transition: background .2s;
+    border: none; padding: 0;
+  }
+  .switch::after {
+    content: ""; position: absolute; top: 2px; left: 2px;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: #fff; transition: transform .2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,.4);
+  }
+  .switch[aria-checked="true"] { background: var(--accent); }
+  .switch[aria-checked="true"]::after { transform: translateX(16px); }
+  .switch:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+
+  .avatar-wrap {
+    display: flex; align-items: center; gap: 8px;
+    cursor: pointer; position: relative;
+    padding: 4px 4px 4px 10px;
+    border-radius: 999px;
+    transition: background .15s;
+  }
+  .avatar-wrap:hover { background: rgba(255,255,255,.04); }
+  .avatar {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent-3));
+    color: #fff; font-weight: 700;
+    display: grid; place-items: center; font-size: 13px;
+  }
+  .caret { color: var(--muted); font-size: 9px; }
+  .menu {
+    position: absolute; right: 0; top: calc(100% + 10px);
+    background: rgba(15,20,32,.96);
+    border: 1px solid var(--line);
+    backdrop-filter: blur(14px);
+    border-radius: 10px; padding: 10px 0;
+    min-width: 220px; display: none;
+    box-shadow: 0 20px 50px rgba(0,0,0,.6);
+  }
+  .menu.open { display: block; }
+  .menu .who-info { padding: 8px 16px 12px; border-bottom: 1px solid var(--line); }
+  .menu .who-info .n { font-weight: 600; font-size: 14px; }
+  .menu .who-info .e { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .menu button {
+    display: block; width: 100%; text-align: left;
+    background: transparent; color: var(--ink); border: none;
+    padding: 10px 16px; font-size: 13px;
+  }
+  .menu button:hover { background: rgba(255,255,255,.06); }
+
+  /* =================== Stats strip (Alpha differentiator) =================== */
+  .stats-strip {
+    position: sticky; top: 64px; z-index: 15;
+    backdrop-filter: blur(10px);
+    background: rgba(6,9,15,.7);
+    border-bottom: 1px solid var(--line);
+  }
+  .stats-inner {
+    max-width: 1600px; margin: 0 auto;
+    padding: 10px 40px;
+    display: flex; align-items: center; gap: 22px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .stats-inner::-webkit-scrollbar { display: none; }
+  .stat {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; color: var(--muted);
+    white-space: nowrap;
+  }
+  .stat .v {
+    color: var(--ink); font-weight: 700;
+    background: linear-gradient(180deg, var(--ink), var(--muted));
+    -webkit-background-clip: text; background-clip: text;
+  }
+  .stat .ic {
+    width: 24px; height: 24px; border-radius: 6px;
+    background: rgba(37,99,235,.16);
+    color: var(--accent-2);
+    display: grid; place-items: center; font-size: 12px;
+  }
+  .chip-row {
+    margin-left: auto;
+    display: flex; gap: 6px; flex-wrap: nowrap;
+  }
+  .chip {
+    background: rgba(255,255,255,.05);
+    border: 1px solid var(--line);
+    color: var(--muted);
+    border-radius: 999px;
+    padding: 5px 12px;
+    font-size: 12px; font-weight: 500;
+    cursor: pointer;
+    transition: all .15s;
+    white-space: nowrap;
+  }
+  .chip:hover { color: var(--ink); border-color: var(--line-2); }
+  .chip.active {
+    background: rgba(37,99,235,.18);
+    border-color: var(--accent);
+    color: #c9d8ff;
+  }
+
+  /* =================== Hero — split layout =================== */
+  .hero {
+    max-width: 1600px; margin: 0 auto;
+    padding: 110px 40px 40px;
+    position: relative;
+  }
+  .hero-card {
+    position: relative;
+    border-radius: 20px;
+    background:
+      linear-gradient(135deg, rgba(37,99,235,.10) 0%, rgba(10,14,22,.6) 60%),
+      var(--panel);
+    border: 1px solid var(--line);
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    min-height: 440px;
+  }
+  .hero-content {
+    padding: 44px 48px;
+    display: flex; flex-direction: column; justify-content: center;
+    position: relative; z-index: 2;
+  }
+  .hero-eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--accent-2);
+    background: rgba(37,99,235,.12);
+    padding: 6px 12px; border-radius: 999px;
+    border: 1px solid rgba(37,99,235,.3);
+    width: fit-content;
+  }
+  .hero-eyebrow::before {
+    content: "★"; color: var(--warm); font-size: 12px;
+  }
+  .hero h1 {
+    margin: 18px 0 14px;
+    font-size: clamp(32px, 4vw, 48px);
+    font-weight: 800; letter-spacing: -0.03em;
+    line-height: 1.05;
+    max-width: 540px;
+  }
+  .hero-meta {
+    display: flex; align-items: center; gap: 14px;
+    color: var(--muted); font-size: 14px; margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+  .hero-meta strong { color: var(--ink); font-weight: 600; }
+  .dot-sep { width: 3px; height: 3px; background: var(--muted-2); border-radius: 50%; }
+  .hero p.blurb-text {
+    margin: 0; max-width: 520px;
+    font-size: 15px; line-height: 1.6;
+    color: #c4cde0;
+  }
+  .hero-actions { margin-top: 24px; display: flex; gap: 10px; flex-wrap: wrap; }
+  .btn {
+    border: none; border-radius: 10px; font-weight: 600; font-size: 14px;
+    padding: 12px 22px; display: inline-flex; align-items: center; gap: 8px;
+    transition: transform .08s, background .15s, box-shadow .15s;
+  }
+  .btn:active { transform: translateY(1px); }
+  .btn-primary {
+    background: linear-gradient(180deg, var(--accent), var(--accent-3));
+    color: #fff;
+    box-shadow: 0 8px 24px var(--accent-glow);
+  }
+  .btn-primary:hover { box-shadow: 0 10px 30px rgba(37,99,235,.55); }
+  .btn-secondary {
+    background: rgba(255,255,255,.08); color: #fff;
+    border: 1px solid var(--line);
+  }
+  .btn-secondary:hover { background: rgba(255,255,255,.14); }
+
+  .hero-visual {
+    position: relative;
+    display: grid; place-items: center;
+    padding: 32px;
+    background:
+      radial-gradient(60% 80% at 60% 40%, rgba(37,99,235,.22), transparent 70%),
+      linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,0));
+  }
+  .hero-shelf-glow {
+    position: absolute;
+    bottom: 24%; left: 50%; transform: translateX(-50%);
+    width: 70%; height: 16px; border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(37,99,235,.5), transparent);
+    filter: blur(8px);
+  }
+  .hero-cover {
+    position: relative;
+    width: min(260px, 60%);
+    aspect-ratio: 2 / 3;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow:
+      0 30px 60px rgba(0,0,0,.55),
+      0 0 0 1px rgba(255,255,255,.06),
+      -14px 0 20px -10px rgba(37,99,235,.4);
+    transform: perspective(900px) rotateY(-10deg);
+    transition: transform .35s ease;
+  }
+  .hero-cover:hover { transform: perspective(900px) rotateY(-4deg) scale(1.02); }
+  .hero-cover img {
+    width: 100%; height: 100%; object-fit: contain;
+    background: linear-gradient(180deg, #1a2231 0%, #0f1623 100%);
+  }
+  .hero-cover .fb {
+    width: 100%; height: 100%;
+    display: grid; place-items: center; padding: 18px;
+    text-align: center; color: #fff;
+  }
+  .hero-cover .fb .t { font-size: 20px; font-weight: 800; line-height: 1.1; }
+  .hero-cover .fb .a { font-size: 12px; margin-top: 8px; opacity: .85; }
+
+  @media (max-width: 880px) {
+    .hero-card { grid-template-columns: 1fr; }
+    .hero-content { padding: 28px; }
+    .hero-visual { padding: 0 0 36px; }
+    .hero-cover { width: 180px; transform: perspective(900px) rotateY(0); }
+  }
+
+  /* =================== Rows =================== */
+  main { position: relative; z-index: 1; padding-bottom: 80px; }
+  .row { max-width: 1600px; margin: 0 auto; padding: 28px 40px 0; scroll-margin-top: 130px; }
+  .row-head {
+    display: flex; align-items: center; gap: 14px; margin-bottom: 14px;
+  }
+  .row-title {
+    font-size: 20px; font-weight: 700; margin: 0;
+    letter-spacing: -0.015em;
+  }
+  .row-sub { color: var(--muted); font-size: 13px; }
+  .row-progress {
+    margin-left: auto;
+    display: flex; align-items: center; gap: 10px;
+    font-size: 12px; color: var(--muted);
+  }
+  .row-progress .bar {
+    width: 80px; height: 6px; border-radius: 3px;
+    background: rgba(255,255,255,.06); overflow: hidden;
+  }
+  .row-progress .bar > i {
+    display: block; height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    border-radius: 3px; transition: width .3s ease;
+  }
+
+  .scroller-wrap { position: relative; }
+  .scroller {
+    display: grid; grid-auto-flow: column;
+    grid-auto-columns: clamp(150px, 14vw, 210px);
+    gap: 14px;
+    overflow-x: auto; overflow-y: visible;
+    padding: 10px 4px 30px;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .scroller::-webkit-scrollbar { display: none; }
+
+  .card {
+    scroll-snap-align: start;
+    position: relative;
+    border-radius: 12px; overflow: hidden;
+    cursor: pointer;
+    transition: transform .25s cubic-bezier(.2,.7,.3,1), box-shadow .25s;
+    background: var(--panel);
+    border: 1px solid var(--line);
+  }
+  .card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 20px 40px rgba(0,0,0,.55), 0 0 0 1px rgba(37,99,235,.4);
+    z-index: 5;
+  }
+  .card:hover .card-info { opacity: 1; transform: translateY(0); }
+  .card:hover .quick-read { opacity: 1; transform: translateY(0); }
+  .card-img {
+    aspect-ratio: 2 / 3; width: 100%;
+    object-fit: contain;
+    background: linear-gradient(180deg, #1a2231 0%, #0f1623 100%);
+    display: block;
+  }
+  .card-fallback {
+    aspect-ratio: 2 / 3; width: 100%;
+    display: grid; place-items: center; padding: 16px; text-align: center;
+    color: #fff;
+  }
+  .card-fallback .fb-title {
+    font-size: 16px; font-weight: 800; line-height: 1.1;
+    text-shadow: 0 2px 8px rgba(0,0,0,.5);
+  }
+  .card-fallback .fb-author {
+    margin-top: 10px; font-size: 11px; opacity: .85;
+  }
+  .badge {
+    position: absolute; top: 8px; left: 8px; z-index: 2;
+    background: var(--accent); color: #fff;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 4px 8px; border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(37,99,235,.4);
+  }
+  .badge.read { background: rgba(70,211,105,.95); box-shadow: 0 4px 12px rgba(70,211,105,.35); }
+  .badge.hot  { background: var(--warm); box-shadow: 0 4px 12px rgba(245,158,11,.35); }
+  .card-info {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(180deg, transparent, rgba(0,0,0,.95) 60%);
+    padding: 30px 12px 12px;
+    opacity: 0; transform: translateY(6px);
+    transition: opacity .25s, transform .25s;
+    pointer-events: none;
+  }
+  .card-info .t { font-size: 13px; font-weight: 700; line-height: 1.2; margin: 0; }
+  .card-info .stats {
+    margin-top: 6px; display: flex; gap: 10px;
+    font-size: 11px; color: #c5cee0;
+  }
+  .card-info .stats .up   { color: var(--good); }
+  .card-info .stats .down { color: var(--bad); }
+
+  /* =================== Modal =================== */
+  .modal-backdrop {
+    position: fixed; inset: 0; z-index: 30;
+    background: rgba(2,5,11,.85);
+    backdrop-filter: blur(8px);
+    display: none; align-items: flex-start; justify-content: center;
+    padding: 40px 22px; overflow-y: auto;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    width: min(900px, 100%);
+    background: var(--bg-2); color: var(--ink);
+    border-radius: 16px; overflow: hidden;
+    border: 1px solid var(--line);
+    box-shadow: 0 40px 100px rgba(0,0,0,.7);
+    position: relative;
+  }
+  .modal-top {
+    position: relative;
+    padding: 36px 40px 28px;
+    background:
+      radial-gradient(70% 100% at 90% 0%, rgba(37,99,235,.18), transparent 60%),
+      linear-gradient(180deg, var(--panel) 0%, var(--bg-2) 100%);
+    display: grid; grid-template-columns: 180px 1fr; gap: 28px; align-items: start;
+    border-bottom: 1px solid var(--line);
+  }
+  .modal-cover-img {
+    width: 180px; aspect-ratio: 2/3; object-fit: contain;
+    background: linear-gradient(180deg, #1a2231 0%, #0f1623 100%);
+    border-radius: 8px; box-shadow: 0 18px 40px rgba(0,0,0,.6);
+    border: 1px solid var(--line);
+  }
+  .modal-cover-fallback {
+    width: 180px; aspect-ratio: 2/3; border-radius: 8px;
+    display: grid; place-items: center; padding: 16px; text-align: center;
+    color: #fff; box-shadow: 0 18px 40px rgba(0,0,0,.6);
+  }
+  .modal-cover-fallback .fb-title { font-size: 18px; font-weight: 800; line-height: 1.1; }
+  .modal-cover-fallback .fb-author { font-size: 11px; opacity: .85; margin-top: 8px; }
+  .modal-title {
+    margin: 0 0 6px; font-size: clamp(22px, 3vw, 30px);
+    font-weight: 800; letter-spacing: -0.02em;
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  }
+  .modal-author { margin: 0 0 14px; color: var(--muted); font-size: 14px; }
+  .modal-row1 { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .pill {
+    background: rgba(255,255,255,.06); border: 1px solid var(--line);
+    padding: 5px 10px; border-radius: 999px; font-size: 12px;
+    color: var(--muted);
+  }
+  .pill.cat { color: var(--accent-2); border-color: rgba(37,99,235,.3); background: rgba(37,99,235,.1); }
+  .modal-body { padding: 22px 40px 28px; }
+  .blurb { font-size: 16px; line-height: 1.6; color: #d5dbe8; margin: 0 0 22px; max-width: 720px; }
+
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+  .icon-btn {
+    background: rgba(255,255,255,.06);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    border-radius: 999px; padding: 9px 16px;
+    font-size: 13px; font-weight: 500;
+    display: inline-flex; align-items: center; gap: 7px;
+    transition: background .15s, border-color .15s, color .15s;
+  }
+  .icon-btn:hover:not(:disabled) { background: rgba(255,255,255,.12); border-color: var(--line-2); }
+  .icon-btn:disabled { opacity: .4; cursor: not-allowed; }
+  .icon-btn.up.active { background: rgba(70,211,105,.14); border-color: var(--good); color: var(--good); }
+  .icon-btn.down.active { background: rgba(232,124,124,.14); border-color: var(--bad); color: var(--bad); }
+  .icon-btn.read.active {
+    background: linear-gradient(180deg, var(--accent), var(--accent-3));
+    color: #fff; border-color: transparent;
+    box-shadow: 0 6px 16px var(--accent-glow);
+  }
+  .speak-mini {
+    background: transparent; border: 1px solid var(--line);
+    color: var(--muted); padding: 4px 10px; border-radius: 999px;
+    font-size: 11px; font-weight: 500;
+  }
+  .speak-mini:hover { color: var(--ink); border-color: var(--line-2); }
+  .note { font-size: 12px; color: var(--muted); margin-bottom: 18px; }
+
+  .comments h3 {
+    margin: 24px 0 12px; font-size: 11px; font-weight: 700;
+    color: var(--muted); text-transform: uppercase; letter-spacing: 0.12em;
+  }
+  .comment-input { display: flex; gap: 8px; }
+  .comment-input input {
+    flex: 1; background: var(--panel); color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 10px; padding: 12px 14px; font-size: 14px; outline: none;
+    transition: border-color .15s, background .15s;
+  }
+  .comment-input input:focus { border-color: var(--accent); background: var(--panel-2); }
+  .comment-input input::placeholder { color: var(--muted-2); }
+  .comment-input button {
+    background: linear-gradient(180deg, var(--accent), var(--accent-3));
+    color: #fff; border: none; border-radius: 10px;
+    font-weight: 600; padding: 0 18px; font-size: 14px;
+    box-shadow: 0 6px 14px var(--accent-glow);
+  }
+  .comment-input button:disabled { opacity: .4; cursor: not-allowed; box-shadow: none; }
+  .comment-list { list-style: none; padding: 0; margin: 14px 0 0; display: grid; gap: 8px; }
+  .comment {
+    background: rgba(255,255,255,.04); padding: 12px 14px; border-radius: 10px;
+    font-size: 14px; line-height: 1.4;
+    border: 1px solid var(--line);
+  }
+  .comment .who-c {
+    font-size: 11px; color: var(--muted); margin-bottom: 4px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .comment .who-c .dot { width: 3px; height: 3px; border-radius: 50%; background: var(--muted); }
+  .empty { color: var(--muted); font-size: 13px; padding: 8px 0; }
+  .close {
+    position: absolute; top: 16px; right: 16px; z-index: 5;
+    background: rgba(0,0,0,.55); color: #fff; border: 1px solid var(--line);
+    width: 34px; height: 34px; border-radius: 50%;
+    font-size: 16px; font-weight: 600;
+    display: grid; place-items: center;
+    transition: background .15s;
+  }
+  .close:hover { background: rgba(0,0,0,.85); }
+
+  @media (max-width: 720px) {
+    .nav { padding: 14px 18px; }
+    .nav-links { display: none; }
+    .stats-inner { padding: 10px 18px; gap: 14px; }
+    .hero { padding: 100px 18px 28px; }
+    .hero-content { padding: 24px; }
+    .row { padding-left: 18px; padding-right: 18px; }
+    .modal-top { grid-template-columns: 110px 1fr; gap: 16px; padding: 22px; }
+    .modal-cover-img, .modal-cover-fallback { width: 110px; }
+    .modal-body { padding: 18px 22px 22px; }
+    .login-card { padding: 32px 24px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ Auth error banner (shown only if /?auth_error=...) ============ -->
+<div id="authError" style="display:none;position:fixed;top:0;left:0;right:0;z-index:60;
+     background:#7f1d1d;color:#fff;padding:14px 18px;text-align:center;font-size:14px;
+     box-shadow:0 4px 20px rgba(0,0,0,.4)">
+  <span id="authErrorText"></span>
+  <button id="authErrorRetry" style="margin-left:14px;background:#fff;color:#7f1d1d;
+          border:none;padding:6px 14px;border-radius:6px;font-weight:600;cursor:pointer">
+    Try again
+  </button>
+</div>
+
+<!-- ============ Initial loading screen (before /api/auth/me responds) ============ -->
+<div id="bootLoader" style="position:fixed;inset:0;z-index:55;display:grid;
+     place-items:center;background:#06090f;color:#93a0b8;font-size:14px;
+     transition:opacity .25s">
+  <div style="text-align:center">
+    <div style="width:48px;height:48px;margin:0 auto 16px;border-radius:12px;
+         background:linear-gradient(135deg,#2563eb,#1d4ed8);display:grid;
+         place-items:center;color:#fff;font-weight:900;font-size:24px;
+         box-shadow:0 8px 24px rgba(37,99,235,.45)">α</div>
+    <div style="font-weight:600;color:#f5f7fb;margin-bottom:4px">Reading Spine</div>
+    <div>Loading your library…</div>
+  </div>
+</div>
+
+<!-- ============ Header ============ -->
+<header id="appHeader">
+  <div class="nav">
+    <div class="brand-wrap">
+      <div class="brand-mark">α</div>
+      <div class="brand">Reading Spine<span class="sub">ALPHA SCHOOL</span></div>
+    </div>
+    <nav class="nav-links">
+      <a href="#" class="active">Home</a>
+      <a href="#">My List</a>
+      <a href="#">Browse</a>
+    </nav>
+    <div class="spacer"></div>
+    <div class="tts-wrap" title="Read text aloud">
+      <span class="lbl">Text to Speech</span>
+      <button id="ttsSwitch" class="switch" role="switch" aria-checked="true" aria-label="Toggle text to speech"></button>
+    </div>
+    <div class="avatar-wrap" id="avatarWrap">
+      <div class="avatar" id="avatar">?</div>
+      <span class="caret">▼</span>
+      <div class="menu" id="userMenu">
+        <div class="who-info">
+          <div class="n" id="whoName">Reader</div>
+          <div class="e" id="whoEmail">—</div>
+        </div>
+        <button id="signout">Sign out</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ============ Stats / category strip (differentiator) ============ -->
+<div class="stats-strip">
+  <div class="stats-inner">
+    <div class="stat"><div class="ic">📚</div><span class="v" id="statRead">0</span><span>books read</span></div>
+    <div class="stat"><div class="ic">💬</div><span class="v" id="statComments">0</span><span>reviews</span></div>
+    <div class="stat"><div class="ic">🔥</div><span class="v" id="statStreak">0</span><span>day streak</span></div>
+    <div class="chip-row" id="chipRow"></div>
+  </div>
+</div>
+
+<!-- ============ Hero billboard ============ -->
+<section class="hero">
+  <div class="hero-card">
+    <div class="hero-content">
+      <span class="hero-eyebrow" id="heroEyebrow">PICK OF THE WEEK</span>
+      <h1 id="heroTitle">—</h1>
+      <div class="hero-meta" id="heroMeta">—</div>
+      <p class="blurb-text" id="heroBlurb">—</p>
+      <div class="hero-actions">
+        <button class="btn btn-primary" id="heroOpen">📖  Read More</button>
+        <button class="btn btn-secondary" id="heroSpeak">🔊  Listen</button>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="hero-shelf-glow"></div>
+      <div class="hero-cover" id="heroCover"></div>
+    </div>
+  </div>
+</section>
+
+<main id="rows"></main>
+
+<!-- ============ Detail modal ============ -->
+<div class="modal-backdrop" id="modal" role="dialog" aria-modal="true">
+  <div class="modal" role="document">
+    <button class="close" id="closeModal" aria-label="Close">✕</button>
+    <div class="modal-top">
+      <div id="modalCoverHolder"></div>
+      <div>
+        <h2 class="modal-title">
+          <span id="modalTitleText"></span>
+          <button class="speak-mini" id="speakTitle">🔊 Title</button>
+        </h2>
+        <p class="modal-author" id="modalAuthor"></p>
+        <div class="modal-row1">
+          <span class="pill" id="modalAge">—</span>
+          <span class="pill cat" id="modalCat">—</span>
+          <span class="pill" id="modalRating">—</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-body">
+      <p class="blurb" id="modalBlurb"></p>
+      <div class="actions">
+        <button class="icon-btn read" id="readToggle">＋ I read this</button>
+        <button class="icon-btn up"   id="voteUp" disabled>👍 <span id="upCount">0</span></button>
+        <button class="icon-btn down" id="voteDown" disabled>👎 <span id="downCount">0</span></button>
+        <button class="icon-btn" id="speakBlurb">🔊 Read blurb aloud</button>
+      </div>
+      <div class="note" id="votedOnly">Tap "I read this" to leave a vote or comment.</div>
+      <div class="comments">
+        <h3>What other readers said</h3>
+        <ul class="comment-list" id="commentList"></ul>
+        <div class="comment-input" style="margin-top:14px">
+          <input id="commentInput" type="text" maxlength="200" placeholder="Share what you thought…" disabled />
+          <button id="commentSend" disabled>Post</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---------------------------------------------------------------------------
+   Reading Spine — Alpha School edition
+   - Blue palette, split hero, stats strip, category quick-nav chips
+--------------------------------------------------------------------------- */
+
+/* ---------- 1. Real K-2 book catalog ---------- */
+const CATEGORIES = [
+  {
+    id: "funny", title: "Funny", sub: "Books that make you laugh", icon: "😂",
+    books: [
+      { id: "f1", isbn: "9780803736801", title: "Dragons Love Tacos", author: "Adam Rubin", age: "Ages 4–8",
+        palette: ["#ff6b35","#f7c948"],
+        blurb: "Dragons love tacos — they love chicken tacos, beef tacos, big tacos, and teeny tiny tacos. But whatever you do, never give a dragon spicy salsa." },
+      { id: "f2", isbn: "9780399255373", title: "The Day the Crayons Quit", author: "Drew Daywalt", age: "Ages 3–7",
+        palette: ["#ef4444","#f59e0b"],
+        blurb: "When Duncan opens his crayon box, he finds a stack of letters. The crayons have had enough — and each one has something to say." },
+      { id: "f3", isbn: "9780786819881", title: "Don't Let the Pigeon Drive the Bus!", author: "Mo Willems", age: "Ages 2–6",
+        palette: ["#3b82f6","#fbbf24"],
+        blurb: "The bus driver has to leave for a bit — and the Pigeon would really, really like to drive the bus. Will you let him?" },
+      { id: "f4", isbn: "9780689832130", title: "Click, Clack, Moo: Cows That Type", author: "Doreen Cronin", age: "Ages 4–8",
+        palette: ["#dc2626","#1e293b"],
+        blurb: "Farmer Brown's cows find a typewriter, and now they have demands. Soon the hens want in too. A barnyard labor dispute begins." },
+      { id: "f5", isbn: "9780061906220", title: "Pete the Cat: I Love My White Shoes", author: "Eric Litwin", age: "Ages 4–8",
+        palette: ["#1e3a8a","#f8fafc"],
+        blurb: "Pete the cat is walking down the street in his brand-new white shoes. What happens when they get a little muddy? Pete keeps singing." },
+      { id: "f6", isbn: "9780545402873", title: "There Was an Old Lady Who Swallowed a Fly", author: "Lucille Colandro", age: "Ages 4–7",
+        palette: ["#16a34a","#fbbf24"],
+        blurb: "She swallowed a fly. We don't know why. But she keeps swallowing bigger and bigger things, and kids will love guessing what comes next." },
+    ],
+  },
+  {
+    id: "adventure", title: "Adventures", sub: "Big trips and brave kids", icon: "🗺️",
+    books: [
+      { id: "a1", isbn: "9780064431781", title: "Where the Wild Things Are", author: "Maurice Sendak", age: "Ages 4–8",
+        palette: ["#0f766e","#fde68a"],
+        blurb: "Max is sent to bed without supper, and a forest grows in his room. He sails off to where the wild things are — and becomes their king." },
+      { id: "a2", isbn: "9780670867332", title: "The Snowy Day", author: "Ezra Jack Keats", age: "Ages 3–6",
+        palette: ["#bae6fd","#1e3a8a"],
+        blurb: "Peter wakes up to a city covered in snow. He makes tracks, builds a snowman, and tries to save a snowball in his pocket for tomorrow." },
+      { id: "a3", isbn: "9780399257742", title: "Last Stop on Market Street", author: "Matt de la Peña", age: "Ages 3–7",
+        palette: ["#f97316","#7c2d12"],
+        blurb: "Every Sunday CJ and his nana ride the bus across town. CJ asks why they don't have a car — and Nana shows him all the beautiful things he's been missing." },
+      { id: "a4", isbn: "9780763660536", title: "Journey", author: "Aaron Becker", age: "Ages 4–8",
+        palette: ["#dc2626","#7c3aed"],
+        blurb: "A lonely girl draws a magic door on her bedroom wall and steps through into a fantastical world. A wordless adventure full of wonder." },
+      { id: "a5", isbn: "9780689815829", title: "We're Going on a Bear Hunt", author: "Michael Rosen", age: "Ages 3–7",
+        palette: ["#15803d","#92400e"],
+        blurb: "Swishy swashy! Splash splosh! A family stomps, splashes, and squelches through long grass, a river, and mud to find a bear." },
+      { id: "a6", isbn: "9780399242861", title: "How to Catch a Star", author: "Oliver Jeffers", age: "Ages 3–7",
+        palette: ["#1e293b","#fbbf24"],
+        blurb: "A boy loves stars so much he decides to catch one. He tries jumping, climbing, and even sailing out to sea. A quiet little classic." },
+    ],
+  },
+  {
+    id: "animals", title: "Animals", sub: "Furry, scaly, and feathery friends", icon: "🐾",
+    books: [
+      { id: "n1", isbn: "9780399226908", title: "The Very Hungry Caterpillar", author: "Eric Carle", age: "Ages 2–5",
+        palette: ["#22c55e","#facc15"],
+        blurb: "In the light of the moon, a little egg lay on a leaf. The caterpillar that hatches is very, very hungry — and what he eats next is delicious." },
+      { id: "n2", isbn: "9780805047905", title: "Brown Bear, Brown Bear, What Do You See?", author: "Bill Martin Jr.", age: "Ages 2–5",
+        palette: ["#92400e","#fbbf24"],
+        blurb: "Brown Bear sees a red bird. Red bird sees a yellow duck. A rhythmic chain of colors and animals that kids learn by heart." },
+      { id: "n3", isbn: "9780545392556", title: "Giraffes Can't Dance", author: "Giles Andreae", age: "Ages 3–7",
+        palette: ["#facc15","#f97316"],
+        blurb: "Gerald is a tall, awkward giraffe who can't dance — until a wise cricket teaches him that sometimes you just need a different song." },
+      { id: "n4", isbn: "9780060245863", title: "If You Give a Mouse a Cookie", author: "Laura Numeroff", age: "Ages 4–8",
+        palette: ["#a16207","#fde68a"],
+        blurb: "Give a mouse a cookie, and he'll ask for a glass of milk. Then a straw. Then a napkin. A funny chain of one-thing-leads-to-another." },
+      { id: "n5", isbn: "9780152802172", title: "Stellaluna", author: "Janell Cannon", age: "Ages 4–8",
+        palette: ["#1e1b4b","#a78bfa"],
+        blurb: "Knocked from her mother's safe embrace, a baby fruit bat lands in a bird's nest and is raised like a bird — until she finds her own family again." },
+      { id: "n6", isbn: "9781558580091", title: "The Rainbow Fish", author: "Marcus Pfister", age: "Ages 3–6",
+        palette: ["#0ea5e9","#a78bfa"],
+        blurb: "The most beautiful fish in the ocean discovers that being beautiful isn't enough. A gentle story about sharing what makes you special." },
+    ],
+  },
+  {
+    id: "science", title: "Science", sub: "How things work", icon: "🔬",
+    books: [
+      { id: "s1", isbn: "9781419721373", title: "Ada Twist, Scientist", author: "Andrea Beaty", age: "Ages 5–8",
+        palette: ["#0891b2","#fbbf24"],
+        blurb: "Ada Twist asks questions about everything — why? what? how? When a stinky smell takes over the house, she launches an experiment." },
+      { id: "s2", isbn: "9781419708459", title: "Rosie Revere, Engineer", author: "Andrea Beaty", age: "Ages 5–8",
+        palette: ["#be185d","#fde68a"],
+        blurb: "Rosie loves to invent — but she's afraid to fail. Her great-great-aunt Rose shows her that the only true failure is quitting." },
+      { id: "s3", isbn: "9781938298073", title: "What Do You Do With an Idea?", author: "Kobi Yamada", age: "Ages 5–8",
+        palette: ["#fbbf24","#f59e0b"],
+        blurb: "A boy has an idea — a small, strange one. He's not sure what to do with it. But the more he tends to it, the bigger it grows." },
+      { id: "s4", isbn: "9780590407601", title: "The Magic School Bus Inside the Earth", author: "Joanna Cole", age: "Ages 6–9",
+        palette: ["#dc2626","#fde68a"],
+        blurb: "Ms. Frizzle's class boards the bus and drives straight down into the Earth, learning about rocks, layers, and volcanoes along the way." },
+      { id: "s5", isbn: "9780810911062", title: "Iggy Peck, Architect", author: "Andrea Beaty", age: "Ages 5–8",
+        palette: ["#0f766e","#fde68a"],
+        blurb: "Iggy has been building since he was two — towers from diapers, castles from pancakes. When his class gets stranded, his building skills save the day." },
+      { id: "s6", isbn: "9780545324427", title: "Look Up! Bird-Watching in Your Own Backyard", author: "Annette LeBlanc Cate", age: "Ages 6–9",
+        palette: ["#16a34a","#0ea5e9"],
+        blurb: "A funny, friendly intro to birding for kids — anywhere they live, with whatever's outside the window. Sparrows count!" },
+    ],
+  },
+  {
+    id: "feelings", title: "Feelings", sub: "Stories about how we feel", icon: "💙",
+    books: [
+      { id: "h1", isbn: "9780316450010", title: "The Color Monster", author: "Anna Llenas", age: "Ages 3–6",
+        palette: ["#1e3a8a","#fbbf24"],
+        blurb: "The Color Monster has all his feelings mixed up. A small friend helps him sort them out, one color at a time." },
+      { id: "h2", isbn: "9780439598385", title: "A Bad Case of Stripes", author: "David Shannon", age: "Ages 5–8",
+        palette: ["#dc2626","#fbbf24"],
+        blurb: "Camilla Cream tries so hard to fit in that she breaks out in stripes — then spots, then stars. A wild story about being yourself." },
+      { id: "h3", isbn: "9780978507510", title: "Have You Filled a Bucket Today?", author: "Carol McCloud", age: "Ages 4–9",
+        palette: ["#0ea5e9","#fde68a"],
+        blurb: "Everyone carries an invisible bucket. Kind acts fill other people's buckets — and yours, too. A favorite in K-2 classrooms." },
+      { id: "h4", isbn: "9781626726826", title: "After the Fall", author: "Dan Santat", age: "Ages 4–8",
+        palette: ["#1e3a8a","#f59e0b"],
+        blurb: "After his great fall, Humpty Dumpty is scared of heights. A beautiful story about getting back up — even when you're afraid." },
+      { id: "h5", isbn: "9781582464503", title: "The Invisible Boy", author: "Trudy Ludwig", age: "Ages 6–9",
+        palette: ["#9ca3af","#dbeafe"],
+        blurb: "Brian feels invisible at school — until a new student notices him. A quiet story about inclusion and the power of being seen." },
+      { id: "h6", isbn: "9780735229358", title: "The Rabbit Listened", author: "Cori Doerrfeld", age: "Ages 3–6",
+        palette: ["#fda4af","#fde68a"],
+        blurb: "When something sad happens to Taylor, all the animals know exactly what Taylor should do. But Rabbit just sits and listens." },
+    ],
+  },
+];
+
+const ALL_BOOKS = CATEGORIES.flatMap(c => c.books.map(b => ({ ...b, category: c.title, categoryId: c.id })));
+const BOOK_BY_ID = Object.fromEntries(ALL_BOOKS.map(b => [b.id, b]));
+
+function coverUrl(book) {
+  return `https://covers.openlibrary.org/b/isbn/${book.isbn}-L.jpg?default=false`;
+}
+function coverGradient(book) {
+  return `linear-gradient(135deg, ${book.palette[0]}, ${book.palette[1]})`;
+}
+
+/* ---------- 2. Persistence ----------
+   Session lives server-side as an httpOnly cookie (set by /api/auth/callback).
+   Per-user app data (votes, reads, comments) still lives in localStorage,
+   keyed by the user's verified Google email. */
+const DATA_KEY = email => "rs.data." + email.toLowerCase();
+
+function loadData(email) {
+  try { return JSON.parse(localStorage.getItem(DATA_KEY(email)) || "null") || defaultData(); }
+  catch { return defaultData(); }
+}
+function saveData(email, data) { localStorage.setItem(DATA_KEY(email), JSON.stringify(data)); }
+
+function defaultData() {
+  return {
+    read: {},
+    votes: {},
+    streakDays: [],         // YYYY-MM-DD strings of days a book was marked read
+    comments: {
+      f1: [{ name: "Sara (Gr 2)",  text: "I want tacos now. Best book ever.",          ts: Date.now()-86400000 }],
+      f3: [{ name: "Ben (Gr 1)",   text: "I read it in my pigeon voice. So funny.",    ts: Date.now()-43200000 }],
+      a1: [{ name: "Avery (Gr 2)", text: "The wild things are scary AND cool.",        ts: Date.now()-172800000 }],
+      n1: [{ name: "Marco (Gr K)", text: "I counted all the fruits!",                  ts: Date.now()-10800000 }],
+      h1: [{ name: "Lila (Gr 1)",  text: "Helped me name my feelings when I was mad.", ts: Date.now()-7200000  }],
+    },
+    counts: {
+      f1: { up: 142, down: 4 },  f2: { up: 198, down: 6 },  f3: { up: 221, down: 3 },
+      f4: { up: 87,  down: 5 },  f5: { up: 156, down: 4 },  f6: { up: 64,  down: 7 },
+      a1: { up: 312, down: 8 },  a2: { up: 175, down: 3 },  a3: { up: 128, down: 2 },
+      a4: { up: 91,  down: 1 },  a5: { up: 134, down: 6 },  a6: { up: 78,  down: 2 },
+      n1: { up: 401, down: 5 },  n2: { up: 263, down: 4 },  n3: { up: 117, down: 2 },
+      n4: { up: 168, down: 3 },  n5: { up: 96,  down: 2 },  n6: { up: 144, down: 3 },
+      s1: { up: 102, down: 2 },  s2: { up: 88,  down: 3 },  s3: { up: 121, down: 1 },
+      s4: { up: 153, down: 6 },  s5: { up: 74,  down: 2 },  s6: { up: 41,  down: 3 },
+      h1: { up: 119, down: 2 },  h2: { up: 86,  down: 4 },  h3: { up: 145, down: 1 },
+      h4: { up: 162, down: 2 },  h5: { up: 93,  down: 1 },  h6: { up: 108, down: 1 },
+    },
+  };
+}
+
+/* ---------- 3. Auth (Google OAuth, enforced server-side) ----------
+   By the time this script runs, middleware.js has already verified the
+   rs_session cookie. We fetch the verified user from /api/auth/me. */
+
+document.getElementById("signout").addEventListener("click", () => {
+  if (window.speechSynthesis) speechSynthesis.cancel();
+  location.href = "/api/auth/logout";
+});
+
+// Surface OAuth errors that the callback may have appended to the URL
+(function showAuthErrorIfAny() {
+  const params = new URLSearchParams(location.search);
+  const err = params.get("auth_error");
+  if (!err) return;
+  const got = params.get("got");
+  const banner = document.getElementById("authError");
+  const text = document.getElementById("authErrorText");
+  const retry = document.getElementById("authErrorRetry");
+  const msg =
+    err === "domain"
+      ? `Access denied. Reading Spine is only for @alpha.school accounts${
+          got ? ` — you tried ${got}` : ""
+        }.`
+    : err === "email_unverified"
+      ? "Your Google email isn't verified. Please verify it and try again."
+    : err === "state_mismatch"
+      ? "Login session expired. Please try signing in again."
+    : `Sign-in failed (${err}). Please try again.`;
+  text.textContent = msg;
+  banner.style.display = "block";
+  retry.onclick = () => (location.href = "/api/auth/login");
+  // Clean the URL so refreshes don't keep showing the error
+  history.replaceState({}, "", location.pathname);
+})();
+
+/* ---------- 4. Text-to-speech ----------
+   Browsers ship very different voices. We score every available voice and pick
+   the most natural-sounding one we can find. Order of preference:
+     1. Microsoft *Online (Natural)* neural voices  (Edge on Windows)
+     2. Apple "Premium" / "Enhanced" voices         (Mac / iOS Safari)
+     3. Google English voices                        (Chrome)
+     4. Anything else with "natural" in the name
+     5. Any English voice                            (last resort) */
+const ttsSwitch = document.getElementById("ttsSwitch");
+let ttsOn = true;
+let chosenVoice = null;
+
+// Preferred named voices, in priority order. The first one available wins.
+const VOICE_PRIORITY = [
+  // Microsoft Edge neural (Windows)
+  "Microsoft Aria Online (Natural) - English (United States)",
+  "Microsoft Jenny Online (Natural) - English (United States)",
+  "Microsoft Sonia Online (Natural) - English (United Kingdom)",
+  "Microsoft Libby Online (Natural) - English (United Kingdom)",
+  "Microsoft Guy Online (Natural) - English (United States)",
+  "Microsoft Ryan Online (Natural) - English (United Kingdom)",
+  // Apple premium (Mac/iOS) — child-friendly, warm
+  "Samantha",
+  "Karen",
+  "Moira",
+  "Tessa",
+  // Google (Chrome)
+  "Google US English",
+  "Google UK English Female",
+  "Google UK English Male",
+];
+
+function scoreVoice(v) {
+  // Higher = better.
+  const name = v.name || "";
+  const lang = (v.lang || "").toLowerCase();
+  let s = 0;
+  if (lang.startsWith("en")) s += 50;
+  if (/natural/i.test(name))   s += 40;
+  if (/neural/i.test(name))    s += 35;
+  if (/online/i.test(name))    s += 25;
+  if (/premium|enhanced/i.test(name)) s += 30;
+  if (/google/i.test(name))    s += 20;
+  if (/samantha|karen|moira|tessa|allison|ava/i.test(name)) s += 25;
+  if (/microsoft (zira|david|mark)/i.test(name)) s -= 10;  // older non-neural Win voices
+  if (lang === "en-us" || lang === "en-gb") s += 5;
+  if (v.localService === false) s += 5;       // cloud/online voices are usually better
+  return s;
+}
+
+function pickBestVoice() {
+  const voices = speechSynthesis.getVoices();
+  if (!voices.length) return null;
+  // First, try exact-name priority list
+  for (const name of VOICE_PRIORITY) {
+    const v = voices.find(v => v.name === name);
+    if (v) return v;
+  }
+  // Otherwise score every voice
+  const ranked = voices.slice().sort((a, b) => scoreVoice(b) - scoreVoice(a));
+  return ranked[0];
+}
+
+function refreshChosenVoice() {
+  chosenVoice = pickBestVoice();
+  const lbl = chosenVoice ? `${chosenVoice.name}` : "browser default";
+  ttsSwitch.parentElement.title = `Read text aloud · using ${lbl}`;
+}
+
+ttsSwitch.addEventListener("click", () => {
+  ttsOn = !ttsOn;
+  ttsSwitch.setAttribute("aria-checked", ttsOn ? "true" : "false");
+  if (!ttsOn && window.speechSynthesis) speechSynthesis.cancel();
+});
+
+function speak(text, opts = {}) {
+  if (!("speechSynthesis" in window)) return;
+  if (!ttsOn && !opts.force) return;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  // Slightly slower + warmer pitch reads more naturally for K-2 kids.
+  u.rate   = 0.92;
+  u.pitch  = 1.0;
+  u.volume = 1.0;
+  if (!chosenVoice) refreshChosenVoice();
+  if (chosenVoice) {
+    u.voice = chosenVoice;
+    u.lang  = chosenVoice.lang;
+  }
+  speechSynthesis.speak(u);
+}
+
+if ("speechSynthesis" in window) {
+  // Voices load asynchronously — refresh once they arrive, then again on changes.
+  refreshChosenVoice();
+  speechSynthesis.onvoiceschanged = () => refreshChosenVoice();
+}
+
+/* ---------- 5. App state ---------- */
+let state = null;
+let featuredBook = null;
+
+function startApp(session) {
+  state = { session, data: loadData(session.email) };
+  document.getElementById("whoName").textContent = session.name;
+  document.getElementById("whoEmail").textContent = session.email;
+  document.getElementById("avatar").textContent =
+    session.name.trim().charAt(0).toUpperCase();
+  // Hide the boot loader once we have real data
+  const boot = document.getElementById("bootLoader");
+  if (boot) {
+    boot.style.opacity = "0";
+    setTimeout(() => (boot.style.display = "none"), 250);
+  }
+  renderChips();
+  renderStats();
+  renderHero();
+  renderRows();
+}
+
+/* ---------- 6. Category quick-nav chips ---------- */
+function renderChips() {
+  const row = document.getElementById("chipRow");
+  row.innerHTML = "";
+  CATEGORIES.forEach(c => {
+    const chip = document.createElement("button");
+    chip.className = "chip";
+    chip.textContent = `${c.icon}  ${c.title}`;
+    chip.addEventListener("click", () => {
+      const el = document.getElementById(`section-${c.id}`);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    row.appendChild(chip);
+  });
+}
+
+/* ---------- 7. Stats strip ---------- */
+function renderStats() {
+  const readCount = Object.keys(state.data.read).length;
+  let commentCount = 0;
+  Object.values(state.data.comments || {}).forEach(arr => {
+    arr.forEach(c => { if (c.name === state.session.name) commentCount++; });
+  });
+  // Compute streak (consecutive days ending today)
+  const days = (state.data.streakDays || []).slice().sort();
+  const today = new Date().toISOString().slice(0,10);
+  let streak = 0;
+  let cursor = new Date();
+  for (;;) {
+    const d = cursor.toISOString().slice(0,10);
+    if (days.includes(d)) {
+      streak++;
+      cursor.setDate(cursor.getDate() - 1);
+    } else if (d === today) {
+      // Allow today to be empty without breaking the prior streak
+      cursor.setDate(cursor.getDate() - 1);
+      if (!days.includes(cursor.toISOString().slice(0,10))) break;
+    } else { break; }
+  }
+  document.getElementById("statRead").textContent = readCount;
+  document.getElementById("statComments").textContent = commentCount;
+  document.getElementById("statStreak").textContent = streak;
+}
+
+/* ---------- 8. Hero billboard ---------- */
+function renderHero() {
+  const favorites = ["n1", "a1", "f1", "s1", "h1", "f2"];
+  const idx = Math.floor((Date.now() / (1000*60*60*6)) % favorites.length);
+  featuredBook = BOOK_BY_ID[favorites[idx]];
+
+  const counts = effectiveCounts(featuredBook.id);
+  const total = counts.up + counts.down;
+  const pct = total ? Math.round((counts.up / total) * 100) : 0;
+
+  document.getElementById("heroEyebrow").textContent = `PICK OF THE WEEK · ${featuredBook.category}`;
+  document.getElementById("heroTitle").textContent = featuredBook.title;
+  document.getElementById("heroMeta").innerHTML = `
+    <strong>${escapeHtml(featuredBook.author)}</strong>
+    <span class="dot-sep"></span>
+    <span>${escapeHtml(featuredBook.age)}</span>
+    <span class="dot-sep"></span>
+    <span>${pct}% loved this</span>
+    <span class="dot-sep"></span>
+    <span>👍 ${counts.up}</span>
+  `;
+  document.getElementById("heroBlurb").textContent = featuredBook.blurb;
+
+  // Hero cover (real image, with gradient fallback)
+  const cover = document.getElementById("heroCover");
+  cover.innerHTML = `
+    <img alt="${escapeAttr(featuredBook.title)} cover" src="${coverUrl(featuredBook)}"
+         onerror="this.style.display='none'; this.nextElementSibling.style.display='grid';" />
+    <div class="fb" style="display:none; background:${coverGradient(featuredBook)}">
+      <div>
+        <div class="t">${escapeHtml(featuredBook.title)}</div>
+        <div class="a">${escapeHtml(featuredBook.author)}</div>
+      </div>
+    </div>
+  `;
+  cover.addEventListener("click", () => openBook(featuredBook.id));
+
+  document.getElementById("heroOpen").onclick  = () => openBook(featuredBook.id);
+  document.getElementById("heroSpeak").onclick = () =>
+    speak(`${featuredBook.title}. By ${featuredBook.author}. ${featuredBook.blurb}`, { force: true });
+}
+
+/* ---------- 9. Rows ---------- */
+function effectiveCounts(bookId) {
+  const base = state.data.counts[bookId] || { up: 0, down: 0 };
+  const mine = state.data.votes[bookId];
+  return {
+    up:   base.up   + (mine === "up"   ? 1 : 0),
+    down: base.down + (mine === "down" ? 1 : 0),
+  };
+}
+
+function renderRows() {
+  const root = document.getElementById("rows");
+  root.innerHTML = "";
+
+  const readIds = Object.keys(state.data.read);
+  if (readIds.length) {
+    const recent = readIds.map(id => BOOK_BY_ID[id]).filter(Boolean).slice(-12).reverse();
+    if (recent.length) root.appendChild(buildRow({
+      id: "recent", title: "Keep Reading",
+      sub: "Books you've read", icon: "📖",
+      books: recent,
+    }, true /* isRecent — skip progress meter */));
+  }
+
+  CATEGORIES.forEach(cat => root.appendChild(buildRow(cat)));
+}
+
+function buildRow(cat, isRecent) {
+  const row = document.createElement("section");
+  row.className = "row";
+  row.id = `section-${cat.id}`;
+  const total = cat.books.length;
+  const done = cat.books.filter(b => state.data.read[b.id]).length;
+  const progressHtml = isRecent ? "" : `
+    <div class="row-progress">
+      <span>${done} / ${total}</span>
+      <div class="bar"><i style="width:${total ? (done/total*100) : 0}%"></i></div>
+    </div>`;
+  row.innerHTML = `
+    <div class="row-head">
+      ${cat.icon ? `<span style="font-size:18px">${cat.icon}</span>` : ""}
+      <h2 class="row-title">${cat.title}</h2>
+      ${cat.sub ? `<span class="row-sub">${cat.sub}</span>` : ""}
+      ${progressHtml}
+    </div>
+    <div class="scroller-wrap"><div class="scroller" id="row-${cat.id}"></div></div>
+  `;
+  const scroller = row.querySelector(".scroller");
+  cat.books.forEach((book, i) => scroller.appendChild(buildCard(book, i === 0 && !isRecent)));
+  return row;
+}
+
+function buildCard(book, isHot) {
+  const counts = effectiveCounts(book.id);
+  const wasRead = !!state.data.read[book.id];
+  const card = document.createElement("article");
+  card.className = "card";
+  card.setAttribute("tabindex", "0");
+  card.setAttribute("aria-label", `${book.title} by ${book.author}`);
+  const badge = wasRead
+    ? `<div class="badge read">✓ Read</div>`
+    : (isHot ? `<div class="badge hot">★ Top pick</div>` : `<div class="badge">K-2</div>`);
+  card.innerHTML = `
+    ${badge}
+    <img class="card-img" alt="${escapeAttr(book.title)} cover" src="${coverUrl(book)}"
+         onerror="this.style.display='none'; this.nextElementSibling.style.display='grid';" />
+    <div class="card-fallback" style="display:none; background:${coverGradient(book)}">
+      <div>
+        <div class="fb-title">${escapeHtml(book.title)}</div>
+        <div class="fb-author">${escapeHtml(book.author)}</div>
+      </div>
+    </div>
+    <div class="card-info">
+      <p class="t">${escapeHtml(book.title)}</p>
+      <div class="stats">
+        <span class="up">👍 ${counts.up}</span>
+        <span class="down">👎 ${counts.down}</span>
+        <span>${escapeHtml(book.age)}</span>
+      </div>
+    </div>
+  `;
+  const open = () => openBook(book.id);
+  card.addEventListener("click", open);
+  card.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); }});
+  return card;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+}
+function escapeAttr(s) { return escapeHtml(s); }
+
+/* ---------- 10. Detail modal ---------- */
+const modal = document.getElementById("modal");
+let activeBookId = null;
+
+function openBook(id) {
+  const book = BOOK_BY_ID[id];
+  if (!book) return;
+  activeBookId = id;
+
+  const holder = document.getElementById("modalCoverHolder");
+  holder.innerHTML = `
+    <img class="modal-cover-img" alt="${escapeAttr(book.title)} cover" src="${coverUrl(book)}"
+         onerror="this.style.display='none'; this.nextElementSibling.style.display='grid';" />
+    <div class="modal-cover-fallback" style="display:none; background:${coverGradient(book)}">
+      <div>
+        <div class="fb-title">${escapeHtml(book.title)}</div>
+        <div class="fb-author">${escapeHtml(book.author)}</div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById("modalTitleText").textContent = book.title;
+  document.getElementById("modalAuthor").textContent = "By " + book.author;
+  document.getElementById("modalAge").textContent = book.age;
+  document.getElementById("modalCat").textContent = book.category;
+  document.getElementById("modalBlurb").textContent = book.blurb;
+
+  refreshInteractiveBits();
+  modal.classList.add("open");
+  document.body.style.overflow = "hidden";
+  // No autoplay: kids can tap "🔊 Title" or "🔊 Read blurb aloud" to hear it.
+}
+
+function refreshInteractiveBits() {
+  const id = activeBookId;
+  const wasRead = !!state.data.read[id];
+  const myVote  = state.data.votes[id];
+  const counts  = effectiveCounts(id);
+  const total = counts.up + counts.down;
+  const pct = total ? Math.round(counts.up/total*100) : 0;
+
+  document.getElementById("upCount").textContent = counts.up;
+  document.getElementById("downCount").textContent = counts.down;
+  document.getElementById("modalRating").innerHTML = `${pct}% loved · ${total} ratings`;
+
+  document.getElementById("voteUp").classList.toggle("active",   myVote === "up");
+  document.getElementById("voteDown").classList.toggle("active", myVote === "down");
+
+  const readBtn = document.getElementById("readToggle");
+  readBtn.classList.toggle("active", wasRead);
+  readBtn.textContent = wasRead ? "✓ Marked as read" : "＋ I read this";
+
+  document.getElementById("voteUp").disabled   = !wasRead;
+  document.getElementById("voteDown").disabled = !wasRead;
+  document.getElementById("commentInput").disabled = !wasRead;
+  document.getElementById("commentSend").disabled  = !wasRead;
+
+  const note = document.getElementById("votedOnly");
+  note.textContent = wasRead
+    ? "Thanks for reading! Leave a thumbs up or down and a quick review."
+    : `Tap "I read this" to leave a vote or review.`;
+  note.style.color = wasRead ? "var(--good)" : "var(--muted)";
+
+  renderComments();
+}
+
+function renderComments() {
+  const list = document.getElementById("commentList");
+  const items = (state.data.comments[activeBookId] || []).slice().reverse();
+  list.innerHTML = items.length
+    ? items.map(c => `
+        <li class="comment">
+          <div class="who-c">
+            <span>${escapeHtml(c.name)}</span><span class="dot"></span><span>${timeAgo(c.ts)}</span>
+          </div>
+          <div>${escapeHtml(c.text)}</div>
+        </li>`).join("")
+    : `<li class="empty">No reviews yet — be the first.</li>`;
+}
+function timeAgo(ts) {
+  const s = Math.max(1, Math.round((Date.now() - ts) / 1000));
+  if (s < 60) return s + "s ago";
+  if (s < 3600) return Math.round(s/60) + "m ago";
+  if (s < 86400) return Math.round(s/3600) + "h ago";
+  return Math.round(s/86400) + "d ago";
+}
+
+document.getElementById("closeModal").addEventListener("click", closeModal);
+modal.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
+window.addEventListener("keydown", (e) => { if (e.key === "Escape" && modal.classList.contains("open")) closeModal(); });
+function closeModal() {
+  modal.classList.remove("open");
+  document.body.style.overflow = "";
+  activeBookId = null;
+  if (window.speechSynthesis) speechSynthesis.cancel();
+  renderStats();
+  renderHero();
+  renderRows();
+}
+
+/* ---------- 11. Interactions ---------- */
+document.getElementById("readToggle").addEventListener("click", () => {
+  if (!activeBookId) return;
+  const nowOn = !state.data.read[activeBookId];
+  if (nowOn) {
+    state.data.read[activeBookId] = true;
+    // Add today to streak days (deduped)
+    const today = new Date().toISOString().slice(0,10);
+    state.data.streakDays = Array.from(new Set([...(state.data.streakDays || []), today]));
+  } else {
+    delete state.data.read[activeBookId];
+    delete state.data.votes[activeBookId];
+  }
+  saveData(state.session.email, state.data);
+  refreshInteractiveBits();
+  renderStats();
+});
+
+document.getElementById("voteUp").addEventListener("click",   () => castVote("up"));
+document.getElementById("voteDown").addEventListener("click", () => castVote("down"));
+function castVote(kind) {
+  if (!activeBookId) return;
+  if (!state.data.read[activeBookId]) return;
+  state.data.votes[activeBookId] = (state.data.votes[activeBookId] === kind) ? null : kind;
+  if (!state.data.votes[activeBookId]) delete state.data.votes[activeBookId];
+  saveData(state.session.email, state.data);
+  refreshInteractiveBits();
+  speak(kind === "up" ? "Thumbs up. Thanks for sharing!" : "Thumbs down. Got it.");
+}
+
+document.getElementById("commentSend").addEventListener("click", postComment);
+document.getElementById("commentInput").addEventListener("keydown", e => {
+  if (e.key === "Enter") postComment();
+});
+function postComment() {
+  if (!activeBookId) return;
+  if (!state.data.read[activeBookId]) return;
+  const input = document.getElementById("commentInput");
+  const text = input.value.trim();
+  if (!text) return;
+  state.data.comments[activeBookId] = state.data.comments[activeBookId] || [];
+  state.data.comments[activeBookId].push({
+    name: state.session.name, text, ts: Date.now(),
+  });
+  saveData(state.session.email, state.data);
+  input.value = "";
+  renderComments();
+  renderStats();
+}
+
+document.getElementById("speakTitle").addEventListener("click", () => {
+  if (!activeBookId) return;
+  speak(BOOK_BY_ID[activeBookId].title, { force: true });
+});
+document.getElementById("speakBlurb").addEventListener("click", () => {
+  if (!activeBookId) return;
+  const b = BOOK_BY_ID[activeBookId];
+  speak(`${b.title}. ${b.blurb}`, { force: true });
+});
+
+/* ---------- 12. Header scroll + user menu ---------- */
+window.addEventListener("scroll", () => {
+  document.getElementById("appHeader").classList.toggle("scrolled", window.scrollY > 20);
+});
+const avatarWrap = document.getElementById("avatarWrap");
+const userMenu = document.getElementById("userMenu");
+avatarWrap.addEventListener("click", (e) => {
+  e.stopPropagation();
+  userMenu.classList.toggle("open");
+});
+document.addEventListener("click", () => userMenu.classList.remove("open"));
+
+/* ---------- 13. Boot ---------- */
+(async function boot() {
+  try {
+    const r = await fetch("/api/auth/me", { credentials: "same-origin" });
+    if (!r.ok) {
+      // Middleware should have caught this, but just in case
+      location.href = "/api/auth/login";
+      return;
+    }
+    const me = await r.json();
+    if (!me.authenticated) {
+      location.href = "/api/auth/login";
+      return;
+    }
+    startApp({ email: me.email, name: me.name, picture: me.picture || null });
+  } catch (e) {
+    // Network blip — show a friendly retry
+    const boot = document.getElementById("bootLoader");
+    if (boot) {
+      boot.innerHTML =
+        '<div style="text-align:center;color:#f5f7fb">' +
+        '<div style="margin-bottom:14px">Could not load your account.</div>' +
+        '<button onclick="location.reload()" style="background:#2563eb;color:#fff;' +
+        'border:none;padding:10px 18px;border-radius:8px;font-weight:600;cursor:pointer">' +
+        'Retry</button></div>';
+    }
+  }
+})();
+</script>
+</body>
+</html>
