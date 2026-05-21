@@ -1,7 +1,7 @@
 // Returns the current session as JSON. Called by the client on page load to
 // populate the user's name / email / avatar.
 
-import { verifySession, parseCookies } from "../../lib/session.js";
+import { verifySession, parseCookies, isAdmin } from "../../lib/session.js";
 
 export default async function handler(req, res) {
   const secret = process.env.AUTH_SECRET;
@@ -28,6 +28,7 @@ export default async function handler(req, res) {
       email: session.email,
       name: session.name,
       picture: session.picture || null,
+      isAdmin: isAdmin(session.email),
     })
   );
 }

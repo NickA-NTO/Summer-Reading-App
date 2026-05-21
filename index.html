@@ -813,6 +813,38 @@
   }
   .lb-me-card strong { color: var(--ink); font-weight: 700; }
 
+  /* ============ Admin user table ============ */
+  .admin-table {
+    width: 100%; border-collapse: collapse; font-size: 13px;
+  }
+  .admin-table thead th {
+    text-align: left; font-weight: 600; font-size: 11px;
+    color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em;
+    padding: 10px 12px; border-bottom: 1px solid var(--line);
+    position: sticky; top: 0; background: var(--bg-2);
+  }
+  .admin-table tbody tr {
+    border-bottom: 1px solid var(--line);
+    transition: background .12s;
+  }
+  .admin-table tbody tr:hover { background: rgba(255,255,255,.03); }
+  .admin-table td {
+    padding: 12px;
+    vertical-align: middle;
+  }
+  .admin-table .a-name { font-weight: 600; color: var(--ink); }
+  .admin-table .a-email { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .admin-table .a-domain {
+    display: inline-block; padding: 2px 8px; border-radius: 999px;
+    background: rgba(255,255,255,.06); font-size: 11px; color: var(--muted);
+  }
+  .admin-table .a-when { color: var(--muted); font-size: 12px; }
+  .admin-table .a-count {
+    font-weight: 700; color: var(--accent-2);
+    text-align: right; padding-right: 12px;
+  }
+  .admin-empty-row { padding: 32px 12px; text-align: center; color: var(--muted); }
+
   @media (max-width: 720px) {
     .nav { padding: 14px 18px; }
     .nav-links { display: none; }
@@ -871,7 +903,7 @@
     <div class="spacer"></div>
     <div class="tts-wrap" title="Read text aloud">
       <span class="lbl">Text to Speech</span>
-      <button id="ttsSwitch" class="switch" role="switch" aria-checked="true" aria-label="Toggle text to speech"></button>
+      <button id="ttsSwitch" class="switch" role="switch" aria-checked="false" aria-label="Toggle text to speech"></button>
     </div>
     <div class="avatar-wrap" id="avatarWrap">
       <div class="avatar" id="avatar">?</div>
@@ -881,6 +913,7 @@
           <div class="n" id="whoName">Reader</div>
           <div class="e" id="whoEmail">—</div>
         </div>
+        <button id="menuAdmin" style="display:none">⚙️ Admin · Users</button>
         <button id="signout">Sign out</button>
       </div>
     </div>
@@ -975,6 +1008,24 @@
       <div class="bar"><i id="quizBar" style="width:25%"></i></div>
     </div>
     <div id="quizContent"></div>
+  </div>
+</div>
+
+<!-- ============ Admin modal ============ -->
+<div class="lb-overlay" id="adminOverlay" role="dialog" aria-modal="true">
+  <div class="lb-card" style="max-width:900px;width:100%">
+    <div class="lb-head">
+      <button class="quiz-close" id="adminClose" style="top:18px;right:18px" aria-label="Close admin">✕</button>
+      <h2>⚙️ Admin · Active Users</h2>
+      <p class="lb-sub">Everyone who has signed in to Reading Spine, most recent first.</p>
+      <div style="margin: 14px 0 4px">
+        <input id="adminSearch" type="search" placeholder="Search by email, name, or domain…"
+               style="width:100%;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:11px 14px;font-size:14px;outline:none" />
+      </div>
+    </div>
+    <div class="lb-body" id="adminBody">
+      <div class="lb-empty">Loading…</div>
+    </div>
   </div>
 </div>
 
@@ -1242,7 +1293,7 @@ document.getElementById("signout").addEventListener("click", () => {
      4. Anything else with "natural" in the name
      5. Any English voice                            (last resort) */
 const ttsSwitch = document.getElementById("ttsSwitch");
-let ttsOn = true;
+let ttsOn = false;  // Default off — kids opt in via the header switch
 let chosenVoice = null;
 
 // Preferred named voices, in priority order. The first one available wins.
@@ -1752,10 +1803,22 @@ avatarWrap.addEventListener("click", (e) => {
 document.addEventListener("click", () => userMenu.classList.remove("open"));
 
 /* ---------- 13. Quiz state machine ----------
-   Fetches AI-generated questions from /api/quiz, walks the kid through 4
-   questions, and (on pass) marks the book as read. */
+   Server returns a POOL of 8 questions per book. Each attempt we pick a
+   random 4 and shuffle their options, so kids can't memorize positions or
+   answers across attempts. Max 2 attempts per book per day. */
 
-const quizState = { bookId: null, questions: null, idx: 0, score: 0, answers: [] };
+const QUESTIONS_PER_ATTEMPT = 4;
+const PASS_THRESHOLD = 3;          // need 3/4 to pass
+const MAX_ATTEMPTS_PER_DAY = 2;
+
+const quizState = {
+  bookId: null,
+  pool: null,        // full 8-question pool from server
+  questions: null,   // 4-question subset for this attempt (with shuffled options)
+  idx: 0,
+  score: 0,
+  answers: [],
+};
 
 document.getElementById("quizBtn").addEventListener("click", () => {
   if (!activeBookId) return;
@@ -1766,20 +1829,81 @@ document.getElementById("quizOverlay").addEventListener("click", (e) => {
   if (e.target.id === "quizOverlay") closeQuiz();
 });
 
+// Fisher-Yates shuffle, returns a NEW array
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// Pick `n` random items from `arr` without replacement
+function pickN(arr, n) {
+  return shuffle(arr).slice(0, n);
+}
+
+// Given a server question {q, options, answer}, return a copy with the
+// options shuffled and `answer` remapped to the new index.
+function withShuffledOptions(question) {
+  const correctText = question.options[question.answer];
+  const newOptions = shuffle(question.options);
+  return {
+    q: question.q,
+    options: newOptions,
+    answer: newOptions.indexOf(correctText),
+  };
+}
+
+// Reads + writes the per-book attempt log in localStorage. Resets daily.
+function getAttemptRecord(bookId) {
+  const today = new Date().toISOString().slice(0, 10);
+  const all = (state.data.quizAttempts = state.data.quizAttempts || {});
+  const rec = all[bookId];
+  if (!rec || rec.date !== today) {
+    return { date: today, count: 0, passed: false };
+  }
+  return rec;
+}
+function saveAttemptRecord(bookId, rec) {
+  state.data.quizAttempts = state.data.quizAttempts || {};
+  state.data.quizAttempts[bookId] = rec;
+  saveData(state.session.email, state.data);
+}
+
 async function openQuiz(bookId) {
   const book = BOOK_BY_ID[bookId];
   if (!book) return;
   quizState.bookId = bookId;
+  quizState.pool = null;
   quizState.questions = null;
   quizState.idx = 0;
   quizState.score = 0;
   quizState.answers = [];
 
-  document.getElementById("quizBookTitle").textContent =
-    `Quiz · ${book.title}`;
+  document.getElementById("quizBookTitle").textContent = `Quiz · ${book.title}`;
   document.getElementById("quizOverlay").classList.add("open");
   document.body.style.overflow = "hidden";
-  // Show loading state
+
+  // Daily attempt cap check — let them know up-front if they're locked out
+  const rec = getAttemptRecord(bookId);
+  if (rec.count >= MAX_ATTEMPTS_PER_DAY && !rec.passed) {
+    document.getElementById("quizContent").innerHTML = `
+      <div class="quiz-result">
+        <div class="emoji">⏰</div>
+        <h3>Come back tomorrow</h3>
+        <div class="score">You've used both attempts today</div>
+        <p>Two tries per day so the quiz stays meaningful. Re-read the book and try again tomorrow.</p>
+        <div class="actions">
+          <button class="icon-btn" id="quizLater2">Close</button>
+        </div>
+      </div>`;
+    document.getElementById("quizLater2").addEventListener("click", closeQuiz);
+    setQuizProgress(QUESTIONS_PER_ATTEMPT);
+    return;
+  }
+
   document.getElementById("quizContent").innerHTML = `
     <div class="quiz-loading">
       <div class="spinner"></div>
@@ -1795,8 +1919,8 @@ async function openQuiz(bookId) {
     if (!r.ok || !data.available || !data.questions) {
       throw new Error(data.message || data.error || "no_quiz");
     }
-    quizState.questions = data.questions;
-    renderQuizQuestion();
+    quizState.pool = data.questions;
+    startAttempt();
   } catch (err) {
     document.getElementById("quizContent").innerHTML = `
       <div class="quiz-result">
@@ -1804,10 +1928,21 @@ async function openQuiz(bookId) {
         <h3>Quiz isn't ready</h3>
         <p>${escapeHtml(String(err.message || err))}</p>
         <div class="actions">
-          <button class="icon-btn" onclick="closeQuiz()">Close</button>
+          <button class="icon-btn" id="quizErrClose">Close</button>
         </div>
       </div>`;
+    document.getElementById("quizErrClose").addEventListener("click", closeQuiz);
   }
+}
+
+// Builds a fresh 4-question slate from the pool with shuffled options.
+function startAttempt() {
+  quizState.idx = 0;
+  quizState.score = 0;
+  quizState.answers = [];
+  const subset = pickN(quizState.pool, QUESTIONS_PER_ATTEMPT);
+  quizState.questions = subset.map(withShuffledOptions);
+  renderQuizQuestion();
 }
 
 function closeQuiz() {
@@ -1817,9 +1952,11 @@ function closeQuiz() {
 }
 
 function setQuizProgress(idx) {
-  const total = (quizState.questions || []).length || 4;
-  document.getElementById("quizStep").textContent = `Question ${Math.min(idx+1,total)} of ${total}`;
-  document.getElementById("quizBar").style.width = `${((idx) / total) * 100}%`;
+  const total = QUESTIONS_PER_ATTEMPT;
+  document.getElementById("quizStep").textContent =
+    `Question ${Math.min(idx + 1, total)} of ${total}`;
+  document.getElementById("quizBar").style.width =
+    `${(idx / total) * 100}%`;
 }
 
 function renderQuizQuestion() {
@@ -1827,7 +1964,7 @@ function renderQuizQuestion() {
   const q = quizState.questions[i];
   setQuizProgress(i);
   const letters = ["A", "B", "C", "D"];
-  const html = `
+  document.getElementById("quizContent").innerHTML = `
     <h3 class="quiz-question">
       <span>${escapeHtml(q.q)}</span>
       <button class="speak-mini" id="qSpeak">🔊</button>
@@ -1839,9 +1976,8 @@ function renderQuizQuestion() {
           <span>${escapeHtml(opt)}</span>
         </button>`).join("")}
     </div>`;
-  document.getElementById("quizContent").innerHTML = html;
   document.getElementById("qSpeak").addEventListener("click", () => {
-    speak(q.q, { force: true });
+    speak(`${q.q}. ${q.options.map((o,i) => `${letters[i]}. ${o}.`).join(" ")}`, { force: true });
   });
   document.querySelectorAll("#qOpts .quiz-option").forEach((btn) => {
     btn.addEventListener("click", () => answerQuestion(Number(btn.dataset.i)));
@@ -1854,7 +1990,7 @@ function answerQuestion(choice) {
   quizState.answers.push({ choice, correct });
   if (correct) quizState.score++;
 
-  // Visual feedback on the chosen + correct option
+  // Visual feedback
   const opts = document.querySelectorAll("#qOpts .quiz-option");
   opts.forEach((btn, i) => {
     btn.disabled = true;
@@ -1862,7 +1998,6 @@ function answerQuestion(choice) {
     else if (i === choice) btn.classList.add("wrong");
   });
 
-  // Brief pause, then move on
   setTimeout(() => {
     if (quizState.idx + 1 < quizState.questions.length) {
       quizState.idx++;
@@ -1874,10 +2009,16 @@ function answerQuestion(choice) {
 }
 
 async function finishQuiz() {
-  const total = quizState.questions.length;
+  const total = QUESTIONS_PER_ATTEMPT;
   const score = quizState.score;
-  const passed = score >= 3; // 3/4 or better
+  const passed = score >= PASS_THRESHOLD;
   setQuizProgress(total);
+
+  // Record the attempt (cap is enforced per-day in openQuiz)
+  const rec = getAttemptRecord(quizState.bookId);
+  rec.count = Math.min(rec.count + 1, MAX_ATTEMPTS_PER_DAY);
+  rec.passed = rec.passed || passed;
+  saveAttemptRecord(quizState.bookId, rec);
 
   if (passed) {
     document.getElementById("quizContent").innerHTML = `
@@ -1891,30 +2032,40 @@ async function finishQuiz() {
         </div>
       </div>`;
     document.getElementById("quizDone").addEventListener("click", closeQuiz);
-    // Persist read state (local + server) — but only if not already marked
     if (!state.data.read[quizState.bookId]) {
       await markBookAsRead(quizState.bookId);
     }
-  } else {
-    document.getElementById("quizContent").innerHTML = `
-      <div class="quiz-result">
-        <div class="emoji">📖</div>
-        <h3>Almost there!</h3>
-        <div class="score">You got ${score} / ${total} right</div>
-        <p>Read the book again and give it another try. You need 3 out of 4 to pass.</p>
-        <div class="actions">
-          <button class="icon-btn" id="quizRetry">Try again</button>
-          <button class="icon-btn" id="quizLater">Read more first</button>
-        </div>
-      </div>`;
-    document.getElementById("quizRetry").addEventListener("click", () => {
-      quizState.idx = 0;
-      quizState.score = 0;
-      quizState.answers = [];
-      renderQuizQuestion();
-    });
-    document.getElementById("quizLater").addEventListener("click", closeQuiz);
+    return;
   }
+
+  // Failed — check if they have another attempt left today
+  const attemptsLeft = MAX_ATTEMPTS_PER_DAY - rec.count;
+  const canRetry = attemptsLeft > 0;
+  const retryButton = canRetry
+    ? `<button class="icon-btn" id="quizRetry">Try again (${attemptsLeft} left)</button>`
+    : "";
+  const message = canRetry
+    ? `You need ${PASS_THRESHOLD} out of ${total}. Re-read the book and try once more — you've got ${attemptsLeft} attempt${attemptsLeft === 1 ? "" : "s"} left today.`
+    : `You've used both attempts today. Come back tomorrow and try again.`;
+
+  document.getElementById("quizContent").innerHTML = `
+    <div class="quiz-result">
+      <div class="emoji">${canRetry ? "📖" : "⏰"}</div>
+      <h3>${canRetry ? "Almost there!" : "Out of attempts"}</h3>
+      <div class="score">You got ${score} / ${total} right</div>
+      <p>${message}</p>
+      <div class="actions">
+        ${retryButton}
+        <button class="icon-btn" id="quizLater">Close</button>
+      </div>
+    </div>`;
+  if (canRetry) {
+    document.getElementById("quizRetry").addEventListener("click", () => {
+      // New attempt = new random 4-question subset with freshly shuffled options
+      startAttempt();
+    });
+  }
+  document.getElementById("quizLater").addEventListener("click", closeQuiz);
 }
 
 /* ---------- 14. Leaderboard ---------- */
@@ -2028,7 +2179,130 @@ async function refreshMyRank() {
   }
 }
 
-/* ---------- 15. Boot ---------- */
+/* ---------- 15. Admin · users ---------- */
+
+const adminState = { users: [], filter: "" };
+
+document.getElementById("menuAdmin").addEventListener("click", (e) => {
+  e.stopPropagation();
+  document.getElementById("userMenu").classList.remove("open");
+  openAdmin();
+});
+document.getElementById("adminClose").addEventListener("click", closeAdmin);
+document.getElementById("adminOverlay").addEventListener("click", (e) => {
+  if (e.target.id === "adminOverlay") closeAdmin();
+});
+document.getElementById("adminSearch").addEventListener("input", (e) => {
+  adminState.filter = String(e.target.value || "").toLowerCase();
+  renderAdminTable();
+});
+
+async function openAdmin() {
+  document.getElementById("adminOverlay").classList.add("open");
+  document.body.style.overflow = "hidden";
+  document.getElementById("adminBody").innerHTML =
+    `<div class="lb-empty">Loading…</div>`;
+  document.getElementById("adminSearch").value = "";
+  adminState.filter = "";
+
+  try {
+    const r = await fetch("/api/admin/users", { credentials: "same-origin" });
+    if (r.status === 403) {
+      document.getElementById("adminBody").innerHTML =
+        `<div class="lb-empty">You don't have admin access.</div>`;
+      return;
+    }
+    const data = await r.json();
+    if (!data.hasRedis) {
+      document.getElementById("adminBody").innerHTML = `
+        <div class="lb-empty">
+          <div style="font-size:36px;margin-bottom:10px">🗄️</div>
+          <div style="color:var(--ink);font-weight:600;margin-bottom:6px">Storage not configured</div>
+          <div>Install Upstash Redis from the Vercel Marketplace to enable the admin user list.</div>
+        </div>`;
+      return;
+    }
+    adminState.users = data.users || [];
+    renderAdminTable();
+  } catch (err) {
+    document.getElementById("adminBody").innerHTML =
+      `<div class="lb-empty">Couldn't load users.</div>`;
+  }
+}
+
+function closeAdmin() {
+  document.getElementById("adminOverlay").classList.remove("open");
+  document.body.style.overflow = "";
+}
+
+function renderAdminTable() {
+  const q = adminState.filter;
+  const list = adminState.users.filter((u) =>
+    !q ||
+    u.email.toLowerCase().includes(q) ||
+    String(u.name || "").toLowerCase().includes(q) ||
+    String(u.domain || "").toLowerCase().includes(q)
+  );
+
+  if (!adminState.users.length) {
+    document.getElementById("adminBody").innerHTML = `
+      <div class="lb-empty">
+        <div style="font-size:36px;margin-bottom:10px">👀</div>
+        <div style="color:var(--ink);font-weight:600;margin-bottom:6px">No users yet</div>
+        <div>Once people sign in they'll appear here.</div>
+      </div>`;
+    return;
+  }
+  if (!list.length) {
+    document.getElementById("adminBody").innerHTML = `
+      <div class="admin-empty-row">No users match "${escapeHtml(q)}".</div>`;
+    return;
+  }
+
+  const rows = list.map((u) => `
+    <tr>
+      <td>
+        <div class="a-name">${escapeHtml(u.name || "Reader")}</div>
+        <div class="a-email">${escapeHtml(u.email)}</div>
+      </td>
+      <td><span class="a-domain">@${escapeHtml(u.domain || "—")}</span></td>
+      <td class="a-when">${u.lastLoginAt ? friendlyDate(u.lastLoginAt) : "—"}</td>
+      <td class="a-when">${u.firstLoginAt ? friendlyDate(u.firstLoginAt) : "—"}</td>
+      <td class="a-count">${u.loginCount || 0}</td>
+      <td class="a-count">${u.booksRead || 0}</td>
+    </tr>
+  `).join("");
+
+  document.getElementById("adminBody").innerHTML = `
+    <div style="margin-bottom:10px;color:var(--muted);font-size:12px">
+      Showing ${list.length} of ${adminState.users.length} ${adminState.users.length === 1 ? "user" : "users"}
+    </div>
+    <div style="overflow-x:auto;max-height:60vh;overflow-y:auto;border:1px solid var(--line);border-radius:10px">
+      <table class="admin-table">
+        <thead><tr>
+          <th>User</th>
+          <th>Domain</th>
+          <th>Last login</th>
+          <th>First login</th>
+          <th style="text-align:right">Logins</th>
+          <th style="text-align:right">Books</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+function friendlyDate(ts) {
+  if (!ts) return "—";
+  const diff = Date.now() - ts;
+  if (diff < 60_000) return "just now";
+  if (diff < 3_600_000) return `${Math.round(diff / 60_000)}m ago`;
+  if (diff < 86_400_000) return `${Math.round(diff / 3_600_000)}h ago`;
+  if (diff < 7 * 86_400_000) return `${Math.round(diff / 86_400_000)}d ago`;
+  return new Date(ts).toLocaleDateString();
+}
+
+/* ---------- 16. Boot ---------- */
 (async function boot() {
   try {
     const r = await fetch("/api/auth/me", { credentials: "same-origin" });
@@ -2042,7 +2316,15 @@ async function refreshMyRank() {
       location.href = "/api/auth/login";
       return;
     }
-    startApp({ email: me.email, name: me.name, picture: me.picture || null });
+    if (me.isAdmin) {
+      document.getElementById("menuAdmin").style.display = "block";
+    }
+    startApp({
+      email: me.email,
+      name: me.name,
+      picture: me.picture || null,
+      isAdmin: !!me.isAdmin,
+    });
   } catch (e) {
     // Network blip — show a friendly retry
     const boot = document.getElementById("bootLoader");

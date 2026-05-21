@@ -10,6 +10,7 @@ import {
   serializeCookie,
   decodeIdToken,
 } from "../../lib/session.js";
+import { recordLogin } from "../../lib/store.js";
 
 const SESSION_DAYS = 7;
 
@@ -115,6 +116,15 @@ export default async function handler(req, res) {
     exp: nowSec + SESSION_DAYS * 24 * 60 * 60,
   };
   const token = await signSession(session, secret);
+
+  // Fire-and-forget login tracking for the admin user list. No-op if Redis
+  // isn't configured yet.
+  recordLogin({
+    email: payload.email,
+    name: session.name,
+    picture: payload.picture,
+    hd: payload.hd,
+  }).catch(() => {});
 
   // Recover the post-login "next" path encoded into state
   const next = (state.split(":").slice(1).join(":") || "/").startsWith("/")

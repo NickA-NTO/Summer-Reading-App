@@ -12,9 +12,17 @@ current. Strike items as they ship.
 - [x] Google OAuth gated to `alpha.school`, `trilogy.com`, `2hourlearning.com`
 - [x] GitHub repo + Vercel auto-deploy from `main`
 - [x] **Pilot: AI-generated quiz for The Very Hungry Caterpillar (k01)** —
-      `/api/quiz` calls OpenAI through the AI SDK with a zod schema, caches
-      results in Redis so retries see the same 4 questions. Quiz UI walks the
-      kid through one question at a time, requires 3/4 to pass.
+      `/api/quiz` calls **Claude Haiku 4.5** through the AI SDK with a zod
+      schema; server caches an 8-question pool in Redis. Client picks 4 at
+      random per attempt with shuffled option positions, so kids can't
+      memorize answer locations across attempts. **Max 2 attempts per day,
+      need 3/4 to pass.**
+- [x] **Admin user list** — `/api/admin/users` returns everyone who has
+      signed in, gated by the `ADMIN_EMAILS` env var. Modal accessible from
+      the avatar dropdown for admins, with search and last-active / books-
+      read columns. Login events are tracked in Redis on every successful
+      OAuth callback.
+- [x] **Text-to-speech defaults to off** — kids opt in via the header switch.
 - [x] **Amazon (US) "Buy this book" link on every book** — ISBN-13 → ISBN-10
       conversion, direct `/dp/<asin>` URLs, optional `AMAZON_AFFILIATE_TAG`
       via a `<meta>` tag.
@@ -69,6 +77,73 @@ the book they claim to have read.
 - [ ] Adaptive questions — get harder if a kid keeps passing first try
 - [ ] Teacher quiz-builder UI (drop in a paragraph, generate 4 questions via
       AI Gateway)
+
+---
+
+## 1b. Voice retell (AI-graded oral comprehension)
+
+**Goal:** After a kid passes the multiple-choice quiz, prompt them to retell
+the story in their own words. We record the audio, transcribe it, and grade
+it with AI on plot coverage + sequence. Adds a real comprehension signal
+that MCQ alone can't catch.
+
+### Decisions needed
+- [ ] **Recording length cap**: 30s? 60s? 90s? _Recommend: 60s — long enough
+      for K-2 retell, short enough to stay focused._
+- [ ] **Mandatory or optional?** _Recommend: optional but earns a bonus
+      badge ("Storyteller" star) on the kid's reading record._
+- [ ] **Pass criteria**: percent of key plot points covered? AI-assigned
+      0–10 score? Pass/fail vs. graded?
+- [ ] **Privacy**: store the raw audio (in Vercel Blob) for teacher review,
+      or transcribe-and-discard? _Recommend: transcribe-and-discard by
+      default, with an opt-in "let my teacher hear it" toggle._
+- [ ] **Transcription provider**: OpenAI Whisper, Anthropic (no native ASR),
+      Deepgram, or AssemblyAI? _Recommend: Deepgram or Whisper via
+      a server-side proxy — both have streaming options for low latency._
+
+### Data model
+For each pass, store on the user's quiz record:
+```js
+{
+  bookId: "k01",
+  attempt: 1,
+  quizScore: 3,           // out of 4
+  retell: {
+    durationMs: 42100,
+    transcript: "The caterpillar ate apples and pears and then cake and...",
+    score: 8,             // 0–10 from the AI grader
+    coveredPoints: ["egg→caterpillar", "ate fruits Mon-Fri", "junk food Sat", "cocoon", "butterfly"],
+    missedPoints: ["got a stomach ache"],
+    audioBlobUrl: null,   // unless opted-in
+    gradedAt: 1716230000000
+  }
+}
+```
+
+### Build steps
+- [ ] Mic permission flow: small interstitial explaining why we're asking
+      ("So we can hear you tell the story back!")
+- [ ] Recording UI in the quiz overlay (after the "Great reading!" screen):
+      big 🎤 button, animated waveform while recording, big ⏹ stop button,
+      visible countdown of remaining seconds
+- [ ] Browser MediaRecorder → upload as `audio/webm` to `/api/retell/upload`
+- [ ] Server endpoint `/api/retell/grade`:
+      1. Receive audio blob
+      2. POST to Whisper (or Deepgram) for transcription
+      3. Pass transcript + canonical plot summary to Claude/GPT with a
+         structured-output schema asking for `{score, coveredPoints, missedPoints, encouragement}`
+      4. Return result; cache by `(email, bookId)` so we don't re-grade if
+         the kid reloads
+- [ ] Feedback screen: show the kid which plot points they nailed, which
+      they could mention next time, and a warm "way to go" message
+- [ ] Tie into leaderboard: maybe a separate "Storyteller" ranking?
+- [ ] Tie into admin: show retell scores per kid
+
+### Stretch
+- [ ] Inline TTS coach if the kid is silent for >10s: "Tell me about how
+      the story started…"
+- [ ] Teacher dashboard view of retell transcripts (with consent)
+- [ ] Multi-language retell (Spanish, etc.) for ESL learners
 
 ---
 
