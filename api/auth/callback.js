@@ -33,7 +33,9 @@ export default async function handler(req, res) {
 
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  const allowedDomain = process.env.ALLOWED_DOMAIN || "alpha.school";
+  // Comma-separated list of acceptable domains (e.g. "alpha.school,trilogy.com").
+  const allowedDomains = (process.env.ALLOWED_DOMAIN || "alpha.school")
+    .split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
   const secret = process.env.AUTH_SECRET;
   if (!clientId || !clientSecret || !secret) {
     res.statusCode = 500;
@@ -75,19 +77,29 @@ export default async function handler(req, res) {
     return redirect(res, "/?auth_error=invalid_id_token");
   }
 
-  // Hard domain enforcement — `hd` is set by Google for Workspace accounts.
-  if (payload.hd !== allowedDomain) {
+  // Hard domain enforcement — accept the user if EITHER the `hd` claim
+  // (Workspace orgs) OR the verified email address is on our allow list.
+  // Email is set + verified by Google for every account, so this works for
+  // both Workspace and any non-Workspace orgs we ever add.
+  if (!payload.email_verified) {
+    return redirect(res, "/?auth_error=email_unverified");
+  }
+  const emailDomain = String(payload.email || "")
+    .toLowerCase()
+    .split("@")[1] || "";
+  const hdDomain = String(payload.hd || "").toLowerCase();
+  const domainAllowed =
+    (hdDomain && allowedDomains.includes(hdDomain)) ||
+    (emailDomain && allowedDomains.includes(emailDomain));
+  if (!domainAllowed) {
     res.setHeader(
       "Set-Cookie",
       serializeCookie("rs_oauth_state", "", { maxAge: 0 })
     );
     return redirect(
       res,
-      `/?auth_error=domain&got=${encodeURIComponent(payload.email || payload.hd || "")}`
+      `/?auth_error=domain&got=${encodeURIComponent(payload.email || hdDomain || "")}`
     );
-  }
-  if (!payload.email_verified) {
-    return redirect(res, "/?auth_error=email_unverified");
   }
 
   const nowSec = Math.floor(Date.now() / 1000);

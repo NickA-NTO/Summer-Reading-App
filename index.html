@@ -946,7 +946,7 @@ document.getElementById("signout").addEventListener("click", () => {
   const retry = document.getElementById("authErrorRetry");
   const msg =
     err === "domain"
-      ? `Access denied. Reading Spine is only for @alpha.school accounts${
+      ? `Access denied. Reading Spine is only for @alpha.school, @trilogy.com, or @2hourlearning.com accounts${
           got ? ` — you tried ${got}` : ""
         }.`
     : err === "email_unverified"

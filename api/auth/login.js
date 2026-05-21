@@ -31,6 +31,15 @@ export default function handler(req, res) {
   // Embed the next path into state as `<csrf>:<next>` (cookie stores same).
   const stateValue = `${state}:${next}`;
 
+  // ALLOWED_DOMAIN is a comma-separated list (e.g. "alpha.school,trilogy.com").
+  // If exactly one domain is configured, pass it as `hd` to filter the Google
+  // account picker to that workspace. With multiple, pass `hd=*` so the picker
+  // hides personal @gmail.com accounts but still shows all the user's
+  // workspace accounts. Real enforcement happens in the callback.
+  const allowedDomains = (process.env.ALLOWED_DOMAIN || "alpha.school")
+    .split(",").map((s) => s.trim()).filter(Boolean);
+  const hdParam = allowedDomains.length === 1 ? allowedDomains[0] : "*";
+
   const params = new URLSearchParams({
     client_id: clientId,
     redirect_uri: redirectUri,
@@ -38,9 +47,7 @@ export default function handler(req, res) {
     scope: "openid email profile",
     state: stateValue,
     prompt: "select_account",
-    // Hint Google to filter the account chooser to this Workspace domain.
-    // We re-verify on the server side after the token exchange.
-    hd: process.env.ALLOWED_DOMAIN || "alpha.school",
+    hd: hdParam,
     access_type: "online",
     include_granted_scopes: "true",
   });
