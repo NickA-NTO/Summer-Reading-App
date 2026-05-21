@@ -17,7 +17,8 @@
       "Bash(git push *)",
       "Bash(vercel git *)",
       "Bash(vercel project *)",
-      "Bash(git -c user.email=nick.alsford@trilogy.com -c user.name=NickA-NTO commit -m 'Replace catalog with curated K/1/2 grade-level reading list *)"
+      "Bash(git -c user.email=nick.alsford@trilogy.com -c user.name=NickA-NTO commit -m 'Replace catalog with curated K/1/2 grade-level reading list *)",
+      "Bash(git -c user.email=nick.alsford@trilogy.com -c user.name=NickA-NTO commit -m 'Add AI quiz \\(The Very Hungry Caterpillar pilot\\), Amazon links, and leaderboard *)"
     ]
   }
 }

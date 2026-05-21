@@ -608,6 +608,211 @@
   }
   .close:hover { background: rgba(0,0,0,.85); }
 
+  /* ============ Amazon + Quiz buttons in the action row ============ */
+  .icon-btn.amazon {
+    background: linear-gradient(180deg, #ff9900, #e87a00);
+    color: #111; border-color: transparent; font-weight: 600;
+    text-decoration: none;
+  }
+  .icon-btn.amazon:hover {
+    background: linear-gradient(180deg, #ffad33, #ff8800);
+  }
+  .icon-btn.quiz {
+    background: linear-gradient(180deg, #8b5cf6, #6d28d9);
+    color: #fff; border-color: transparent; font-weight: 600;
+    box-shadow: 0 6px 16px rgba(139, 92, 246, .35);
+  }
+  .icon-btn.quiz:hover { box-shadow: 0 8px 20px rgba(139, 92, 246, .5); }
+
+  /* ============ Quiz overlay ============ */
+  .quiz-overlay {
+    position: fixed; inset: 0; z-index: 40;
+    background: rgba(2,5,11,.92);
+    backdrop-filter: blur(10px);
+    display: none; align-items: center; justify-content: center;
+    padding: 22px;
+  }
+  .quiz-overlay.open { display: flex; }
+  .quiz-card {
+    width: min(640px, 100%);
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 32px;
+    box-shadow: 0 40px 100px rgba(0,0,0,.7);
+    position: relative;
+  }
+  .quiz-close {
+    position: absolute; top: 14px; right: 14px;
+    background: rgba(0,0,0,.4); color: #fff; border: 1px solid var(--line);
+    width: 32px; height: 32px; border-radius: 50%;
+    font-size: 16px; cursor: pointer;
+  }
+  .quiz-progress {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 18px;
+    font-size: 12px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;
+  }
+  .quiz-progress .bar {
+    flex: 1; height: 6px; border-radius: 3px;
+    background: rgba(255,255,255,.06); overflow: hidden;
+  }
+  .quiz-progress .bar > i {
+    display: block; height: 100%; border-radius: 3px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    transition: width .3s;
+  }
+  .quiz-book-title {
+    font-size: 13px; color: var(--muted); margin: 0 0 8px;
+  }
+  .quiz-question {
+    font-size: 22px; font-weight: 700; margin: 6px 0 18px;
+    letter-spacing: -0.01em; line-height: 1.25;
+    display: flex; align-items: flex-start; gap: 10px;
+  }
+  .quiz-question .speak-mini { flex-shrink: 0; margin-top: 4px; }
+  .quiz-options { display: grid; gap: 10px; }
+  .quiz-option {
+    background: var(--panel);
+    border: 2px solid var(--line);
+    color: var(--ink);
+    padding: 14px 18px; border-radius: 12px;
+    text-align: left; font-size: 15px; font-weight: 500;
+    cursor: pointer; transition: all .15s;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .quiz-option:hover:not(:disabled) {
+    border-color: var(--accent-2);
+    transform: translateX(2px);
+  }
+  .quiz-option:disabled { cursor: default; }
+  .quiz-option .letter {
+    width: 28px; height: 28px; border-radius: 8px;
+    background: rgba(255,255,255,.06);
+    display: grid; place-items: center;
+    font-weight: 700; font-size: 13px; color: var(--muted);
+    flex-shrink: 0;
+  }
+  .quiz-option.correct {
+    border-color: var(--good); background: rgba(70,211,105,.12);
+  }
+  .quiz-option.correct .letter { background: var(--good); color: #042c10; }
+  .quiz-option.wrong {
+    border-color: var(--bad); background: rgba(232,124,124,.12);
+  }
+  .quiz-option.wrong .letter { background: var(--bad); color: #2c0404; }
+
+  .quiz-result {
+    text-align: center; padding: 12px 0;
+  }
+  .quiz-result .emoji { font-size: 64px; line-height: 1; margin-bottom: 12px; }
+  .quiz-result h3 { font-size: 28px; font-weight: 800; margin: 0 0 8px; letter-spacing: -0.02em; }
+  .quiz-result p { color: var(--muted); margin: 0 0 22px; font-size: 15px; }
+  .quiz-result .score {
+    display: inline-block; padding: 8px 16px; border-radius: 999px;
+    background: rgba(255,255,255,.06); border: 1px solid var(--line);
+    font-weight: 700; margin-bottom: 18px;
+  }
+  .quiz-result .actions {
+    justify-content: center; gap: 10px; flex-wrap: wrap;
+  }
+  .quiz-loading {
+    text-align: center; padding: 60px 0; color: var(--muted);
+  }
+  .quiz-loading .spinner {
+    width: 40px; height: 40px; margin: 0 auto 16px;
+    border: 3px solid var(--line); border-top-color: var(--accent);
+    border-radius: 50%; animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ============ Leaderboard modal ============ */
+  .lb-overlay {
+    position: fixed; inset: 0; z-index: 35;
+    background: rgba(2,5,11,.85);
+    backdrop-filter: blur(8px);
+    display: none; align-items: flex-start; justify-content: center;
+    padding: 40px 22px; overflow-y: auto;
+  }
+  .lb-overlay.open { display: flex; }
+  .lb-card {
+    width: min(720px, 100%);
+    background: var(--bg-2); border: 1px solid var(--line);
+    border-radius: 16px; overflow: hidden;
+    box-shadow: 0 40px 100px rgba(0,0,0,.7);
+  }
+  .lb-head {
+    padding: 24px 28px 0;
+    position: relative;
+  }
+  .lb-head h2 {
+    margin: 0 0 4px; font-size: 24px; font-weight: 800; letter-spacing: -0.02em;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .lb-head .lb-sub {
+    color: var(--muted); font-size: 13px; margin: 0 0 18px;
+  }
+  .lb-tabs {
+    display: flex; gap: 4px; border-bottom: 1px solid var(--line);
+    margin: 0 -28px; padding: 0 28px;
+  }
+  .lb-tab {
+    background: transparent; color: var(--muted); border: none;
+    padding: 12px 16px; font-size: 14px; font-weight: 600; cursor: pointer;
+    position: relative; transition: color .15s;
+  }
+  .lb-tab:hover { color: var(--ink); }
+  .lb-tab.active { color: var(--ink); }
+  .lb-tab.active::after {
+    content: ""; position: absolute; left: 8px; right: 8px; bottom: -1px;
+    height: 2px; background: var(--accent); border-radius: 2px;
+  }
+  .lb-body { padding: 18px 28px 24px; }
+  .lb-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+  .lb-row {
+    display: grid;
+    grid-template-columns: 40px 1fr auto;
+    align-items: center; gap: 14px;
+    padding: 12px 14px; border-radius: 12px;
+    background: rgba(255,255,255,.03);
+    border: 1px solid var(--line);
+  }
+  .lb-row.me {
+    background: rgba(37,99,235,.12);
+    border-color: var(--accent);
+  }
+  .lb-row.podium-1 { background: linear-gradient(90deg, rgba(245,158,11,.16), rgba(245,158,11,.04)); border-color: rgba(245,158,11,.4); }
+  .lb-row.podium-2 { background: linear-gradient(90deg, rgba(148,163,184,.18), rgba(148,163,184,.04)); border-color: rgba(148,163,184,.4); }
+  .lb-row.podium-3 { background: linear-gradient(90deg, rgba(180,83,9,.18),  rgba(180,83,9,.04));  border-color: rgba(180,83,9,.4); }
+  .lb-rank {
+    font-weight: 800; font-size: 18px; color: var(--muted);
+    text-align: center;
+  }
+  .lb-row.podium-1 .lb-rank { color: #fbbf24; }
+  .lb-row.podium-2 .lb-rank { color: #cbd5e1; }
+  .lb-row.podium-3 .lb-rank { color: #fdba74; }
+  .lb-name { font-weight: 600; font-size: 15px; }
+  .lb-name .me-tag {
+    display: inline-block; margin-left: 8px;
+    background: var(--accent); color: #fff;
+    padding: 2px 8px; border-radius: 999px;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+  }
+  .lb-grade { color: var(--muted); font-size: 12px; }
+  .lb-count {
+    font-weight: 700; font-size: 16px; color: var(--ink);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .lb-count small { font-size: 11px; color: var(--muted); font-weight: 500; }
+  .lb-empty { color: var(--muted); padding: 40px 0; text-align: center; }
+  .lb-me-card {
+    margin-top: 14px; padding: 14px 18px; border-radius: 12px;
+    background: rgba(37,99,235,.08); border: 1px solid rgba(37,99,235,.3);
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 13px; color: var(--muted);
+  }
+  .lb-me-card strong { color: var(--ink); font-weight: 700; }
+
   @media (max-width: 720px) {
     .nav { padding: 14px 18px; }
     .nav-links { display: none; }
@@ -619,6 +824,9 @@
     .modal-cover-img, .modal-cover-fallback { width: 110px; }
     .modal-body { padding: 18px 22px 22px; }
     .login-card { padding: 32px 24px; }
+    .quiz-card { padding: 24px 22px; }
+    .quiz-question { font-size: 19px; }
+    .lb-row { grid-template-columns: 32px 1fr auto; gap: 10px; padding: 10px 12px; }
   }
 </style>
 </head>
@@ -658,8 +866,7 @@
     </div>
     <nav class="nav-links">
       <a href="#" class="active">Home</a>
-      <a href="#">My List</a>
-      <a href="#">Browse</a>
+      <a href="#" id="navLeaderboard">🏆 Leaderboard</a>
     </nav>
     <div class="spacer"></div>
     <div class="tts-wrap" title="Read text aloud">
@@ -686,6 +893,10 @@
     <div class="stat"><div class="ic">📚</div><span class="v" id="statRead">0</span><span>books read</span></div>
     <div class="stat"><div class="ic">💬</div><span class="v" id="statComments">0</span><span>reviews</span></div>
     <div class="stat"><div class="ic">🔥</div><span class="v" id="statStreak">0</span><span>day streak</span></div>
+    <div class="stat" id="statRankWrap" style="display:none">
+      <div class="ic" style="background:rgba(245,158,11,.16);color:#fbbf24">🏆</div>
+      <span class="v" id="statRank">—</span><span id="statRankLabel">rank</span>
+    </div>
     <div class="chip-row" id="chipRow"></div>
   </div>
 </div>
@@ -735,9 +946,11 @@
       <p class="blurb" id="modalBlurb"></p>
       <div class="actions">
         <button class="icon-btn read" id="readToggle">＋ I read this</button>
+        <button class="icon-btn quiz" id="quizBtn" style="display:none">📝 Take the Quiz</button>
         <button class="icon-btn up"   id="voteUp" disabled>👍 <span id="upCount">0</span></button>
         <button class="icon-btn down" id="voteDown" disabled>👎 <span id="downCount">0</span></button>
         <button class="icon-btn" id="speakBlurb">🔊 Read blurb aloud</button>
+        <a class="icon-btn amazon" id="amazonLink" target="_blank" rel="noopener noreferrer">🛒 Buy on Amazon</a>
       </div>
       <div class="note" id="votedOnly">Tap "I read this" to leave a vote or comment.</div>
       <div class="comments">
@@ -748,6 +961,37 @@
           <button id="commentSend" disabled>Post</button>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Quiz overlay ============ -->
+<div class="quiz-overlay" id="quizOverlay" role="dialog" aria-modal="true">
+  <div class="quiz-card" id="quizCard">
+    <button class="quiz-close" id="quizClose" aria-label="Close quiz">✕</button>
+    <p class="quiz-book-title" id="quizBookTitle">—</p>
+    <div class="quiz-progress">
+      <span id="quizStep">Question 1 of 4</span>
+      <div class="bar"><i id="quizBar" style="width:25%"></i></div>
+    </div>
+    <div id="quizContent"></div>
+  </div>
+</div>
+
+<!-- ============ Leaderboard modal ============ -->
+<div class="lb-overlay" id="lbOverlay" role="dialog" aria-modal="true">
+  <div class="lb-card">
+    <div class="lb-head">
+      <button class="quiz-close" id="lbClose" style="top:18px;right:18px" aria-label="Close leaderboard">✕</button>
+      <h2>🏆 Top Readers</h2>
+      <p class="lb-sub">See who's reading the most across Alpha School.</p>
+      <div class="lb-tabs">
+        <button class="lb-tab active" data-window="week">This Week</button>
+        <button class="lb-tab" data-window="all">All Time</button>
+      </div>
+    </div>
+    <div class="lb-body" id="lbBody">
+      <div class="lb-empty">Loading…</div>
     </div>
   </div>
 </div>
@@ -869,6 +1113,31 @@ function coverUrl(book) {
 }
 function coverGradient(book) {
   return `linear-gradient(135deg, ${book.palette[0]}, ${book.palette[1]})`;
+}
+
+/* Books with AI-generated quizzes ready (server has matching entries in
+   QUIZ_BOOKS in api/quiz.js). For now just our pilot title. */
+const QUIZ_ENABLED = new Set(["k01"]);
+
+/* ISBN-13 → ISBN-10 so Amazon links can use the canonical product URL. */
+function isbn10FromIsbn13(isbn13) {
+  const clean = String(isbn13 || "").replace(/[-\s]/g, "");
+  if (!/^978\d{10}$/.test(clean)) return null;
+  const core = clean.slice(3, 12);
+  let sum = 0;
+  for (let i = 0; i < 9; i++) sum += (10 - i) * Number(core[i]);
+  const check = (11 - (sum % 11)) % 11;
+  return core + (check === 10 ? "X" : String(check));
+}
+function amazonUrl(book) {
+  const isbn10 = isbn10FromIsbn13(book.isbn);
+  const base = isbn10
+    ? `https://www.amazon.com/dp/${isbn10}`
+    : `https://www.amazon.com/s?k=${encodeURIComponent(book.isbn)}`;
+  // Add affiliate tag via a meta tag (so it's easy to configure later)
+  const tagMeta = document.querySelector('meta[name="amazon-affiliate-tag"]');
+  const tag = tagMeta && tagMeta.content;
+  return tag ? `${base}${base.includes("?") ? "&" : "?"}tag=${encodeURIComponent(tag)}` : base;
 }
 
 /* ---------- 2. Persistence ----------
@@ -1082,6 +1351,8 @@ function startApp(session) {
   renderStats();
   renderHero();
   renderRows();
+  // Fetch the user's global rank for the stats strip (no-op if Redis isn't set up)
+  refreshMyRank();
 }
 
 /* ---------- 6. Category quick-nav chips ---------- */
@@ -1290,6 +1561,9 @@ function openBook(id) {
   document.getElementById("modalCat").textContent = book.category;
   document.getElementById("modalBlurb").textContent = book.blurb;
 
+  // Amazon (US) — always available
+  document.getElementById("amazonLink").href = amazonUrl(book);
+
   refreshInteractiveBits();
   modal.classList.add("open");
   document.body.style.overflow = "hidden";
@@ -1311,9 +1585,22 @@ function refreshInteractiveBits() {
   document.getElementById("voteUp").classList.toggle("active",   myVote === "up");
   document.getElementById("voteDown").classList.toggle("active", myVote === "down");
 
+  // If a quiz is available for this book, show "Take the Quiz" and hide the
+  // direct "I read this" button. Once they pass, the read state is set and
+  // the regular button reappears as "✓ Marked as read".
+  const hasQuiz = QUIZ_ENABLED.has(id);
   const readBtn = document.getElementById("readToggle");
+  const quizBtn = document.getElementById("quizBtn");
   readBtn.classList.toggle("active", wasRead);
   readBtn.textContent = wasRead ? "✓ Marked as read" : "＋ I read this";
+  if (hasQuiz && !wasRead) {
+    readBtn.style.display = "none";
+    quizBtn.style.display = "inline-flex";
+    quizBtn.textContent = "📝 Take the Quiz";
+  } else {
+    readBtn.style.display = "inline-flex";
+    quizBtn.style.display = "none";
+  }
 
   document.getElementById("voteUp").disabled   = !wasRead;
   document.getElementById("voteDown").disabled = !wasRead;
@@ -1321,10 +1608,16 @@ function refreshInteractiveBits() {
   document.getElementById("commentSend").disabled  = !wasRead;
 
   const note = document.getElementById("votedOnly");
-  note.textContent = wasRead
-    ? "Thanks for reading! Leave a thumbs up or down and a quick review."
-    : `Tap "I read this" to leave a vote or review.`;
-  note.style.color = wasRead ? "var(--good)" : "var(--muted)";
+  if (wasRead) {
+    note.textContent = "Thanks for reading! Leave a thumbs up or down and a quick review.";
+    note.style.color = "var(--good)";
+  } else if (hasQuiz) {
+    note.textContent = "Pass the quiz to unlock voting and comments.";
+    note.style.color = "var(--accent-2)";
+  } else {
+    note.textContent = `Tap "I read this" to leave a vote or review.`;
+    note.style.color = "var(--muted)";
+  }
 
   renderComments();
 }
@@ -1364,22 +1657,45 @@ function closeModal() {
 }
 
 /* ---------- 11. Interactions ---------- */
-document.getElementById("readToggle").addEventListener("click", () => {
+document.getElementById("readToggle").addEventListener("click", async () => {
   if (!activeBookId) return;
   const nowOn = !state.data.read[activeBookId];
   if (nowOn) {
-    state.data.read[activeBookId] = true;
-    // Add today to streak days (deduped)
-    const today = new Date().toISOString().slice(0,10);
-    state.data.streakDays = Array.from(new Set([...(state.data.streakDays || []), today]));
+    await markBookAsRead(activeBookId);
   } else {
     delete state.data.read[activeBookId];
     delete state.data.votes[activeBookId];
+    saveData(state.session.email, state.data);
+    refreshInteractiveBits();
+    renderStats();
   }
+});
+
+// Single funnel for marking a book as read. Handles localStorage,
+// streak tracking, and server activity logging (for leaderboards).
+async function markBookAsRead(bookId) {
+  state.data.read[bookId] = true;
+  const today = new Date().toISOString().slice(0,10);
+  state.data.streakDays = Array.from(
+    new Set([...(state.data.streakDays || []), today])
+  );
   saveData(state.session.email, state.data);
   refreshInteractiveBits();
   renderStats();
-});
+  // Fire-and-forget server log. Don't block the UI on this.
+  try {
+    await fetch("/api/activity", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ kind: "read", bookId }),
+    });
+    // Refresh rank in the stats strip once the server has the new count
+    refreshMyRank();
+  } catch {
+    /* offline / network — local state still reflects the read */
+  }
+}
 
 document.getElementById("voteUp").addEventListener("click",   () => castVote("up"));
 document.getElementById("voteDown").addEventListener("click", () => castVote("down"));
@@ -1435,7 +1751,284 @@ avatarWrap.addEventListener("click", (e) => {
 });
 document.addEventListener("click", () => userMenu.classList.remove("open"));
 
-/* ---------- 13. Boot ---------- */
+/* ---------- 13. Quiz state machine ----------
+   Fetches AI-generated questions from /api/quiz, walks the kid through 4
+   questions, and (on pass) marks the book as read. */
+
+const quizState = { bookId: null, questions: null, idx: 0, score: 0, answers: [] };
+
+document.getElementById("quizBtn").addEventListener("click", () => {
+  if (!activeBookId) return;
+  openQuiz(activeBookId);
+});
+document.getElementById("quizClose").addEventListener("click", closeQuiz);
+document.getElementById("quizOverlay").addEventListener("click", (e) => {
+  if (e.target.id === "quizOverlay") closeQuiz();
+});
+
+async function openQuiz(bookId) {
+  const book = BOOK_BY_ID[bookId];
+  if (!book) return;
+  quizState.bookId = bookId;
+  quizState.questions = null;
+  quizState.idx = 0;
+  quizState.score = 0;
+  quizState.answers = [];
+
+  document.getElementById("quizBookTitle").textContent =
+    `Quiz · ${book.title}`;
+  document.getElementById("quizOverlay").classList.add("open");
+  document.body.style.overflow = "hidden";
+  // Show loading state
+  document.getElementById("quizContent").innerHTML = `
+    <div class="quiz-loading">
+      <div class="spinner"></div>
+      <div>Building your quiz…</div>
+    </div>`;
+  setQuizProgress(0);
+
+  try {
+    const r = await fetch(`/api/quiz?bookId=${encodeURIComponent(bookId)}`, {
+      credentials: "same-origin",
+    });
+    const data = await r.json();
+    if (!r.ok || !data.available || !data.questions) {
+      throw new Error(data.message || data.error || "no_quiz");
+    }
+    quizState.questions = data.questions;
+    renderQuizQuestion();
+  } catch (err) {
+    document.getElementById("quizContent").innerHTML = `
+      <div class="quiz-result">
+        <div class="emoji">😔</div>
+        <h3>Quiz isn't ready</h3>
+        <p>${escapeHtml(String(err.message || err))}</p>
+        <div class="actions">
+          <button class="icon-btn" onclick="closeQuiz()">Close</button>
+        </div>
+      </div>`;
+  }
+}
+
+function closeQuiz() {
+  document.getElementById("quizOverlay").classList.remove("open");
+  document.body.style.overflow = "";
+  if (window.speechSynthesis) speechSynthesis.cancel();
+}
+
+function setQuizProgress(idx) {
+  const total = (quizState.questions || []).length || 4;
+  document.getElementById("quizStep").textContent = `Question ${Math.min(idx+1,total)} of ${total}`;
+  document.getElementById("quizBar").style.width = `${((idx) / total) * 100}%`;
+}
+
+function renderQuizQuestion() {
+  const i = quizState.idx;
+  const q = quizState.questions[i];
+  setQuizProgress(i);
+  const letters = ["A", "B", "C", "D"];
+  const html = `
+    <h3 class="quiz-question">
+      <span>${escapeHtml(q.q)}</span>
+      <button class="speak-mini" id="qSpeak">🔊</button>
+    </h3>
+    <div class="quiz-options" id="qOpts">
+      ${q.options.map((opt, idx) => `
+        <button class="quiz-option" data-i="${idx}">
+          <span class="letter">${letters[idx]}</span>
+          <span>${escapeHtml(opt)}</span>
+        </button>`).join("")}
+    </div>`;
+  document.getElementById("quizContent").innerHTML = html;
+  document.getElementById("qSpeak").addEventListener("click", () => {
+    speak(q.q, { force: true });
+  });
+  document.querySelectorAll("#qOpts .quiz-option").forEach((btn) => {
+    btn.addEventListener("click", () => answerQuestion(Number(btn.dataset.i)));
+  });
+}
+
+function answerQuestion(choice) {
+  const q = quizState.questions[quizState.idx];
+  const correct = choice === q.answer;
+  quizState.answers.push({ choice, correct });
+  if (correct) quizState.score++;
+
+  // Visual feedback on the chosen + correct option
+  const opts = document.querySelectorAll("#qOpts .quiz-option");
+  opts.forEach((btn, i) => {
+    btn.disabled = true;
+    if (i === q.answer) btn.classList.add("correct");
+    else if (i === choice) btn.classList.add("wrong");
+  });
+
+  // Brief pause, then move on
+  setTimeout(() => {
+    if (quizState.idx + 1 < quizState.questions.length) {
+      quizState.idx++;
+      renderQuizQuestion();
+    } else {
+      finishQuiz();
+    }
+  }, 1100);
+}
+
+async function finishQuiz() {
+  const total = quizState.questions.length;
+  const score = quizState.score;
+  const passed = score >= 3; // 3/4 or better
+  setQuizProgress(total);
+
+  if (passed) {
+    document.getElementById("quizContent").innerHTML = `
+      <div class="quiz-result">
+        <div class="emoji">🎉</div>
+        <h3>Great reading!</h3>
+        <div class="score">You got ${score} / ${total} right</div>
+        <p>Book marked as read. You can now leave a review.</p>
+        <div class="actions">
+          <button class="icon-btn read active" id="quizDone">Done</button>
+        </div>
+      </div>`;
+    document.getElementById("quizDone").addEventListener("click", closeQuiz);
+    // Persist read state (local + server) — but only if not already marked
+    if (!state.data.read[quizState.bookId]) {
+      await markBookAsRead(quizState.bookId);
+    }
+  } else {
+    document.getElementById("quizContent").innerHTML = `
+      <div class="quiz-result">
+        <div class="emoji">📖</div>
+        <h3>Almost there!</h3>
+        <div class="score">You got ${score} / ${total} right</div>
+        <p>Read the book again and give it another try. You need 3 out of 4 to pass.</p>
+        <div class="actions">
+          <button class="icon-btn" id="quizRetry">Try again</button>
+          <button class="icon-btn" id="quizLater">Read more first</button>
+        </div>
+      </div>`;
+    document.getElementById("quizRetry").addEventListener("click", () => {
+      quizState.idx = 0;
+      quizState.score = 0;
+      quizState.answers = [];
+      renderQuizQuestion();
+    });
+    document.getElementById("quizLater").addEventListener("click", closeQuiz);
+  }
+}
+
+/* ---------- 14. Leaderboard ---------- */
+
+let lbState = { window: "week" };
+
+document.getElementById("navLeaderboard").addEventListener("click", (e) => {
+  e.preventDefault();
+  openLeaderboard("week");
+});
+document.getElementById("lbClose").addEventListener("click", closeLeaderboard);
+document.getElementById("lbOverlay").addEventListener("click", (e) => {
+  if (e.target.id === "lbOverlay") closeLeaderboard();
+});
+document.querySelectorAll(".lb-tab").forEach((tab) => {
+  tab.addEventListener("click", () => openLeaderboard(tab.dataset.window));
+});
+
+async function openLeaderboard(window) {
+  lbState.window = window;
+  document.getElementById("lbOverlay").classList.add("open");
+  document.body.style.overflow = "hidden";
+  document.querySelectorAll(".lb-tab").forEach((t) => {
+    t.classList.toggle("active", t.dataset.window === window);
+  });
+  document.getElementById("lbBody").innerHTML = `<div class="lb-empty">Loading…</div>`;
+  try {
+    const r = await fetch(`/api/leaderboard?window=${encodeURIComponent(window)}&limit=25`, {
+      credentials: "same-origin",
+    });
+    const data = await r.json();
+    renderLeaderboard(data);
+  } catch (e) {
+    document.getElementById("lbBody").innerHTML =
+      `<div class="lb-empty">Couldn't load the leaderboard. Try again later.</div>`;
+  }
+}
+
+function closeLeaderboard() {
+  document.getElementById("lbOverlay").classList.remove("open");
+  document.body.style.overflow = "";
+}
+
+function renderLeaderboard(data) {
+  const body = document.getElementById("lbBody");
+  if (!data.hasRedis) {
+    body.innerHTML = `
+      <div class="lb-empty">
+        <div style="font-size:36px;margin-bottom:10px">📊</div>
+        <div style="color:var(--ink);font-weight:600;margin-bottom:6px">Leaderboard coming online</div>
+        <div>The leaderboard storage isn't set up yet. Come back soon.</div>
+      </div>`;
+    return;
+  }
+  if (!data.entries.length) {
+    body.innerHTML = `
+      <div class="lb-empty">
+        <div style="font-size:36px;margin-bottom:10px">📖</div>
+        <div style="color:var(--ink);font-weight:600;margin-bottom:6px">No reads yet ${
+          data.window === "week" ? "this week" : ""
+        }</div>
+        <div>Be the first — mark a book as read to take the top spot.</div>
+      </div>`;
+    return;
+  }
+  const rows = data.entries.map((e, i) => {
+    const rank = i + 1;
+    const podium = rank <= 3 ? ` podium-${rank}` : "";
+    const meCls = e.isYou ? " me" : "";
+    const medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : `#${rank}`;
+    return `
+      <li class="lb-row${podium}${meCls}">
+        <div class="lb-rank">${medal}</div>
+        <div>
+          <div class="lb-name">
+            ${escapeHtml(e.name)}
+            ${e.isYou ? `<span class="me-tag">YOU</span>` : ""}
+          </div>
+          ${e.grade ? `<div class="lb-grade">Grade ${escapeHtml(e.grade)}</div>` : ""}
+        </div>
+        <div class="lb-count">${e.count}<small>books</small></div>
+      </li>`;
+  }).join("");
+  const meCard = data.me && data.me.count > 0 && !data.entries.some(e => e.isYou)
+    ? `<div class="lb-me-card">
+         <span>Your rank: <strong>${data.me.rank ? "#" + data.me.rank : "—"}</strong></span>
+         <span><strong>${data.me.count}</strong> books read</span>
+       </div>`
+    : "";
+  body.innerHTML = `<ul class="lb-list">${rows}</ul>${meCard}`;
+}
+
+// Pull the user's rank into the stats strip
+async function refreshMyRank() {
+  try {
+    const r = await fetch("/api/leaderboard?window=all&limit=1", {
+      credentials: "same-origin",
+    });
+    const data = await r.json();
+    if (!data || !data.hasRedis) return;
+    const wrap = document.getElementById("statRankWrap");
+    const rank = data.me && data.me.rank;
+    if (rank) {
+      document.getElementById("statRank").textContent = "#" + rank;
+      wrap.style.display = "flex";
+    } else {
+      wrap.style.display = "none";
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+/* ---------- 15. Boot ---------- */
 (async function boot() {
   try {
     const r = await fetch("/api/auth/me", { credentials: "same-origin" });

@@ -4,8 +4,11 @@
 import { verifySession, parseCookies } from "./lib/session.js";
 
 export const config = {
-  // Run on every path EXCEPT /api/auth/*, Vercel internals, and favicon.
-  matcher: "/((?!api/auth|_vercel|favicon\\.ico).*)",
+  // Run on every path EXCEPT /api/* (each endpoint does its own auth check
+  // and returns 401 JSON rather than redirecting), Vercel internals, and
+  // favicon. This lets the static HTML stay gated while keeping API
+  // responses machine-friendly.
+  matcher: "/((?!api/|_vercel|favicon\\.ico).*)",
 };
 
 export default async function middleware(request) {
