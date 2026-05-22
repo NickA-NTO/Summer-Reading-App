@@ -11,14 +11,14 @@ current. Strike items as they ship.
 - [x] Text-to-speech with natural-voice picker + global toggle
 - [x] Google OAuth gated to `alpha.school`, `trilogy.com`, `2hourlearning.com`
 - [x] GitHub repo + Vercel auto-deploy from `main`
-- [x] **Pilot: AI-generated quiz for The Very Hungry Caterpillar (k01)** —
-      `/api/quiz` calls **Claude Haiku 4.5** through the AI SDK with a zod
-      schema; server caches an 8-question pool in Redis. Client picks 4 at
-      random per attempt with shuffled option positions, so kids can't
-      memorize answer locations across attempts. **Max 2 attempts per day,
-      need 3/4 to pass.** _Needs migration to 5 questions @ 80% pass +
-      grade-leveled difficulty (see section 1c). Also needs quiz-integrity
-      additions (see section 1d)._
+- [x] **AI-generated quizzes for all 28 books** — `/api/quiz` calls
+      **Claude Haiku 4.5** through the AI SDK with a zod schema; server
+      caches a 12-question pool per book in Redis. Client picks **5 at
+      random per attempt** with shuffled option positions, so kids can't
+      memorize answer locations across attempts. **Max 2 attempts per
+      book per day, need 4/5 (80%) to pass.** _Still needs grade-leveled
+      difficulty (see section 1c) and quiz-integrity additions (see
+      section 1d)._
 - [x] **Admin user list** — `/api/admin/users` returns everyone who has
       signed in, gated by the `ADMIN_EMAILS` env var. Modal accessible from
       the avatar dropdown for admins, with search and last-active / books-
@@ -65,8 +65,9 @@ the book they claim to have read.
 
 ### Build steps
 - [x] Define quiz schema + `/api/quiz` endpoint (pilot for k01)
-- [ ] Migrate from 4 to **5 questions per attempt**, raise threshold to **80% (4/5)**
-- [ ] Backfill plot summaries for the remaining 27 books in `api/quiz.js`
+- [x] Migrate from 4 to **5 questions per attempt**, raise threshold to **80% (4/5)**
+- [x] Backfill plot summaries for the remaining 27 books in `api/quiz.js`
+      (pool bumped to 12 questions/book to set up section 1d.1)
 - [x] Quiz UI component (one-question-at-a-time, big tap targets, K-2 friendly)
 - [x] Pass/fail screen with "Try again" or celebration animation
 - [x] Gate the existing "I read this" / vote / comment buttons behind a pass

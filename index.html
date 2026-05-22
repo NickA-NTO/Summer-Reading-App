@@ -1209,8 +1209,8 @@ function coverGradient(book) {
 }
 
 /* Books with AI-generated quizzes ready (server has matching entries in
-   QUIZ_BOOKS in api/quiz.js). For now just our pilot title. */
-const QUIZ_ENABLED = new Set(["k01"]);
+   QUIZ_BOOKS in api/quiz.js). All 28 books backfilled with plot summaries. */
+const QUIZ_ENABLED = new Set(ALL_BOOKS.map(b => b.id));
 
 /* ISBN-13 → ISBN-10 so Amazon links can use the canonical product URL. */
 function isbn10FromIsbn13(isbn13) {
@@ -1964,12 +1964,13 @@ avatarWrap.addEventListener("click", (e) => {
 document.addEventListener("click", () => userMenu.classList.remove("open"));
 
 /* ---------- 13. Quiz state machine ----------
-   Server returns a POOL of 8 questions per book. Each attempt we pick a
-   random 4 and shuffle their options, so kids can't memorize positions or
-   answers across attempts. Max 2 attempts per book per day. */
+   Server returns a POOL of 12 questions per book. Each attempt we pick a
+   random 5 and shuffle their options, so kids can't memorize positions or
+   answers across attempts. Need 4/5 (80%) to pass. Max 2 attempts per
+   book per day. */
 
-const QUESTIONS_PER_ATTEMPT = 4;
-const PASS_THRESHOLD = 3;          // need 3/4 to pass
+const QUESTIONS_PER_ATTEMPT = 5;
+const PASS_THRESHOLD = 4;          // need 4/5 (80%) to pass
 const MAX_ATTEMPTS_PER_DAY = 2;
 
 const quizState = {
