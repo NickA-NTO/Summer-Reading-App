@@ -616,22 +616,26 @@ A quiz-pass for our app would emit BOTH:
 ### Decisions needed
 - [ ] **TimeBack Caliper endpoint** — confirm the URL the events POST to,
       auth scheme (Bearer token? OAuth client credentials?), and any
-      tenant/sensor IDs we need
-- [ ] **Identity mapping** — does TimeBack key on email, OneRoster
-      student `sourcedId`, or a TimeBack-specific user ID? We need to
-      know how to fill the `actor` field of the Caliper event
-- [ ] **Event format version** — Caliper v1.1 vs. v1.2 (most recent)?
-      TimeBack might only accept a specific version
-- [ ] **Idempotency** — Caliper events have a UUID `id` field; we'll
-      generate a deterministic one from `(email, bookId, attemptNumber)`
-      so retries don't credit XP twice
-- [ ] **When to emit** — immediately on quiz pass (real-time XP) or
-      batched (cheaper but feedback loop is delayed)? Recommend
-      immediate.
-- [ ] **What about 2nd-attempt passes?** — do we emit a different event
-      type, or modify the `scoreGiven` to reflect the 50% retake penalty?
-      Recommend: emit the actual score, let TimeBack apply its own
-      retake rules
+      tenant/sensor IDs we need. Env vars are wired:
+      `TIMEBACK_CALIPER_URL`, `TIMEBACK_CALIPER_TOKEN`,
+      `TIMEBACK_CALIPER_AUTH_SCHEME`, `TIMEBACK_SENSOR_ID`,
+      `TIMEBACK_EDAPP_ID`.
+- [x] **Identity mapping** — we send BOTH: actor `id` =
+      `urn:uuid:<TimeBack student_id>` (preferred), with email as
+      `otherIdentifiers` of type `EmailAddress`. TimeBack picks whichever
+      it indexes on.
+- [x] **Event format version** — Caliper v1.2
+      (`http://purl.imsglobal.org/ctx/caliper/v1p2`). Confirm with TimeBack
+      that this is OK or downgrade to v1.1 if required.
+- [x] **Idempotency** — UUID v5 deterministic IDs from
+      `(eventType, email, bookId, attemptNumber)`. Re-firing the same
+      event produces the exact same `id`, so TimeBack's de-dupe gets a
+      free win.
+- [x] **When to emit** — immediately on quiz pass (fire-and-forget from
+      `/api/activity` so the student response isn't blocked on TimeBack).
+- [x] **2nd-attempt passes** — we emit the actual `scoreGiven` and tag
+      `extensions.retake: true` so TimeBack can apply its own retake
+      rules. We don't double-encode the penalty.
 
 ### Caliper event shape we'll send
 
@@ -671,18 +675,30 @@ A quiz-pass for our app would emit BOTH:
 ```
 
 ### Build steps
-- [ ] Add env vars: `TIMEBACK_CALIPER_URL`, `TIMEBACK_CALIPER_TOKEN`,
-      `TIMEBACK_SENSOR_ID`
-- [ ] `lib/caliper.js`: event builder functions (one per event type),
-      UUID v5 deterministic ID helper, validation against the schema
-- [ ] `lib/timeback.js`: POSTs to the Caliper endpoint, retry with
-      exponential backoff, idempotency via the deterministic event ID
-- [ ] Wire into the quiz completion handler: on pass (4/5 or 5/5),
-      fire-and-forget the AssessmentEvent + GradeEvent pair
-- [ ] Failure queue in Redis (`caliper:retry`), with a Vercel Cron job
-      retrying failed events every 5 min until success or 24-hr giveup
-- [ ] Admin view: "Caliper sync health" — count of events sent / queued
-      / failed in the last 24 hours
+- [x] Env vars wired: `TIMEBACK_CALIPER_URL`, `TIMEBACK_CALIPER_TOKEN`,
+      `TIMEBACK_CALIPER_AUTH_SCHEME` (default Bearer),
+      `TIMEBACK_SENSOR_ID`, `TIMEBACK_EDAPP_ID`.
+- [x] `lib/caliper.js`: `buildAssessmentEvent`, `buildGradeEvent`,
+      `buildQuizEventEnvelope`, inline UUID v5 helper (no new dep).
+- [x] `lib/timeback.js`: `postCaliperEnvelope` with one retry on 5xx/network
+      error; `sendCaliperEnvelopeAsync` fire-and-forget;
+      `queueCaliperRetry` writes failures to Redis LIST
+      `caliper:retry` (capped at 1000); `drainCaliperRetryQueue` for
+      cron/admin manual drain.
+- [x] Wired into `/api/activity` — every quiz completion with
+      `attemptNum` set fires the envelope async. Held submissions emit
+      too with `extensions.fraudFlag = "held"` so TimeBack can decide
+      what to do with them.
+- [x] Admin endpoint `?action=caliper-health` — surfaces config status
+      and retry-queue depth.
+- [x] Admin endpoint `?action=caliper-drain-retry` — manual drain pass.
+- [x] Admin endpoint `?action=test-caliper` — generates a sample
+      envelope using arbitrary inputs; with `send: true` dispatches it
+      to the real endpoint. Returns the dispatch result so you can
+      verify status codes / TimeBack response bodies.
+- [ ] Vercel Cron job to drain the retry queue every ~5 min. Needs the
+      same shared-secret pattern as 1i Option A. Until then, admin can
+      drain manually via the endpoint above.
 
 ### Decoupled from internal points
 

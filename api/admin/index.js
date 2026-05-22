@@ -36,6 +36,12 @@ import {
   hasPolly,
 } from "../../lib/tts.js";
 import { normalizeGrade } from "../../lib/xp.js";
+import { buildQuizEventEnvelope } from "../../lib/caliper.js";
+import {
+  postCaliperEnvelope,
+  getCaliperHealthSnapshot,
+  drainCaliperRetryQueue,
+} from "../../lib/timeback.js";
 
 const ALLOWED_GRADES = new Set([
   "PK",
@@ -263,9 +269,54 @@ export default async function handler(req, res) {
     return json(res, 200, result);
   }
 
+  // ========================= test-caliper ========================
+  // Build a sample Caliper envelope (or send it, if ?send=1). Used to:
+  //   - Hand TimeBack a sample to verify their ingestion against.
+  //   - Smoke-test the real TIMEBACK_CALIPER_URL once configured.
+  // Body (all optional — sensible defaults if omitted):
+  //   { email, studentId, studentName, bookId, bookTitle, attemptNum,
+  //     scoreGiven, bookGradeLevel, studentGrade, xpAwarded, fraudFlag,
+  //     send?: boolean }
+  if (action === "test-caliper") {
+    const body =
+      req.method === "POST" ? await readBody(req) : {};
+    if (body === null) return json(res, 400, { error: "invalid_json" });
+    const envelope = buildQuizEventEnvelope({
+      email: body.email || "test.student@alpha.school",
+      studentId: body.studentId || null,
+      studentName: body.studentName || "Test Student",
+      bookId: body.bookId || "k01",
+      bookTitle: body.bookTitle || "The Very Hungry Caterpillar",
+      attemptNum: body.attemptNum != null ? Number(body.attemptNum) : 1,
+      scoreGiven: body.scoreGiven != null ? Number(body.scoreGiven) : 5,
+      maxScore: 5,
+      bookGradeLevel: body.bookGradeLevel || "K",
+      studentGrade: body.studentGrade || "2",
+      xpAwarded: body.xpAwarded != null ? Number(body.xpAwarded) : 2,
+      fraudFlag: body.fraudFlag || "clean",
+    });
+    let dispatch = null;
+    if (body.send) {
+      dispatch = await postCaliperEnvelope(envelope);
+    }
+    return json(res, 200, { envelope, dispatch });
+  }
+
+  // ====================== caliper-health =========================
+  if (action === "caliper-health" && req.method === "GET") {
+    const health = await getCaliperHealthSnapshot();
+    return json(res, 200, health);
+  }
+
+  // ==================== caliper-drain-retry ======================
+  if (action === "caliper-drain-retry" && req.method === "POST") {
+    const result = await drainCaliperRetryQueue({ max: 100 });
+    return json(res, 200, result);
+  }
+
   // ============================ 404 ==============================
   return json(res, 404, {
     error: "not_found",
-    hint: "Use ?action=users|tts-usage|quiz-reports|held-xp|set-grade|bulk-set-grades",
+    hint: "Use ?action=users|tts-usage|quiz-reports|held-xp|set-grade|bulk-set-grades|test-caliper|caliper-health|caliper-drain-retry",
   });
 }

@@ -26,6 +26,8 @@ import {
 } from "../lib/store.js";
 import { getBook } from "../lib/books.js";
 import { pointsForBook, normalizeGrade, WCPM_BY_GRADE } from "../lib/xp.js";
+import { buildQuizEventEnvelope } from "../lib/caliper.js";
+import { sendCaliperEnvelopeAsync } from "../lib/timeback.js";
 
 // Internal-leaderboard points multiplier for 2nd-attempt passes.
 // Can be overridden via env var (e.g. POINTS_RETAKE_MULTIPLIER=0.75).
@@ -190,6 +192,38 @@ export default async function handler(req, res) {
   if (fraudStatus === "clean" && attemptNum === 2 && result.recorded) {
     response.isRetake = true;
     response.basePoints = basePoints;
+  }
+
+  // -----------------------------------------------------------------------
+  // Fire-and-forget Caliper events to TimeBack (1e). Only emit when this is
+  // a real quiz pass (attemptNum present + book exists + recorded). Held
+  // submissions DO emit — TimeBack should know the kid attempted, the
+  // `extensions.fraudFlag` lets them decide whether to credit XP.
+  //
+  // No await: response returns before the HTTPS round-trip to TimeBack.
+  // If TimeBack is unreachable, sendCaliperEnvelopeAsync queues to Redis.
+  // -----------------------------------------------------------------------
+  if (attemptNum != null && book && result.recorded) {
+    try {
+      const envelope = buildQuizEventEnvelope({
+        email: session.email,
+        studentId: session.studentId || null, // populated once TimeBack id mapping ships
+        studentName: session.name,
+        bookId,
+        bookTitle: book.title || bookId,
+        attemptNum,
+        scoreGiven: body.score != null ? Number(body.score) : 5, // pass = 4-5; default 5 if not supplied
+        maxScore: 5,
+        bookGradeLevel: book.grade,
+        studentGrade: grade,
+        xpAwarded: finalPoints,
+        fraudFlag: fraudStatus,
+      });
+      sendCaliperEnvelopeAsync(envelope);
+    } catch (err) {
+      // Never let Caliper emission break the student-facing response.
+      console.warn("[caliper_emit_failed]", String(err?.message || err));
+    }
   }
 
   res.statusCode = 200;
