@@ -2940,10 +2940,10 @@ async function openAdmin() {
 async function loadAdminData() {
   try {
     const [usersRes, ttsRes, reportsRes, heldXpRes] = await Promise.all([
-      fetch("/api/admin/users", { credentials: "same-origin" }),
-      fetch("/api/admin/tts-usage", { credentials: "same-origin" }),
-      fetch("/api/admin/quiz-reports", { credentials: "same-origin" }),
-      fetch("/api/admin/held-xp", { credentials: "same-origin" }),
+      fetch("/api/admin?action=users", { credentials: "same-origin" }),
+      fetch("/api/admin?action=tts-usage", { credentials: "same-origin" }),
+      fetch("/api/admin?action=quiz-reports", { credentials: "same-origin" }),
+      fetch("/api/admin?action=held-xp", { credentials: "same-origin" }),
     ]);
     if (usersRes.status === 403) {
       document.getElementById("adminBody").innerHTML =
@@ -3088,7 +3088,7 @@ function renderAdminTable() {
       card.querySelectorAll("button").forEach((b) => (b.disabled = true));
       btn.textContent = action === "approve" ? "Approving…" : "Rejecting…";
       try {
-        const r = await fetch("/api/admin/held-xp", {
+        const r = await fetch("/api/admin?action=held-xp", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "same-origin",
@@ -3112,7 +3112,7 @@ function renderAdminTable() {
       btn.disabled = true;
       btn.textContent = "Resetting…";
       try {
-        const r = await fetch("/api/admin/held-xp", {
+        const r = await fetch("/api/admin?action=held-xp", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "same-origin",
@@ -3140,7 +3140,7 @@ function renderAdminTable() {
       card.querySelectorAll("button").forEach((b) => (b.disabled = true));
       btn.textContent = action === "confirm" ? "Removing…" : "Dismissing…";
       try {
-        const r = await fetch("/api/admin/quiz-reports", {
+        const r = await fetch("/api/admin?action=quiz-reports", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "same-origin",
@@ -3165,7 +3165,7 @@ function renderAdminTable() {
       if (!grade) return;
       sel.disabled = true;
       try {
-        const r = await fetch("/api/admin/set-grade", {
+        const r = await fetch("/api/admin?action=set-grade", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "same-origin",
