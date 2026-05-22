@@ -242,14 +242,15 @@ content. Second-try passes — especially after multiple shuffled exposures
 to the questions — are weaker signal.
 
 **Fix:**
-- [ ] **Leaderboard XP**: 1st attempt pass = **100%** of book XP; 2nd
-      attempt pass = **50%**. (Tunable in env var
-      `XP_RETAKE_MULTIPLIER`.)
-- [ ] **TimeBack XP** sync (depends on the TimeBack write API being
-      wired up — see new section below): mirror the same 100% / 50%
-      ratio so the school's official record matches.
+- [ ] **Internal leaderboard points**: 1st attempt pass = **100%** of
+      book points; 2nd attempt pass = **50%**. Tunable in env var
+      `POINTS_RETAKE_MULTIPLIER`.
+- [ ] **Caliper event to TimeBack** (depends on 1e): reflect the 2nd
+      attempt by setting `scoreGiven` to the actual quiz score, and
+      include an `extension` field flagging it as the retake — TimeBack
+      can apply its own XP penalty if desired.
 - [ ] Make the reduction visible in the post-quiz success screen:
-      "Great work! You earned **8 XP** (would have been 16 XP on first
+      "Great work! You earned **8 points** (would have been 16 on first
       try) — try to get it right first next time!"
 - [ ] Admin can override (e.g., if a student's first attempt was
       glitched by a connectivity issue) — admin sets a per-attempt
@@ -336,34 +337,113 @@ These are independent but all depend on the XP system from section 1c.
 
 ---
 
-## 1e. TimeBack integration
+## 1e. TimeBack integration via Caliper events
 
-**Goal:** Reading Spine XP and leaderboard points sync to TimeBack so the
-school's official XP record reflects what kids earn here.
+**Two systems, kept separate:**
+
+| | What it is | Who awards | Source of truth |
+|---|---|---|---|
+| **Internal points** | The in-app leaderboard ranking number | Reading Spine (us) | Our Redis |
+| **TimeBack XP** | School's official XP credit on the kid's record | **TimeBack** | TimeBack's database |
+
+Reading Spine **does NOT award XP** to students directly. Our job is to
+emit Caliper Analytics events to TimeBack whenever a kid demonstrates
+quiz mastery; TimeBack ingests the events and credits XP per its own
+rules. Our internal "points" power the in-app leaderboard only and
+exist independently of TimeBack's XP.
+
+### Caliper Analytics primer
+
+[Caliper Analytics](https://www.imsglobal.org/spec/caliper/v1p2)
+(IMS Global / 1EdTech standard) defines a structured JSON event format
+for learning activities. The relevant event types for us:
+- **AssessmentEvent** — a kid took an assessment (the quiz). Actions
+  include `Started`, `Completed`, `Submitted`.
+- **GradeEvent** — a result was assigned to an assessment attempt.
+  Includes a score and a max-score.
+
+A quiz-pass for our app would emit BOTH:
+1. `AssessmentEvent` with `action: Completed`
+2. `GradeEvent` with `score: 4`, `maxScore: 5`, `scoreGiven: 80%`
 
 ### Decisions needed
-- [ ] **TimeBack write API** — does it exist? What's the auth? Confirm
-      with the TimeBack team that we can `POST` XP gains keyed by
-      student email or OneRoster ID.
-- [ ] **Mapping**: 1 Reading Spine XP = 1 TimeBack XP? Or a different
-      ratio (Reading Spine XP might be inflated vs. other TimeBack
-      activities)?
-- [ ] **When to sync**: immediately on quiz pass (low-latency, more
-      API calls) or batched nightly (cheaper, but delays the reward
-      feedback loop)?
-- [ ] **Sync the deductions too?** When a quiz is on 2nd-attempt or
-      held for fraud review, should TimeBack reflect that immediately
-      or only the final approved amount?
+- [ ] **TimeBack Caliper endpoint** — confirm the URL the events POST to,
+      auth scheme (Bearer token? OAuth client credentials?), and any
+      tenant/sensor IDs we need
+- [ ] **Identity mapping** — does TimeBack key on email, OneRoster
+      student `sourcedId`, or a TimeBack-specific user ID? We need to
+      know how to fill the `actor` field of the Caliper event
+- [ ] **Event format version** — Caliper v1.1 vs. v1.2 (most recent)?
+      TimeBack might only accept a specific version
+- [ ] **Idempotency** — Caliper events have a UUID `id` field; we'll
+      generate a deterministic one from `(email, bookId, attemptNumber)`
+      so retries don't credit XP twice
+- [ ] **When to emit** — immediately on quiz pass (real-time XP) or
+      batched (cheaper but feedback loop is delayed)? Recommend
+      immediate.
+- [ ] **What about 2nd-attempt passes?** — do we emit a different event
+      type, or modify the `scoreGiven` to reflect the 50% retake penalty?
+      Recommend: emit the actual score, let TimeBack apply its own
+      retake rules
+
+### Caliper event shape we'll send
+
+```json
+{
+  "@context": "http://purl.imsglobal.org/ctx/caliper/v1p2",
+  "id": "urn:uuid:<deterministic-from-email-book-attempt>",
+  "type": "GradeEvent",
+  "actor": {
+    "id": "<oneroster-sourcedId-or-email>",
+    "type": "Person"
+  },
+  "action": "Graded",
+  "object": {
+    "id": "https://reading-spine.vercel.app/quiz/<bookId>/attempt/<n>",
+    "type": "AttemptItem",
+    "isPartOf": {
+      "id": "https://reading-spine.vercel.app/quiz/<bookId>",
+      "type": "Assessment",
+      "name": "<book title> — comprehension quiz",
+      "maxScore": 5
+    }
+  },
+  "generated": {
+    "id": "urn:uuid:<...>",
+    "type": "Score",
+    "scoreGiven": 4,
+    "maxScore": 5,
+    "scoredBy": { "type": "SoftwareApplication", "id": "https://reading-spine.vercel.app" }
+  },
+  "eventTime": "2026-05-21T12:34:56.000Z",
+  "edApp": {
+    "id": "https://reading-spine.vercel.app",
+    "type": "SoftwareApplication"
+  }
+}
+```
 
 ### Build steps
-- [ ] Add `TIMEBACK_API_KEY` env var (sensitive)
-- [ ] `lib/timeback.js`: client + retry logic + idempotency key
-- [ ] `/api/activity` (existing): on quiz pass, additionally fire-and-
-      forget POST to TimeBack with the awarded XP
-- [ ] Idempotency: include `(email, bookId, attemptNumber)` as a key
-      so retries don't double-credit
-- [ ] Failure handling: queue failed syncs in Redis, retry from a
-      Vercel Cron every 5 min
+- [ ] Add env vars: `TIMEBACK_CALIPER_URL`, `TIMEBACK_CALIPER_TOKEN`,
+      `TIMEBACK_SENSOR_ID`
+- [ ] `lib/caliper.js`: event builder functions (one per event type),
+      UUID v5 deterministic ID helper, validation against the schema
+- [ ] `lib/timeback.js`: POSTs to the Caliper endpoint, retry with
+      exponential backoff, idempotency via the deterministic event ID
+- [ ] Wire into the quiz completion handler: on pass (4/5 or 5/5),
+      fire-and-forget the AssessmentEvent + GradeEvent pair
+- [ ] Failure queue in Redis (`caliper:retry`), with a Vercel Cron job
+      retrying failed events every 5 min until success or 24-hr giveup
+- [ ] Admin view: "Caliper sync health" — count of events sent / queued
+      / failed in the last 24 hours
+
+### Decoupled from internal points
+
+The internal point formula in section 1c (`wordCount / wcpm`) is OURS
+— displayed in the in-app leaderboard, persisted in our Redis. It is
+independent of whatever XP TimeBack chooses to award based on our
+Caliper events. They might be the same number, or wildly different,
+and that's fine — they serve different audiences.
 
 ---
 
@@ -437,18 +517,21 @@ For each pass, store on the user's quiz record:
 ## 2. Leaderboard
 
 **Goal:** Kids see how their class / grade / school is doing and feel motivated
-to read more. Privacy-first because K-2. **Ranked by XP, not book count** —
-see section 1c for how XP is calculated.
+to read more. Privacy-first because K-2. **Ranked by internal POINTS, not
+book count** — see section 1c for how points are calculated. Note: these
+points are *internal-only* and distinct from the official TimeBack XP
+that's awarded via Caliper events (see section 1e).
 
-### Migration from "books read" → "XP"
+### Migration from "books read" → "points"
 - [x] V1 leaderboard ranks by `count` of unique books read (already shipped)
-- [ ] **V2: rank by XP**. Bump `DATA_VERSION` to invalidate any prior local
-      cache. Redis sorted-set key changes from `lb:reads:all` to `lb:xp:all`.
-- [ ] Existing reads get retroactive XP if we can compute it (we'd need
-      `wordCount` + the student's working grade at the time of reading,
-      which we don't have for old records — so likely just zero-out and
-      start fresh).
-- [ ] Leaderboard row displays `42 XP` instead of `7 books`. Optional
+- [ ] **V2: rank by internal points**. Bump `DATA_VERSION` to invalidate
+      any prior local cache. Redis sorted-set key changes from
+      `lb:reads:all` to `lb:points:all`.
+- [ ] Existing reads get retroactive points if we can compute it (we'd
+      need `wordCount` + the student's working grade at the time of
+      reading, which we don't have for old records — so likely just
+      zero-out and start fresh).
+- [ ] Leaderboard row displays `42 pts` instead of `7 books`. Optional
       hover-tooltip: "from 4 books read".
 
 ### Decisions needed
