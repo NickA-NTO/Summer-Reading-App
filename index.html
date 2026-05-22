@@ -175,6 +175,36 @@
   .switch[aria-checked="true"] { background: var(--accent); }
   .switch[aria-checked="true"]::after { transform: translateX(16px); }
   .switch:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+  .voice-picker {
+    background: transparent; color: var(--ink);
+    border: 1px solid var(--line); border-radius: 999px;
+    padding: 4px 8px; font-size: 12px; font-weight: 500;
+    cursor: pointer; outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+                      linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+    background-position: calc(100% - 12px) center, calc(100% - 7px) center;
+    background-size: 5px 5px;
+    background-repeat: no-repeat;
+    padding-right: 22px;
+  }
+  .voice-picker:hover { border-color: var(--line-2); color: #fff; }
+  .voice-picker option { background: var(--panel); color: var(--ink); }
+  .tts-budget-banner {
+    position: fixed; top: 64px; left: 50%; transform: translateX(-50%);
+    z-index: 25;
+    background: rgba(245, 158, 11, .94);
+    color: #1c1240; padding: 10px 18px; border-radius: 999px;
+    font-size: 13px; font-weight: 600;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .4);
+    display: none;
+  }
+  .tts-budget-banner.show { display: block; }
+  .tts-budget-banner button {
+    background: transparent; border: none; color: inherit; font-weight: 700;
+    margin-left: 10px; cursor: pointer; font-size: 16px;
+  }
 
   .avatar-wrap {
     display: flex; align-items: center; gap: 8px;
@@ -903,6 +933,13 @@
     <div class="spacer"></div>
     <div class="tts-wrap" title="Read text aloud">
       <span class="lbl">Text to Speech</span>
+      <select id="voicePicker" class="voice-picker" aria-label="Choose a voice">
+        <option value="Ivy">🧒 Ivy</option>
+        <option value="Justin">🧑 Justin</option>
+        <option value="Kevin">🧑 Kevin</option>
+        <option value="Joanna">👩 Joanna</option>
+        <option value="Matthew">👨 Matthew</option>
+      </select>
       <button id="ttsSwitch" class="switch" role="switch" aria-checked="false" aria-label="Toggle text to speech"></button>
     </div>
     <div class="avatar-wrap" id="avatarWrap">
@@ -919,6 +956,12 @@
     </div>
   </div>
 </header>
+
+<!-- ============ TTS budget banner (only shown when cap is reached) ============ -->
+<div class="tts-budget-banner" id="ttsBudgetBanner">
+  <span id="ttsBudgetMsg">Read-aloud is using the browser voice for now (cloud voice budget reached).</span>
+  <button id="ttsBudgetDismiss" aria-label="Dismiss">×</button>
+</div>
 
 <!-- ============ Stats / category strip (differentiator) ============ -->
 <div class="stats-strip">
@@ -1353,18 +1396,96 @@ function refreshChosenVoice() {
   ttsSwitch.parentElement.title = `Read text aloud · using ${lbl}`;
 }
 
+/* Voice picker — kid chooses between Polly's 5 voices (Ivy default) */
+const voicePicker = document.getElementById("voicePicker");
+let chosenPollyVoice = "Ivy";
+voicePicker.addEventListener("change", () => {
+  chosenPollyVoice = voicePicker.value;
+  if (state && state.data) {
+    state.data.ttsVoice = chosenPollyVoice;
+    saveData(state.session.email, state.data);
+  }
+  // Audition the voice so the kid hears what they picked
+  if (ttsOn) speak("Hi! Pick a book to start reading.", { force: true });
+});
+
+/* Track the currently-playing audio so we can cancel on toggle-off */
+let currentTtsAudio = null;
+let ttsBudgetReached = false;
+
 ttsSwitch.addEventListener("click", () => {
   ttsOn = !ttsOn;
   ttsSwitch.setAttribute("aria-checked", ttsOn ? "true" : "false");
-  if (!ttsOn && window.speechSynthesis) speechSynthesis.cancel();
+  if (!ttsOn) cancelSpeech();
 });
 
-function speak(text, opts = {}) {
-  if (!("speechSynthesis" in window)) return;
+function cancelSpeech() {
+  if (currentTtsAudio) {
+    try { currentTtsAudio.pause(); currentTtsAudio.currentTime = 0; } catch {}
+    currentTtsAudio = null;
+  }
+  if (window.speechSynthesis) speechSynthesis.cancel();
+}
+
+/* Polly-first speak with browser fallback. Order of attempts:
+   1. /api/tts (AWS Polly Neural via our cached endpoint) — best quality
+   2. Web Speech API with our voice picker — free fallback
+   The endpoint returns a Blob URL we play via <audio>. */
+async function speak(text, opts = {}) {
   if (!ttsOn && !opts.force) return;
+  const t = String(text || "").trim();
+  if (!t) return;
+
+  cancelSpeech();
+
+  // Skip API call if we already know the budget is gone — go straight to browser
+  if (ttsBudgetReached) {
+    return speakBrowser(t);
+  }
+
+  const voice = chosenPollyVoice || "Ivy";
+  try {
+    const r = await fetch(
+      `/api/tts?voice=${encodeURIComponent(voice)}&text=${encodeURIComponent(t)}`,
+      { credentials: "same-origin" }
+    );
+    if (r.status === 429) {
+      // Budget reached — fall back forever (until refresh) + show banner
+      const data = await r.json().catch(() => ({}));
+      ttsBudgetReached = true;
+      showBudgetBanner(data);
+      return speakBrowser(t);
+    }
+    if (r.status === 503) {
+      // Polly not configured — silent fall back to browser
+      return speakBrowser(t);
+    }
+    if (!r.ok) {
+      return speakBrowser(t);
+    }
+    const data = await r.json();
+    if (!data.url) return speakBrowser(t);
+
+    const audio = new Audio(data.url);
+    currentTtsAudio = audio;
+    audio.addEventListener("ended", () => {
+      if (currentTtsAudio === audio) currentTtsAudio = null;
+    });
+    audio.addEventListener("error", () => {
+      if (currentTtsAudio === audio) currentTtsAudio = null;
+      speakBrowser(t);
+    });
+    await audio.play().catch(() => speakBrowser(t));
+  } catch {
+    speakBrowser(t);
+  }
+}
+
+/* Browser Web Speech API fallback */
+function speakBrowser(text) {
+  if (!("speechSynthesis" in window)) return;
   speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
-  // Slightly slower + warmer pitch reads more naturally for K-2 kids.
   u.rate   = 0.92;
   u.pitch  = 1.0;
   u.volume = 1.0;
@@ -1375,6 +1496,18 @@ function speak(text, opts = {}) {
   }
   speechSynthesis.speak(u);
 }
+
+function showBudgetBanner(data) {
+  const banner = document.getElementById("ttsBudgetBanner");
+  const msg = document.getElementById("ttsBudgetMsg");
+  if (data && data.usage && data.usage.dollars) {
+    msg.textContent = `Cloud voice budget reached ($${data.usage.dollars} of $${data.usage.capDollars}). Using the browser's built-in voice instead.`;
+  }
+  banner.classList.add("show");
+}
+document.getElementById("ttsBudgetDismiss").addEventListener("click", () => {
+  document.getElementById("ttsBudgetBanner").classList.remove("show");
+});
 
 if ("speechSynthesis" in window) {
   // Voices load asynchronously — refresh once they arrive, then again on changes.
@@ -1392,6 +1525,11 @@ function startApp(session) {
   document.getElementById("whoEmail").textContent = session.email;
   document.getElementById("avatar").textContent =
     session.name.trim().charAt(0).toUpperCase();
+  // Restore the user's preferred Polly voice (defaults to Ivy)
+  if (state.data.ttsVoice && document.querySelector(`#voicePicker option[value="${state.data.ttsVoice}"]`)) {
+    chosenPollyVoice = state.data.ttsVoice;
+    voicePicker.value = chosenPollyVoice;
+  }
   // Hide the boot loader once we have real data
   const boot = document.getElementById("bootLoader");
   if (boot) {
@@ -2205,14 +2343,19 @@ async function openAdmin() {
   document.getElementById("adminSearch").value = "";
   adminState.filter = "";
 
+  // Fetch users + TTS usage in parallel
   try {
-    const r = await fetch("/api/admin/users", { credentials: "same-origin" });
-    if (r.status === 403) {
+    const [usersRes, ttsRes] = await Promise.all([
+      fetch("/api/admin/users", { credentials: "same-origin" }),
+      fetch("/api/admin/tts-usage", { credentials: "same-origin" }),
+    ]);
+    if (usersRes.status === 403) {
       document.getElementById("adminBody").innerHTML =
         `<div class="lb-empty">You don't have admin access.</div>`;
       return;
     }
-    const data = await r.json();
+    const data = await usersRes.json();
+    const tts = ttsRes.ok ? await ttsRes.json() : null;
     if (!data.hasRedis) {
       document.getElementById("adminBody").innerHTML = `
         <div class="lb-empty">
@@ -2223,11 +2366,34 @@ async function openAdmin() {
       return;
     }
     adminState.users = data.users || [];
+    adminState.tts = tts;
     renderAdminTable();
   } catch (err) {
     document.getElementById("adminBody").innerHTML =
       `<div class="lb-empty">Couldn't load users.</div>`;
   }
+}
+
+function renderTtsUsageCard(tts) {
+  if (!tts) return "";
+  if (!tts.pollyConfigured) {
+    return `<div class="lb-me-card">
+      <span>🔊 <strong>Cloud TTS:</strong> Not configured (set AWS keys to enable)</span>
+    </div>`;
+  }
+  const pct = tts.percentUsed || 0;
+  const barColor = pct > 80 ? "var(--bad)" : pct > 50 ? "var(--warm)" : "var(--good)";
+  return `
+    <div class="lb-me-card" style="display:block">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span>🔊 <strong>Cloud TTS spend</strong></span>
+        <span><strong style="color:${barColor}">$${tts.dollars}</strong> / $${tts.capDollars}</span>
+      </div>
+      <div style="height:6px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden">
+        <div style="height:100%;width:${Math.min(pct, 100)}%;background:${barColor};border-radius:3px"></div>
+      </div>
+      <div style="margin-top:6px;font-size:11px">${tts.chars.toLocaleString()} chars synthesized · ${pct}% of app cap</div>
+    </div>`;
 }
 
 function closeAdmin() {
@@ -2274,10 +2440,11 @@ function renderAdminTable() {
   `).join("");
 
   document.getElementById("adminBody").innerHTML = `
-    <div style="margin-bottom:10px;color:var(--muted);font-size:12px">
+    ${renderTtsUsageCard(adminState.tts)}
+    <div style="margin:14px 0 10px;color:var(--muted);font-size:12px">
       Showing ${list.length} of ${adminState.users.length} ${adminState.users.length === 1 ? "user" : "users"}
     </div>
-    <div style="overflow-x:auto;max-height:60vh;overflow-y:auto;border:1px solid var(--line);border-radius:10px">
+    <div style="overflow-x:auto;max-height:55vh;overflow-y:auto;border:1px solid var(--line);border-radius:10px">
       <table class="admin-table">
         <thead><tr>
           <th>User</th>

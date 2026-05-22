@@ -20,7 +20,14 @@
       "Bash(git -c user.email=nick.alsford@trilogy.com -c user.name=NickA-NTO commit -m 'Replace catalog with curated K/1/2 grade-level reading list *)",
       "Bash(git -c user.email=nick.alsford@trilogy.com -c user.name=NickA-NTO commit -m 'Add AI quiz \\(The Very Hungry Caterpillar pilot\\), Amazon links, and leaderboard *)",
       "Bash(git -c user.email=nick.alsford@trilogy.com -c user.name=NickA-NTO commit -m 'Quiz hardening, admin user list, TTS default off, Anthropic for quizzes *)",
-      "Bash(git -c user.email=nick.alsford@trilogy.com -c user.name=NickA-NTO commit -m 'Auth: whitelist @superbuilders.com domain *)"
+      "Bash(git -c user.email=nick.alsford@trilogy.com -c user.name=NickA-NTO commit -m 'Auth: whitelist @superbuilders.com domain *)",
+      "Bash(ls -la ~/.claude/projects/ 2>&1 | head -30)",
+      "Bash(find ~/.claude/projects/ -name \"*.jsonl\" -type f -printf '%T@ %p\\\\n' 2>/dev/null | sort -rn | head -50 | cut -d' ' -f2- > /tmp/recent_transcripts.txt && wc -l /tmp/recent_transcripts.txt)",
+      "Bash(xargs -I {} cat \"{}\")",
+      "Bash(python /tmp/extract_tools.py)",
+      "Bash(rm -f /tmp/recent_transcripts.txt /tmp/tool_counts.txt /tmp/tool_counts2.txt /tmp/extract_tools.py /tmp/extract_tools2.py 2>&1; echo cleanup done)",
+      "Bash(git -c user.email=nick.alsford@trilogy.com -c user.name=NickA-NTO commit -m 'TODO: spec out grade-leveled quizzes + XP system + points-based leaderboard *)",
+      "Bash(git -c user.email=nick.alsford@trilogy.com -c user.name=NickA-NTO commit -m 'TTS: AWS Polly Neural with two-layer budget protection *)"
     ]
   }
 }

@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__39c6586e-94a9-4979-b3f9-7768242f8ba7__getData",
+      "mcp__39c6586e-94a9-4979-b3f9-7768242f8ba7__listApiEndpoints",
+      "mcp__24aa89a4-84a7-4bfe-b365-2093ef71b9f5__query_fluency_results",
+      "mcp__24aa89a4-84a7-4bfe-b365-2093ef71b9f5__get_student_story_results",
+      "mcp__24aa89a4-84a7-4bfe-b365-2093ef71b9f5__search_oneroster_students",
+      "mcp__timeback-reporting__getData",
+      "mcp__a6ab351e-659e-4a37-8a47-947a687cf8d9__query_bridge",
+      "mcp__a6ab351e-659e-4a37-8a47-947a687cf8d9__lookup_user",
+      "mcp__alphaliteracy__get_student_story_results",
+      "Bash(unset *)",
+      "Bash(dir)",
+      "Bash(dir *)",
+      "Bash(vercel inspect *)",
+      "Bash(vercel logs *)",
+      "Bash(vercel ls)",
+      "Bash(vercel ls *)",
+      "Bash(vercel whoami)"
+    ]
+  }
+}
