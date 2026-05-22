@@ -934,11 +934,10 @@
     <div class="tts-wrap" title="Read text aloud">
       <span class="lbl">Text to Speech</span>
       <select id="voicePicker" class="voice-picker" aria-label="Choose a voice">
-        <option value="Ivy">🧒 Ivy</option>
-        <option value="Justin">🧑 Justin</option>
-        <option value="Kevin">🧑 Kevin</option>
-        <option value="Joanna">👩 Joanna</option>
-        <option value="Matthew">👨 Matthew</option>
+        <option value="Ivy">👧 Female Child</option>
+        <option value="Kevin">👦 Male Child</option>
+        <option value="Joanna">👩 Female Adult</option>
+        <option value="Matthew">👨 Male Adult</option>
       </select>
       <button id="ttsSwitch" class="switch" role="switch" aria-checked="false" aria-label="Toggle text to speech"></button>
     </div>
@@ -1450,21 +1449,27 @@ async function speak(text, opts = {}) {
       { credentials: "same-origin" }
     );
     if (r.status === 429) {
-      // Budget reached — fall back forever (until refresh) + show banner
       const data = await r.json().catch(() => ({}));
       ttsBudgetReached = true;
       showBudgetBanner(data);
+      console.warn("[tts] budget reached — falling back to browser voice");
       return speakBrowser(t);
     }
     if (r.status === 503) {
-      // Polly not configured — silent fall back to browser
+      console.warn("[tts] Polly not configured — falling back to browser voice");
       return speakBrowser(t);
     }
     if (!r.ok) {
+      const body = await r.text().catch(() => "");
+      console.warn(`[tts] ${r.status} from /api/tts — falling back to browser`, body);
       return speakBrowser(t);
     }
     const data = await r.json();
-    if (!data.url) return speakBrowser(t);
+    if (!data.url) {
+      console.warn("[tts] no URL in response — falling back", data);
+      return speakBrowser(t);
+    }
+    console.log(`[tts] voice=${data.voice} cached=${data.cached} → ${data.url.slice(0, 60)}…`);
 
     const audio = new Audio(data.url);
     currentTtsAudio = audio;
