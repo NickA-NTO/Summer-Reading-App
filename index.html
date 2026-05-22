@@ -1391,12 +1391,28 @@ function pickBestVoice() {
 
 function refreshChosenVoice() {
   chosenVoice = pickBestVoice();
-  const lbl = chosenVoice ? `${chosenVoice.name}` : "browser default";
-  ttsSwitch.parentElement.title = `Read text aloud · using ${lbl}`;
+  updateTtsTooltip();
 }
 
-/* Voice picker — kid chooses between Polly's 5 voices (Ivy default) */
+// Tooltip on the TTS toggle area — describes the actual voice in use.
+// Primary is the Polly voice (selected by the kid in the dropdown);
+// browser voice is only a fallback if the cloud TTS endpoint fails.
+function updateTtsTooltip() {
+  const wrap = document.querySelector(".tts-wrap");
+  if (!wrap) return;
+  const pollyLabel = VOICE_LABELS[chosenPollyVoice] || chosenPollyVoice;
+  const browserLabel = chosenVoice ? chosenVoice.name : "browser default";
+  wrap.title = `Read aloud · cloud: ${pollyLabel} (${chosenPollyVoice}) · fallback: ${browserLabel}`;
+}
+
+/* Voice picker — kid chooses between Polly's 4 neural voices */
 const voicePicker = document.getElementById("voicePicker");
+const VOICE_LABELS = {
+  Ivy:     "Female Child",
+  Kevin:   "Male Child",
+  Joanna:  "Female Adult",
+  Matthew: "Male Adult",
+};
 let chosenPollyVoice = "Ivy";
 voicePicker.addEventListener("change", () => {
   chosenPollyVoice = voicePicker.value;
@@ -1404,8 +1420,10 @@ voicePicker.addEventListener("change", () => {
     state.data.ttsVoice = chosenPollyVoice;
     saveData(state.session.email, state.data);
   }
-  // Audition the voice so the kid hears what they picked
-  if (ttsOn) speak("Hi! Pick a book to start reading.", { force: true });
+  updateTtsTooltip();
+  // Always audition — picking a voice IS opting in to hear it,
+  // regardless of whether the global TTS toggle is on.
+  speak("Hi! Pick a book to start reading.", { force: true });
 });
 
 /* Track the currently-playing audio so we can cancel on toggle-off */

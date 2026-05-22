@@ -28,7 +28,9 @@
       "Bash(rm -f /tmp/recent_transcripts.txt /tmp/tool_counts.txt /tmp/tool_counts2.txt /tmp/extract_tools.py /tmp/extract_tools2.py 2>&1; echo cleanup done)",
       "Bash(git -c user.email=nick.alsford@trilogy.com -c user.name=NickA-NTO commit -m 'TODO: spec out grade-leveled quizzes + XP system + points-based leaderboard *)",
       "Bash(git -c user.email=nick.alsford@trilogy.com -c user.name=NickA-NTO commit -m 'TTS: AWS Polly Neural with two-layer budget protection *)",
-      "Bash(git -c user.email=nick.alsford@trilogy.com -c user.name=NickA-NTO commit -m 'TTS: drop Justin \\(no neural\\), rename to descriptive labels, bump cache version *)"
+      "Bash(git -c user.email=nick.alsford@trilogy.com -c user.name=NickA-NTO commit -m 'TTS: drop Justin \\(no neural\\), rename to descriptive labels, bump cache version *)",
+      "Bash(git -c user.email=nick.alsford@trilogy.com -c user.name=NickA-NTO commit -m 'TODO: quiz integrity & anti-gaming section + TimeBack integration *)",
+      "Bash(git -c user.email=nick.alsford@trilogy.com -c user.name=NickA-NTO commit -m 'TTS: always audition voice change, fix tooltip to show Polly voice *)"
     ]
   }
 }
