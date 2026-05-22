@@ -1003,6 +1003,43 @@
   }
   .report-card .rc-actions button:disabled { opacity: .5; cursor: default; }
 
+  /* Held-XP review cards in admin (1d.3) */
+  .held-xp-list {
+    display: grid; gap: 10px;
+    max-height: 30vh; overflow-y: auto;
+    padding-right: 4px; margin-bottom: 14px;
+  }
+  .held-xp-card {
+    background: rgba(248, 113, 113, .06);
+    border: 1px solid rgba(248, 113, 113, .3);
+    border-radius: 10px;
+    padding: 12px 14px;
+  }
+  .hx-head {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 10px;
+  }
+  .hx-name { font-weight: 600; color: var(--ink); font-size: 13px; }
+  .hx-email { font-weight: 400; color: var(--muted); font-size: 11px; }
+  .hx-meta { font-size: 11px; color: var(--muted); margin-top: 4px; line-height: 1.5; }
+  .hx-actions { display: flex; gap: 6px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+  .hx-actions button {
+    background: var(--panel); border: 1px solid var(--line);
+    color: var(--ink); padding: 5px 10px; border-radius: 6px;
+    font-size: 11px; font-weight: 600; cursor: pointer;
+    white-space: nowrap;
+  }
+  .hx-approve:hover {
+    background: rgba(52, 211, 153, .15); border-color: var(--good); color: var(--good);
+  }
+  .hx-reject:hover {
+    background: rgba(248, 113, 113, .15); border-color: var(--bad); color: var(--bad);
+  }
+  .hx-reset-flags:hover {
+    background: rgba(96, 165, 250, .15); border-color: var(--accent); color: var(--accent);
+  }
+  .hx-actions button:disabled { opacity: .5; cursor: default; }
+
   @media (max-width: 720px) {
     .nav { padding: 14px 18px; }
     .nav-links { display: none; }
@@ -2153,8 +2190,13 @@ document.getElementById("readToggle").addEventListener("click", async () => {
 
 // Single funnel for marking a book as read. Handles localStorage,
 // streak tracking, and server activity logging (for leaderboards).
-// Returns the points awarded by the server (0 if offline or duplicate).
-async function markBookAsRead(bookId) {
+//
+// attemptNum (optional): 1 or 2. Present when called from a quiz pass;
+// omitted for manual "I read this" reads. Used for 1d.2 retake multiplier
+// and 1d.3 fraud detection on the server.
+//
+// Returns the full server response object (or a fallback with points: 0).
+async function markBookAsRead(bookId, attemptNum) {
   state.data.read[bookId] = true;
   const today = new Date().toISOString().slice(0,10);
   state.data.streakDays = Array.from(
@@ -2163,21 +2205,24 @@ async function markBookAsRead(bookId) {
   saveData(state.session.email, state.data);
   refreshInteractiveBits();
   renderStats();
-  // Server call — we DO need the response to display points earned.
+  // Server call — we need the full response to display points earned and
+  // handle held-XP / retake messaging.
   try {
+    const body = { kind: "read", bookId, grade: state.session?.grade || "K" };
+    if (attemptNum != null) body.attemptNum = attemptNum;
     const r = await fetch("/api/activity", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "same-origin",
-      body: JSON.stringify({ kind: "read", bookId }),
+      body: JSON.stringify(body),
     });
     const data = r.ok ? await r.json() : null;
     // Refresh stats strip with new points + rank
     refreshMyRank();
-    return data && data.points ? data.points : 0;
+    return data || { points: 0 };
   } catch {
     /* offline / network — local state still reflects the read */
-    return 0;
+    return { points: 0 };
   }
 }
 
@@ -2247,11 +2292,13 @@ const MAX_ATTEMPTS_PER_DAY = 2;
 
 const quizState = {
   bookId: null,
-  pool: null,        // full 8-question pool from server
-  questions: null,   // 4-question subset for this attempt (with shuffled options)
+  pool: null,        // full 12-question pool from server
+  questions: null,   // 5-question subset for this attempt (with shuffled options)
   idx: 0,
   score: 0,
   answers: [],
+  attemptNum: 1,     // 1 or 2 (tracked for 1d.2 retake multiplier)
+  seenQTexts: [],    // question texts shown on attempt 1 (for 1d.1 rotation)
 };
 
 document.getElementById("quizBtn").addEventListener("click", () => {
@@ -2306,6 +2353,24 @@ function saveAttemptRecord(bookId, rec) {
   saveData(state.session.email, state.data);
 }
 
+// ---------- 1d.3 client-side cooldown helpers ----------
+// The server is the authoritative source; we mirror the cooldown in
+// localStorage so the blocked-screen shows immediately on next open
+// without a round-trip.
+function getQuizCooldown() {
+  try {
+    const raw = localStorage.getItem("rs_quiz_cooldown");
+    if (!raw) return null;
+    const c = JSON.parse(raw);
+    return c && c.until ? c : null;
+  } catch { return null; }
+}
+function saveQuizCooldown(until, flagCount) {
+  try {
+    localStorage.setItem("rs_quiz_cooldown", JSON.stringify({ until, flagCount }));
+  } catch {}
+}
+
 async function openQuiz(bookId) {
   const book = BOOK_BY_ID[bookId];
   if (!book) return;
@@ -2315,10 +2380,33 @@ async function openQuiz(bookId) {
   quizState.idx = 0;
   quizState.score = 0;
   quizState.answers = [];
+  quizState.attemptNum = 1;
+  quizState.seenQTexts = [];
 
   document.getElementById("quizBookTitle").textContent = `Quiz · ${book.title}`;
   document.getElementById("quizOverlay").classList.add("open");
   document.body.style.overflow = "hidden";
+
+  // 1d.3 — Check client-side cooldown mirror first (avoids a round-trip)
+  const cooldown = getQuizCooldown();
+  if (cooldown && cooldown.until > Date.now()) {
+    const timeStr = new Date(cooldown.until).toLocaleTimeString([], {
+      hour: "2-digit", minute: "2-digit",
+    });
+    document.getElementById("quizContent").innerHTML = `
+      <div class="quiz-result">
+        <div class="emoji">⏰</div>
+        <h3>Take a break and re-read</h3>
+        <div class="score">You can try quizzes again at ${timeStr}</div>
+        <p style="font-size:13px;color:var(--muted)">Reading is best when you have time to enjoy it. Come back after a little break!</p>
+        <div class="actions">
+          <button class="icon-btn" id="quizCooldownClose">Close</button>
+        </div>
+      </div>`;
+    document.getElementById("quizCooldownClose").addEventListener("click", closeQuiz);
+    setQuizProgress(QUESTIONS_PER_ATTEMPT);
+    return;
+  }
 
   // Daily attempt cap check — let them know up-front if they're locked out
   const rec = getAttemptRecord(bookId);
@@ -2337,6 +2425,12 @@ async function openQuiz(bookId) {
     setQuizProgress(QUESTIONS_PER_ATTEMPT);
     return;
   }
+
+  // 1d.1 — Load seen question texts for rotation on attempt 2
+  quizState.seenQTexts = rec.seenQTexts || [];
+  // If this is a retry (count === 1), set attemptNum to 2 upfront
+  // so startAttempt knows to filter seen questions.
+  quizState.attemptNum = rec.count + 1;
 
   document.getElementById("quizContent").innerHTML = `
     <div class="quiz-loading">
@@ -2369,12 +2463,23 @@ async function openQuiz(bookId) {
   }
 }
 
-// Builds a fresh 4-question slate from the pool with shuffled options.
+// Builds a fresh 5-question slate from the pool with shuffled options.
+// 1d.1: On attempt 2, filters out questions the student already saw on
+// attempt 1 so every question is genuinely fresh.
 function startAttempt() {
   quizState.idx = 0;
   quizState.score = 0;
   quizState.answers = [];
-  const subset = pickN(quizState.pool, QUESTIONS_PER_ATTEMPT);
+
+  // Build candidate pool: on attempt 2, exclude already-seen questions.
+  const seenSet = new Set(quizState.seenQTexts || []);
+  const unseen = seenSet.size > 0
+    ? quizState.pool.filter((q) => !seenSet.has(q.q))
+    : quizState.pool;
+  // Fall back to full pool if somehow unseen count < QUESTIONS_PER_ATTEMPT
+  const candidates = unseen.length >= QUESTIONS_PER_ATTEMPT ? unseen : quizState.pool;
+
+  const subset = pickN(candidates, QUESTIONS_PER_ATTEMPT);
   quizState.questions = subset.map(withShuffledOptions);
   renderQuizQuestion();
 }
@@ -2515,8 +2620,17 @@ async function finishQuiz() {
   const passed = score >= PASS_THRESHOLD;
   setQuizProgress(total);
 
-  // Record the attempt (cap is enforced per-day in openQuiz)
+  // 1d.1 — Record the attempt and save seen question texts for rotation.
   const rec = getAttemptRecord(quizState.bookId);
+  const attemptNum = rec.count + 1; // 1-indexed attempt number
+  quizState.attemptNum = attemptNum;
+
+  // Save seen question texts so attempt 2 draws fresh questions.
+  if (attemptNum === 1) {
+    rec.seenQTexts = quizState.questions.map((q) => q.q);
+    quizState.seenQTexts = rec.seenQTexts;
+  }
+
   rec.count = Math.min(rec.count + 1, MAX_ATTEMPTS_PER_DAY);
   rec.passed = rec.passed || passed;
   saveAttemptRecord(quizState.bookId, rec);
@@ -2532,14 +2646,52 @@ async function finishQuiz() {
       </div>`;
 
     let earnedPoints = 0;
+    let serverResp = null;
     if (!state.data.read[quizState.bookId]) {
-      earnedPoints = await markBookAsRead(quizState.bookId);
+      // Pass attemptNum so server can apply 1d.2 retake multiplier
+      // and 1d.3 fraud detection.
+      serverResp = await markBookAsRead(quizState.bookId, attemptNum);
+      earnedPoints = serverResp.points || 0;
+
+      // 1d.3 — If server held the XP, mirror cooldown in localStorage
+      if (serverResp.held && serverResp.heldInfo?.cooldownUntil) {
+        saveQuizCooldown(
+          serverResp.heldInfo.cooldownUntil,
+          serverResp.heldInfo.flagCount
+        );
+      }
     }
 
-    const pointsLine = earnedPoints > 0
-      ? `<p style="font-size:18px;color:var(--ink);margin:14px 0 6px">You earned <strong style="color:#a78bfa">✨ ${earnedPoints} points</strong>!</p>
-         <p style="font-size:13px;color:var(--muted);margin:0 0 18px">Book marked as read. You can now leave a review.</p>`
-      : `<p>Book marked as read. You can now leave a review.</p>`;
+    let pointsLine;
+    if (serverResp && serverResp.held) {
+      // XP held for admin review (speed-flagged)
+      const timeStr = serverResp.heldInfo?.cooldownUntil
+        ? ` until ${new Date(serverResp.heldInfo.cooldownUntil).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+        : "";
+      pointsLine = `
+        <p style="font-size:14px;color:var(--muted);margin:14px 0 6px">
+          ⏰ <strong>Heads up:</strong> Your points are being reviewed by a teacher.
+          Try taking a bit more time to read next time. Quizzes are paused${timeStr}.
+        </p>
+        <p style="font-size:13px;color:var(--muted-2);margin:0 0 18px">Book marked as read.</p>`;
+    } else if (earnedPoints > 0 && serverResp && serverResp.isRetake) {
+      // 1d.2 — Second-attempt pass: show the retake note
+      pointsLine = `
+        <p style="font-size:18px;color:var(--ink);margin:14px 0 4px">
+          You earned <strong style="color:#a78bfa">✨ ${earnedPoints} points</strong>
+        </p>
+        <p style="font-size:12px;color:var(--muted);margin:0 0 18px">
+          Second try earns half points (${serverResp.basePoints || "more"} on a first try — you've got this next time!).
+        </p>`;
+    } else if (earnedPoints > 0) {
+      pointsLine = `
+        <p style="font-size:18px;color:var(--ink);margin:14px 0 6px">
+          You earned <strong style="color:#a78bfa">✨ ${earnedPoints} points</strong>!
+        </p>
+        <p style="font-size:13px;color:var(--muted);margin:0 0 18px">Book marked as read. You can now leave a review.</p>`;
+    } else {
+      pointsLine = `<p>Book marked as read. You can now leave a review.</p>`;
+    }
 
     document.getElementById("quizContent").innerHTML = `
       <div class="quiz-result">
@@ -2578,7 +2730,9 @@ async function finishQuiz() {
     </div>`;
   if (canRetry) {
     document.getElementById("quizRetry").addEventListener("click", () => {
-      // New attempt = new random 4-question subset with freshly shuffled options
+      // 1d.1 — Retry picks from fresh (unseen) questions in the pool.
+      // seenQTexts was already set above after attempt 1 ended.
+      quizState.attemptNum = 2;
       startAttempt();
     });
   }
@@ -2713,7 +2867,7 @@ async function refreshMyRank() {
 
 /* ---------- 15. Admin · users ---------- */
 
-const adminState = { users: [], filter: "" };
+const adminState = { users: [], filter: "", reports: [], heldXp: [] };
 
 document.getElementById("menuAdmin").addEventListener("click", (e) => {
   e.stopPropagation();
@@ -2740,13 +2894,14 @@ async function openAdmin() {
   await loadAdminData();
 }
 
-// Fetches users + TTS usage + flagged questions in parallel; re-renders.
+// Fetches users + TTS usage + flagged questions + held XP in parallel; re-renders.
 async function loadAdminData() {
   try {
-    const [usersRes, ttsRes, reportsRes] = await Promise.all([
+    const [usersRes, ttsRes, reportsRes, heldXpRes] = await Promise.all([
       fetch("/api/admin/users", { credentials: "same-origin" }),
       fetch("/api/admin/tts-usage", { credentials: "same-origin" }),
       fetch("/api/admin/quiz-reports", { credentials: "same-origin" }),
+      fetch("/api/admin/held-xp", { credentials: "same-origin" }),
     ]);
     if (usersRes.status === 403) {
       document.getElementById("adminBody").innerHTML =
@@ -2756,6 +2911,7 @@ async function loadAdminData() {
     const data = await usersRes.json();
     const tts = ttsRes.ok ? await ttsRes.json() : null;
     const reports = reportsRes.ok ? await reportsRes.json() : null;
+    const heldXp = heldXpRes.ok ? await heldXpRes.json() : null;
     if (!data.hasRedis) {
       document.getElementById("adminBody").innerHTML = `
         <div class="lb-empty">
@@ -2768,6 +2924,7 @@ async function loadAdminData() {
     adminState.users = data.users || [];
     adminState.tts = tts;
     adminState.reports = (reports && reports.reports) || [];
+    adminState.heldXp = (heldXp && heldXp.entries) || [];
     renderAdminTable();
   } catch (err) {
     document.getElementById("adminBody").innerHTML =
@@ -2832,10 +2989,13 @@ function renderAdminTable() {
     const opts = GRADE_OPTIONS.map((g) =>
       `<option value="${g}"${g === currentGrade ? " selected" : ""}>${g}</option>`
     ).join("");
+    const flagBadge = u.flagCount > 0
+      ? `<span style="color:var(--bad);font-size:11px;font-weight:700;margin-left:6px" title="${u.flagCount} speed flag${u.flagCount !== 1 ? 's' : ''}">🚨×${u.flagCount}</span>`
+      : "";
     return `
       <tr>
         <td>
-          <div class="a-name">${escapeHtml(u.name || "Reader")}</div>
+          <div class="a-name">${escapeHtml(u.name || "Reader")}${flagBadge}</div>
           <div class="a-email">${escapeHtml(u.email)}</div>
         </td>
         <td><span class="a-domain">@${escapeHtml(u.domain || "—")}</span></td>
@@ -2853,6 +3013,7 @@ function renderAdminTable() {
 
   document.getElementById("adminBody").innerHTML = `
     ${renderTtsUsageCard(adminState.tts)}
+    ${renderHeldXp(adminState.heldXp || [])}
     ${renderQuizReports(adminState.reports || [])}
     <div style="margin:18px 0 10px;display:flex;align-items:center;justify-content:space-between">
       <span style="color:var(--muted);font-size:12px">
@@ -2875,6 +3036,57 @@ function renderAdminTable() {
         <tbody>${rows}</tbody>
       </table>
     </div>`;
+
+  // Wire up held-XP action buttons (approve = award points, reject = discard)
+  document.querySelectorAll(".hx-approve, .hx-reject").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const id = btn.dataset.id;
+      const action = btn.classList.contains("hx-approve") ? "approve" : "reject";
+      const card = btn.closest(".held-xp-card");
+      card.querySelectorAll("button").forEach((b) => (b.disabled = true));
+      btn.textContent = action === "approve" ? "Approving…" : "Rejecting…";
+      try {
+        const r = await fetch("/api/admin/held-xp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({ id, action }),
+        });
+        if (!r.ok) throw new Error(await r.text());
+        adminState.heldXp = (adminState.heldXp || []).filter((e) => e.id !== id);
+        renderAdminTable();
+      } catch (err) {
+        alert("Couldn't process held XP: " + (err.message || err));
+        card.querySelectorAll("button").forEach((b) => (b.disabled = false));
+      }
+    });
+  });
+
+  // Wire up "Reset flags" buttons inside held-XP cards
+  document.querySelectorAll(".hx-reset-flags").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const email = btn.dataset.email;
+      if (!confirm(`Reset all fraud flags for ${email}?`)) return;
+      btn.disabled = true;
+      btn.textContent = "Resetting…";
+      try {
+        const r = await fetch("/api/admin/held-xp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({ action: "reset_flags", email }),
+        });
+        if (!r.ok) throw new Error(await r.text());
+        // Update local user list to clear flag count
+        const u = adminState.users.find((x) => x.email === email);
+        if (u) u.flagCount = 0;
+        renderAdminTable();
+      } catch (err) {
+        alert("Couldn't reset flags: " + (err.message || err));
+        btn.disabled = false;
+      }
+    });
+  });
 
   // Wire up flagged-question action buttons (confirm = bust cache, dismiss = drop)
   document.querySelectorAll(".rc-confirm, .rc-dismiss").forEach((btn) => {
@@ -2931,6 +3143,50 @@ function renderAdminTable() {
       }
     });
   });
+}
+
+// ── 1d.3 Held-XP review section ──────────────────────────────────────────────
+function renderHeldXp(entries) {
+  if (!entries || !entries.length) {
+    return `
+      <div class="lb-me-card" style="display:flex;justify-content:space-between;align-items:center">
+        <span>🕵️ <strong>Held XP</strong></span>
+        <span style="color:var(--muted)">None pending</span>
+      </div>`;
+  }
+  const cards = entries.map((e) => {
+    const pct = e.suspicionRatio != null
+      ? Math.round(e.suspicionRatio * 100)
+      : "?";
+    const minE = e.minExpectedMins != null ? e.minExpectedMins : "?";
+    const minA = e.elapsedMins != null ? e.elapsedMins : "?";
+    return `
+      <div class="held-xp-card" data-held-id="${escapeAttr(e.id)}">
+        <div class="hx-head">
+          <div>
+            <div class="hx-name">${escapeHtml(e.name || e.email)} <span class="hx-email">(${escapeHtml(e.email)})</span></div>
+            <div class="hx-meta">
+              📕 <strong>${escapeHtml(e.bookTitle || e.bookId)}</strong>
+              · Grade ${escapeHtml(e.grade || "?")}
+              · <strong style="color:var(--bad)">${pct}% of expected reading time</strong>
+              · elapsed ${minA} min vs. ${minE} min expected
+              · ${friendlyDate(e.ts)}
+            </div>
+          </div>
+          <div class="hx-actions">
+            <button class="hx-approve" data-id="${escapeAttr(e.id)}" title="Award ${e.points} pts">✅ Approve (${e.points} pts)</button>
+            <button class="hx-reject" data-id="${escapeAttr(e.id)}">❌ Reject</button>
+            <button class="hx-reset-flags" data-email="${escapeAttr(e.email)}" title="Clear all speed flags for this student">🔄 Reset flags</button>
+          </div>
+        </div>
+      </div>`;
+  }).join("");
+  return `
+    <div style="margin:14px 0 8px;display:flex;align-items:center;gap:8px">
+      <span style="font-weight:600;color:var(--ink)">🕵️ Held XP</span>
+      <span style="color:var(--bad);font-size:12px">${entries.length} pending review</span>
+    </div>
+    <div class="held-xp-list">${cards}</div>`;
 }
 
 function renderQuizReports(reports) {
