@@ -16,7 +16,8 @@ current. Strike items as they ship.
       schema; server caches an 8-question pool in Redis. Client picks 4 at
       random per attempt with shuffled option positions, so kids can't
       memorize answer locations across attempts. **Max 2 attempts per day,
-      need 3/4 to pass.**
+      need 3/4 to pass.** _Needs migration to 5 questions @ 80% pass +
+      grade-leveled difficulty (see section 1c)._
 - [x] **Admin user list** — `/api/admin/users` returns everyone who has
       signed in, gated by the `ADMIN_EMAILS` env var. Modal accessible from
       the avatar dropdown for admins, with search and last-active / books-
@@ -39,44 +40,168 @@ current. Strike items as they ship.
 the book they claim to have read.
 
 ### Decisions needed
-- [ ] **Question source**: hand-written vs. AI-generated via Vercel AI Gateway?
-      _Recommend: AI-generated, then hand-reviewed for K-2 tone and accuracy._
-- [ ] **Pass threshold**: 3 of 4? 4 of 5? _Recommend: 3/4, with one retry._
-- [ ] **Retries**: unlimited, capped, or cooldown after fail?
-- [ ] **Where to store questions**: bundled in `index.html` (fast, no DB) or
-      pulled from a `/api/quiz?bookId=...` endpoint (lets us update without
-      a deploy)?
+- [x] **Question source**: AI-generated (Claude Haiku 4.5)
+- [x] **Pass threshold**: ~~3 of 4~~ → **4 of 5 (80%)** per spec update
+- [x] **Retries**: max 2 attempts per book per day, then 24-hr cooldown
+- [x] **Where to store questions**: `/api/quiz?bookId=...` with Redis cache
 
 ### Data model
 ```js
+// Quiz cache key now includes grade: quiz:v3:<bookId>:<studentGrade>
 {
   bookId: "k01",
+  studentGrade: "2",     // the QUIZ-TAKER'S grade, NOT the book's grade
   questions: [
     {
-      q: "What did the caterpillar eat on Saturday?",
-      options: ["A leaf", "All the foods in the picture", "Nothing", "A pizza"],
-      answer: 1,
-      tts: true              // read aloud automatically on K-1 quizzes
+      q: "Why do you think the caterpillar got a stomach ache on Saturday?",
+      options: ["He ate too much junk food", "He was sad", "It was cold", "He ran a race"],
+      answer: 0,
     },
     ...
-  ]
+  ]  // exactly 5 questions
 }
 ```
 
 ### Build steps
-- [ ] Define quiz schema + add `quizzes.js` (or `/api/quiz/[id].js`)
-- [ ] Write or generate 4 questions per book × 28 books = **112 questions**
-- [ ] Quiz UI component (one-question-at-a-time, big tap targets, K-2 friendly)
-- [ ] Pass/fail screen with "Try again" or celebration animation
-- [ ] Gate the existing "I read this" / vote / comment buttons behind a pass
-- [ ] Track per-user quiz state: `{ bookId: { passed, attempts, lastScore } }`
-- [ ] Show a "📝 Take the quiz" pill on the book detail modal once read
-- [ ] Auto-read questions aloud when the global TTS toggle is on
+- [x] Define quiz schema + `/api/quiz` endpoint (pilot for k01)
+- [ ] Migrate from 4 to **5 questions per attempt**, raise threshold to **80% (4/5)**
+- [ ] Backfill plot summaries for the remaining 27 books in `api/quiz.js`
+- [x] Quiz UI component (one-question-at-a-time, big tap targets, K-2 friendly)
+- [x] Pass/fail screen with "Try again" or celebration animation
+- [x] Gate the existing "I read this" / vote / comment buttons behind a pass
+- [x] Track per-user quiz state in localStorage (server tracking is TODO)
+- [x] Auto-read questions aloud when the global TTS toggle is on
 
 ### Stretch
 - [ ] Adaptive questions — get harder if a kid keeps passing first try
 - [ ] Teacher quiz-builder UI (drop in a paragraph, generate 4 questions via
       AI Gateway)
+
+---
+
+## 1c. Grade-leveled difficulty + XP system
+
+**The problem this solves:** A G2 student can game the system by reading
+only K books (8 easy quizzes → high "books read" count → top of leaderboard).
+Reading should be incentivized at the student's actual ability, not at the
+easiest possible level.
+
+**The solution:** Every kid has a "working grade" attribute. Quizzes,
+retells, and XP are all calibrated to **that grade**, not the book's grade.
+A G2 reading a K book still gets G2-difficulty questions and G2-strict
+retell grading. They _can_ read easier books, but the rewards scale to
+the challenge.
+
+### Spec
+- **Working grade per student** — K, 1, 2, 3 (eventually 4+). Comes from
+  Google Workspace org units, teacher dashboard assignment, or admin
+  override.
+- **Quizzes are grade-leveled, not book-leveled** — the AI prompt includes
+  the student's grade so questions test comprehension at that level.
+  Examples:
+  - G2 student reading The Very Hungry Caterpillar:
+    Question = "Why do you think the caterpillar built a cocoon?"
+    (inference, abstract — G2 standard)
+  - K student reading The Very Hungry Caterpillar:
+    Question = "What color was the egg in the picture?"
+    (literal recall — K standard)
+- **Pass threshold: 80% on the MCQ quiz** (= 4 of 5 questions)
+- **Retell strictness scales** — same grade-leveling concept for the
+  AI-graded retell (section 1b): G2 retell needs more sequencing,
+  vocabulary, and inference than K retell to count as 80%.
+
+### XP system
+
+Every book has an XP value computed from:
+
+```
+expectedMinutes = bookWordCount / wcpmForStudentsGrade
+xpEarned        = floor(expectedMinutes)   // only if passed quiz AND retell
+```
+
+- `bookWordCount` = total words in the book (data we need to add per book)
+- `wcpmForStudentsGrade` = expected oral-reading-fluency rate for the
+  student's grade (Hasbrouck-Tindal end-of-year norms — standard reference)
+
+**Reference WCPM (end-of-year, Hasbrouck-Tindal 2017):**
+
+| Grade | WCPM (50th percentile) |
+|---|---|
+| K   | 30  |
+| 1   | 60  |
+| 2   | 100 |
+| 3   | 110 |
+| 4   | 130 |
+| 5   | 140 |
+
+**Worked examples** (XP a G2 student earns on a clean pass):
+
+| Book | Words | Minutes (G2: 100 WCPM) | XP |
+|---|---|---|---|
+| The Very Hungry Caterpillar | 225 | 2.3 | **2 XP** |
+| Where the Wild Things Are | 340 | 3.4 | **3 XP** |
+| The Cat in the Hat | 1,629 | 16.3 | **16 XP** |
+| Fantastic Mr. Fox | 10,500 | 105 | **105 XP** |
+| The Magic Faraway Tree | 46,000 | 460 | **460 XP** |
+
+This naturally discourages gaming — a G2 grinding 50 K-level picture books
+nets ~100 XP, while a single Fantastic Mr. Fox passed cleanly nets 105 XP
+in roughly the same number of clicks.
+
+**The same G2 book is worth differently to different grades** because
+the denominator (WCPM) changes:
+
+| Book | K reader (30 WCPM) | G2 reader (100 WCPM) |
+|---|---|---|
+| Hungry Caterpillar | 7 XP | 2 XP |
+| Cat in the Hat | 54 XP | 16 XP |
+
+A K reader gets more XP for the same book — fair, because it's harder for them.
+
+### Data we need to add
+- [ ] `wordCount` field on every book in `CATEGORIES` (28 lookups, ~15 min)
+- [ ] WCPM lookup table in `lib/xp.js` (Hasbrouck-Tindal norms)
+- [ ] `workingGrade` attribute per student. MVP: derive from a teacher
+      dashboard or admin assignment. Stretch: pull from Google Workspace
+      `gradeLevel` org-unit attribute.
+- [ ] Quiz prompt updates: include `studentGrade` so AI calibrates
+      difficulty. Cache key becomes `quiz:v3:<bookId>:<studentGrade>`.
+
+### Build steps (in order)
+- [ ] **Phase A — XP without grade leveling** (~1 hr)
+  - Add `wordCount` to every book
+  - Hardcode a default grade per student (use `guessGradeFromEmail` plus
+    an admin override)
+  - Compute XP on quiz pass; store in Redis
+  - Replace leaderboard sort key from `count` to `xp`
+- [ ] **Phase B — Grade-leveled quizzes** (~1 hr)
+  - Server endpoint takes `studentGrade` and includes it in the AI prompt
+  - Quiz cache keyed by `(bookId, studentGrade)` so each grade gets its own pool
+  - 8-question pool generated per grade; client still picks 5 random per
+    attempt
+- [ ] **Phase C — Grade-leveled retell** (depends on 1b being built first)
+  - Pass `studentGrade` into the retell grading prompt: stricter
+    plot-point coverage and vocabulary expectations at higher grades
+  - 80% retell score required for XP to be awarded
+- [ ] **Phase D — Working-grade management UI**
+  - Admin can set/edit a student's working grade
+  - Optional self-service: kid picks their own grade once (locks until
+    teacher overrides)
+
+### Open decisions
+- [ ] **Where does the student's working grade come from for v1?** Three
+      options:
+      - (A) Default to Google Workspace org unit `gradeLevel` if available,
+        else fall back to email heuristic, else K
+      - (B) Admin/teacher sets explicitly per student (no inference)
+      - (C) Kid picks once at first login
+      _Recommend: B for accuracy. A is too unreliable._
+- [ ] **What happens if a kid passes the quiz but fails the retell?**
+      Half XP? Zero XP? Quiz-only fallback if retell isn't implemented yet?
+      _Recommend: For v1 (before retell ships) — quiz pass alone = full XP.
+      Once retell ships, both required for full XP, quiz-only = half XP._
+- [ ] **Daily / weekly XP caps?** Prevents marathon gaming.
+      _Recommend: not initially — see if it becomes a problem._
 
 ---
 
@@ -150,7 +275,19 @@ For each pass, store on the user's quiz record:
 ## 2. Leaderboard
 
 **Goal:** Kids see how their class / grade / school is doing and feel motivated
-to read more. Privacy-first because K-2.
+to read more. Privacy-first because K-2. **Ranked by XP, not book count** —
+see section 1c for how XP is calculated.
+
+### Migration from "books read" → "XP"
+- [x] V1 leaderboard ranks by `count` of unique books read (already shipped)
+- [ ] **V2: rank by XP**. Bump `DATA_VERSION` to invalidate any prior local
+      cache. Redis sorted-set key changes from `lb:reads:all` to `lb:xp:all`.
+- [ ] Existing reads get retroactive XP if we can compute it (we'd need
+      `wordCount` + the student's working grade at the time of reading,
+      which we don't have for old records — so likely just zero-out and
+      start fresh).
+- [ ] Leaderboard row displays `42 XP` instead of `7 books`. Optional
+      hover-tooltip: "from 4 books read".
 
 ### Decisions needed
 - [ ] **Scopes shown**: my class only? my grade? whole school? all three?
@@ -248,8 +385,11 @@ working here.
 
 ## Cross-cutting work that unlocks the above
 
-- [ ] **Database choice** (blocks leaderboard + class management). Decide on
-      Neon Postgres (recommended) vs. Upstash Redis vs. something else.
+- [x] **Database choice** — Upstash Redis (Marketplace), used for quiz cache,
+      leaderboard sorted sets, and the admin user list.
+- [ ] **`workingGrade` attribute per student** (blocks 1c, blocks XP-based
+      leaderboard). MVP: admin sets manually per user. Stretch: pull from
+      Google Workspace gradeLevel attribute on the OIDC token.
 - [ ] **Migrate from localStorage to server-side state** for votes, reads,
       comments — needed once we have a DB. Keep localStorage as a fallback
       cache for offline.
