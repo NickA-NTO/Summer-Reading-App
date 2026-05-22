@@ -79,11 +79,7 @@ the book they claim to have read.
 - [ ] Teacher quiz-builder UI (drop in a paragraph, generate 4 questions via
       AI Gateway)
 
-### Accuracy — open issues (status 2026-05-21)
-- [ ] **Teacher spot-check** of AI-generated quizzes for 5-10 books
-      before classroom rollout. Lesser-known books (Geeger, Lighthouse
-      Family, Story about Ping, Henry and Mudge, Nate the Great) are
-      highest hallucination risk.
+### Accuracy — open issues (status 2026-05-22)
 - [x] **Upgraded generation model** from Claude Haiku 4.5 to **Opus 4.5**
       (~10x cost but materially fewer hallucinations). Catalog regen
       cost: ~$0.03 (still tiny).
@@ -432,19 +428,19 @@ A K reader gets more XP for the same book — fair, because it's harder for them
   - Pass `studentGrade` into the retell grading prompt: stricter
     plot-point coverage and vocabulary expectations at higher grades
   - 80% retell score required for full points to be awarded
-- [ ] **Phase D — Working-grade management UI**
-  - Admin can set/edit a student's working grade
-  - Optional self-service: kid picks their own grade once (locks until
-    teacher overrides)
+- [x] **Phase D — Working-grade management UI** (shipped)
+  - [x] Admin can set/edit a student's working grade via dropdown
+        in the admin user table.
+  - Kids do **NOT** self-select grade (decided against — too easy to
+    game). 1i auto-sync from TimeBack will be the primary source;
+    admin override is the manual escape hatch.
 
 ### Open decisions
-- [ ] **Where does the student's working grade come from for v1?** Three
-      options:
-      - (A) Default to Google Workspace org unit `gradeLevel` if available,
-        else fall back to email heuristic, else K
-      - (B) Admin/teacher sets explicitly per student (no inference)
-      - (C) Kid picks once at first login
-      _Recommend: B for accuracy. A is too unreliable._
+- [x] **Where does the student's working grade come from for v1?**
+      **Decided:** primary source is TimeBack auto-sync (1i); admin
+      override in the admin modal is the manual escape hatch.
+      Kids do NOT self-select. Email heuristic remains as the bootstrap
+      fallback for users not yet known to TimeBack.
 - [ ] **What happens if a kid passes the quiz but fails the retell?**
       Half XP? Zero XP? Quiz-only fallback if retell isn't implemented yet?
       _Recommend: For v1 (before retell ships) — quiz pass alone = full XP.
@@ -468,19 +464,18 @@ get attempt 2 with questions 2, 5, 6, 7, 8 (overlap on Q7). With only an
 even with shuffling.
 
 **Fix:**
-- [ ] Track which question IDs a student has seen for a given book.
-      Store as a Redis set `quiz:seen:<email>:<bookId>` (with TTL of the
-      24-hour cooldown).
-- [ ] On attempt 2, **exclude any question the student has already seen
-      on attempt 1**. Pool must be large enough — bump generation to
-      10–12 questions per book so attempt 2 always has 5 fresh questions
-      available.
-- [ ] If the pool is exhausted (somehow), force-regenerate a brand new
-      set via Claude with a "must be entirely different angle" prompt
-      and bump the cache key.
-- [ ] Verify with AI grading that attempt 2's questions aren't
-      semantically near-duplicates of attempt 1's (use a cheap embeddings
-      check, or just rely on the prompt to enforce diversity).
+- [x] Track which question IDs a student has seen for a given book.
+      Stored as `seenQTexts[]` on the per-attempt localStorage record
+      (Redis tracking is overkill — daily cap + 30-day pool cache).
+- [x] On attempt 2, **exclude any question the student has already seen
+      on attempt 1**. Pool bumped to 12 questions per book so attempt 2
+      always has 5 fresh questions.
+- [x] If the pool is exhausted (somehow), fall back to the full pool —
+      good enough since the cache busts every 30d and on flagged reports.
+- [ ] _(Future)_ Verify with AI grading that attempt 2's questions aren't
+      semantically near-duplicates of attempt 1's — see 1g multi-pass
+      cross-validation, which makes near-dup questions impossible to
+      begin with.
 
 ### 1d.2 Reduced rewards on 2nd-attempt passes
 
@@ -489,19 +484,18 @@ content. Second-try passes — especially after multiple shuffled exposures
 to the questions — are weaker signal.
 
 **Fix:**
-- [ ] **Internal leaderboard points**: 1st attempt pass = **100%** of
-      book points; 2nd attempt pass = **50%**. Tunable in env var
-      `POINTS_RETAKE_MULTIPLIER`.
+- [x] **Internal XP**: 1st attempt pass = **100%** of book XP;
+      2nd attempt pass = **50%**. Tunable via env `POINTS_RETAKE_MULTIPLIER`.
 - [ ] **Caliper event to TimeBack** (depends on 1e): reflect the 2nd
       attempt by setting `scoreGiven` to the actual quiz score, and
       include an `extension` field flagging it as the retake — TimeBack
       can apply its own XP penalty if desired.
-- [ ] Make the reduction visible in the post-quiz success screen:
-      "Great work! You earned **8 points** (would have been 16 on first
-      try) — try to get it right first next time!"
+- [x] Reduction is **NOT** shown to the student (per UX decision —
+      avoids accusatory framing). Success screen just shows what they earned.
 - [ ] Admin can override (e.g., if a student's first attempt was
       glitched by a connectivity issue) — admin sets a per-attempt
-      override flag in Redis.
+      override flag in Redis. _(Not yet built; admin can reset
+      fraud flags as a workaround.)_
 
 ### 1d.3 Speed-based fraud detection ("rapid-fire submissions")
 
@@ -554,12 +548,12 @@ quizzes again at 2:00pm."** No accusatory language — frame as healthy
 pacing. Tooltip: "Reading is best when you have time to enjoy it.
 Come back after lunch!"
 
-**Admin-facing UX:**
-- New "Held XP" section in the admin modal showing flagged events
-- Per-student "trust score" indicator (visible on the user list)
-- One-click "Approve" or "Reject" per held event
-- "Reset offence counter" button (in case the kid had a legitimately
-  fast read — like a 30-page Knuffle Bunny)
+**Admin-facing UX:** (all shipped)
+- [x] New "Held XP" section in the admin modal showing flagged events
+- [x] Per-student flag-count badge (🚨×N visible on the user list)
+- [x] One-click "Approve" or "Reject" per held event
+- [x] "Reset flags" button (in case the kid had a legitimately
+      fast read — like a 30-page Knuffle Bunny)
 
 **Open decisions:**
 - [ ] **Threshold tuning**: 0.25 / 0.5 ratios are guesses. After v1 ships,
@@ -769,17 +763,14 @@ book count** — see section 1c for how points are calculated. Note: these
 points are *internal-only* and distinct from the official TimeBack XP
 that's awarded via Caliper events (see section 1e).
 
-### Migration from "books read" → "points"
+### Migration from "books read" → "XP"
 - [x] V1 leaderboard ranks by `count` of unique books read (already shipped)
-- [ ] **V2: rank by internal points**. Bump `DATA_VERSION` to invalidate
-      any prior local cache. Redis sorted-set key changes from
-      `lb:reads:all` to `lb:points:all`.
-- [ ] Existing reads get retroactive points if we can compute it (we'd
-      need `wordCount` + the student's working grade at the time of
-      reading, which we don't have for old records — so likely just
-      zero-out and start fresh).
-- [ ] Leaderboard row displays `42 pts` instead of `7 books`. Optional
-      hover-tooltip: "from 4 books read".
+- [x] **V2: rank by internal XP**. Redis sorted sets are now
+      `lb:points:all` / `lb:points:w:<isoWeek>`.
+- [x] Existing reads were zeroed out and started fresh (no retroactive
+      backfill — we didn't have `wordCount` × working-grade for old records).
+- [x] Leaderboard row displays `42 XP` instead of `7 books`. Books count
+      is still in the secondary line ("Grade 2 · 4 books read").
 
 ### Decisions needed
 - [ ] **Scopes shown**: my class only? my grade? whole school? all three?
