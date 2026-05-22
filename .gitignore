@@ -8,3 +8,5 @@ node_modules
 *key.txt
 *secret*.txt
 *.pem
+# TimeBack roster snapshots (PII — pasted into admin UI then deleted)
+timeback-grade-sync-*.json

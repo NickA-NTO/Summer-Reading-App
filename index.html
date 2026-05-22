@@ -3077,7 +3077,36 @@ function renderAdminTable() {
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
-    </div>`;
+    </div>
+
+    <!-- TimeBack grade sync panel (1i — Option B manual paste) -->
+    <details style="margin-top:18px;border:1px solid var(--line);border-radius:10px;padding:10px 14px">
+      <summary style="cursor:pointer;font-weight:600;color:var(--ink)">
+        🔄 Sync working grades from TimeBack
+        <span style="font-weight:400;color:var(--muted);font-size:12px;margin-left:8px">
+          paste the JSON Claude produces and click Apply
+        </span>
+      </summary>
+      <p style="color:var(--muted);font-size:12px;margin:10px 0 6px">
+        Expected shape:
+        <code style="background:rgba(0,0,0,.25);padding:1px 6px;border-radius:4px">
+          {"updates":[{"email":"a@b.com","grade":"2"},…]}
+        </code>
+      </p>
+      <textarea id="syncPaste"
+        placeholder='{"updates":[{"email":"student@alpha.school","grade":"2"}]}'
+        style="width:100%;min-height:120px;background:rgba(0,0,0,.25);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:10px;font-family:ui-monospace,Menlo,monospace;font-size:12px;resize:vertical"></textarea>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap">
+        <label style="font-size:12px;color:var(--muted);display:flex;gap:6px;align-items:center">
+          <input type="checkbox" id="syncForce" />
+          Force (overwrite admin overrides too — usually leave off)
+        </label>
+        <button id="syncApply" class="btn" type="button" style="margin-left:auto">
+          Apply sync
+        </button>
+      </div>
+      <div id="syncResult" style="margin-top:10px;font-size:13px"></div>
+    </details>`;
 
   // Wire up held-XP action buttons (approve = award points, reject = discard)
   document.querySelectorAll(".hx-approve, .hx-reject").forEach((btn) => {
@@ -3185,6 +3214,67 @@ function renderAdminTable() {
       }
     });
   });
+
+  // Wire up TimeBack grade-sync paste form (1i Option B)
+  const syncApplyBtn = document.getElementById("syncApply");
+  if (syncApplyBtn) {
+    syncApplyBtn.addEventListener("click", async () => {
+      const paste = document.getElementById("syncPaste");
+      const force = document.getElementById("syncForce").checked;
+      const resultDiv = document.getElementById("syncResult");
+      const raw = paste.value.trim();
+      if (!raw) {
+        resultDiv.innerHTML =
+          `<span style="color:var(--bad)">Paste a JSON payload first.</span>`;
+        return;
+      }
+      let payload;
+      try {
+        payload = JSON.parse(raw);
+      } catch (err) {
+        resultDiv.innerHTML =
+          `<span style="color:var(--bad)">Invalid JSON: ${escapeHtml(String(err.message || err))}</span>`;
+        return;
+      }
+      if (!payload || !Array.isArray(payload.updates)) {
+        resultDiv.innerHTML =
+          `<span style="color:var(--bad)">Expected { updates: [...] }</span>`;
+        return;
+      }
+      syncApplyBtn.disabled = true;
+      syncApplyBtn.textContent = "Applying…";
+      resultDiv.innerHTML = `<span style="color:var(--muted)">Working…</span>`;
+      try {
+        const r = await fetch("/api/admin?action=bulk-set-grades", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({ updates: payload.updates, force }),
+        });
+        const data = await r.json();
+        if (!r.ok) {
+          resultDiv.innerHTML =
+            `<span style="color:var(--bad)">${escapeHtml(JSON.stringify(data))}</span>`;
+        } else {
+          resultDiv.innerHTML = `
+            <div style="color:var(--good);font-weight:600;margin-bottom:6px">
+              ✓ Applied ${data.applied} · Skipped admin ${data.skippedAdmin} · No-change ${data.skippedSame} · Not-yet-signed-in ${data.skippedNotUser || 0} · Errors ${data.errors}
+            </div>
+            <details><summary style="cursor:pointer;color:var(--muted);font-size:12px">Per-row details</summary>
+              <pre style="background:rgba(0,0,0,.25);padding:8px;border-radius:6px;font-size:11px;max-height:240px;overflow:auto">${escapeHtml(JSON.stringify(data.rows, null, 2))}</pre>
+            </details>`;
+          // Reload the user list so changed grades show up immediately
+          loadAdminData();
+        }
+      } catch (err) {
+        resultDiv.innerHTML =
+          `<span style="color:var(--bad)">${escapeHtml(String(err.message || err))}</span>`;
+      } finally {
+        syncApplyBtn.disabled = false;
+        syncApplyBtn.textContent = "Apply sync";
+      }
+    });
+  }
 }
 
 // ── 1d.3 Held-XP review section ──────────────────────────────────────────────

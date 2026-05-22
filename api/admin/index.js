@@ -26,6 +26,7 @@ import {
   resolveHeldXp,
   resetFraudFlags,
   setUserWorkingGrade,
+  bulkSetWorkingGrades,
   redis,
 } from "../../lib/store.js";
 import {
@@ -205,16 +206,66 @@ export default async function handler(req, res) {
       });
     }
 
-    const result = await setUserWorkingGrade(email, grade);
+    const result = await setUserWorkingGrade(email, grade, "admin");
     if (!result.ok) {
       return json(res, 500, { error: result.reason || "save_failed" });
     }
     return json(res, 200, { ok: true, email, grade });
   }
 
+  // ====================== bulk-set-grades ========================
+  // Bulk apply working-grade updates (typically a TimeBack-sync payload
+  // pasted into the admin UI). Body shape:
+  //   { updates: [{email, grade}, ...], force?: boolean }
+  // force=true overwrites manual admin overrides too (default: skip them).
+  if (action === "bulk-set-grades" && req.method === "POST") {
+    const body = await readBody(req);
+    if (body === null) return json(res, 400, { error: "invalid_json" });
+
+    const updates = Array.isArray(body.updates) ? body.updates : null;
+    const force = !!body.force;
+    if (!updates) {
+      return json(res, 400, {
+        error: "invalid_request",
+        hint: "Body must be { updates: [{email, grade}, ...], force?: bool }",
+      });
+    }
+    if (updates.length > 1000) {
+      // Protect Redis from a runaway paste. Real cohorts are under 1k.
+      return json(res, 400, { error: "too_many_updates", max: 1000 });
+    }
+
+    // Validate each grade is in the allowed set. Normalize PK / numerics
+    // exactly like set-grade does.
+    const normalized = [];
+    for (const u of updates) {
+      let g = String(u?.grade || "").trim().toUpperCase();
+      if (g === "PK" || g === "-1") {
+        g = "PK";
+      } else {
+        g = normalizeGrade(g);
+      }
+      if (!ALLOWED_GRADES.has(g)) {
+        return json(res, 400, {
+          error: "invalid_grade",
+          email: u?.email,
+          grade: u?.grade,
+          allowed: [...ALLOWED_GRADES],
+        });
+      }
+      normalized.push({ email: u.email, grade: g });
+    }
+
+    const result = await bulkSetWorkingGrades(normalized, { force });
+    if (!result.ok) {
+      return json(res, 500, { error: result.reason || "bulk_set_failed" });
+    }
+    return json(res, 200, result);
+  }
+
   // ============================ 404 ==============================
   return json(res, 404, {
     error: "not_found",
-    hint: "Use ?action=users|tts-usage|quiz-reports|held-xp|set-grade",
+    hint: "Use ?action=users|tts-usage|quiz-reports|held-xp|set-grade|bulk-set-grades",
   });
 }

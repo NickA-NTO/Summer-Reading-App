@@ -225,38 +225,41 @@ After an override flips WG, re-run Step 2. Student may move pk2 ↔ g38.
 `highest_mastered` recomputed as `WG - 1` (or null when WG ≤ 0).
 
 ### Build steps
-- [ ] **Access**: figure out how Reading Spine reads `rpt2_mastery`,
-      `rpt2_enrollment`, `rpt2_daily_activity`, `rpt2_course`. Options:
-      (a) direct DB read (do we get credentials?), (b) a TimeBack
-      reporting API, (c) a nightly snapshot file we ingest.
-- [ ] **Sync function** `lib/timeback-grade-sync.js`: implements steps
-      1-5 exactly as described. Writes results to user profile in Redis
-      with a `gradeSetBy: "timeback-sync"` marker (distinct from
-      `"admin"` so we don't clobber teacher overrides).
-- [ ] **Cron**: Vercel Cron at e.g. 4am daily, calls a
-      `/api/admin/sync-grades` endpoint that runs the sync. Guarded
-      by `ADMIN_EMAILS` or a separate `SYNC_TOKEN`.
-- [ ] **Override files**: ship `data/overrides.json` in the repo
-      (committed; PR review = approval path). On sync, the file is
-      read and applied in step 3 / step 4.
-- [ ] **Manual override precedence**: if admin set the grade via the
-      UI (`gradeSetBy: "admin"`), the sync should leave it alone.
-      Use the marker to gate.
-- [ ] **Audit log**: every sync writes a Redis list
-      `grade:sync:log` entry with `{ts, changedCount, sample}` so
-      admins can see what happened. Surface in the admin modal.
-- [ ] **Dry-run mode**: `?dry=1` returns what WOULD change without
-      writing — for verification before the cron goes live.
+- [x] **Access**: resolved via TimeBack Reporting MCP (`getData`
+      tool) — read-only SQL against `rpt2_mastery`, `rpt2_student`,
+      and friends.
+- [x] **Sync function**: `bulkSetWorkingGrades()` in `lib/store.js`.
+      Per-row policy: skip non-signed-in users, skip admin overrides
+      (unless `force=true`), skip no-op same-grade updates, otherwise
+      write with `gradeSetBy: "timeback-sync"`.
+- [x] **Admin UI**: paste-JSON panel in the admin modal posts to
+      `/api/admin?action=bulk-set-grades`. Shows applied / skipped /
+      not-yet-signed-in / errors with full per-row detail.
+- [x] **Manual override precedence**: server-enforced — manual `"admin"`
+      grades survive sync unless force flag is set.
+- [ ] _(Future)_ **Persist the SQL query as a callable HTTP endpoint**
+      via `persistQueryToAPI`, then add a Vercel cron at e.g. 4am
+      daily that calls it and POSTs the result to bulk-set-grades.
+      Closes the manual loop.
+- [ ] _(Future)_ **Override file** `data/overrides.json` for the three
+      manual override classes (Step 3a/3b/3c). Apply between the
+      MCP query and the bulk endpoint.
+- [ ] _(Future)_ **PK additions** (Step 4) — for kids with no Reading
+      mastery row but active Mentava enrollment.
+- [ ] _(Future)_ **Audit log** Redis list `grade:sync:log` surfaced in
+      admin UI.
+- [ ] _(Future)_ **Dry-run mode** for bulk endpoint.
 
 ### Open decisions
-- [ ] How do we get access to TimeBack's `rpt2_*` tables? Direct read,
-      API, or snapshot? Needs a conversation with TimeBack team.
-- [ ] Should the sync run for all known users (HGETALL on `users` hash)
-      or pull from a TimeBack-side enrollment list (avoiding cases
-      where a kid signed in once but isn't enrolled in Reading)?
-- [ ] What's the legal/compliance posture on copying student grade
-      data into our Redis? Probably fine since both systems are
-      operated by Alpha — confirm with admin.
+- [x] How do we get access to TimeBack's `rpt2_*` tables? Resolved —
+      TimeBack Reporting MCP `getData` tool (Claude-side); future cron
+      uses `persistQueryToAPI` to expose the same query as an HTTP endpoint.
+- [x] Should the sync run for all known users? Resolved — sync sends
+      ALL Alpha-domain students with a Reading mastery row; server
+      filters down to "users who have signed into Reading Spine"
+      so we don't pre-populate strangers.
+- [ ] Legal/compliance posture on copying student grade data into our
+      Redis — both systems operated by Alpha, but confirm with admin.
 
 ---
 
