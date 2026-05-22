@@ -139,12 +139,15 @@ appear across multiple independent generation passes — the equivalent of
    "must be different from these existing questions" prompt.
 
 ### Build steps
-- [ ] Add `@ai-sdk/openai` for embeddings (or use Claude with a
-      pairwise-comparison prompt)
-- [ ] `lib/quiz-validator.js`: clustering + consensus extraction
-- [ ] Wire into `api/quiz.js` between generation and cache-write
-- [ ] Add cost guard: skip multi-pass for books with low flag counts,
-      always apply it to books with ≥1 confirmed bad report
+- [x] Use Claude (Opus 4.5) for the pairwise-comparison clustering call,
+      no separate embeddings dependency needed.
+- [x] `lib/quiz-validator.js`: clustering + consensus extraction.
+- [x] Wired into `api/quiz.js` between generation and QC (cache key
+      bumped to v6).
+- [ ] _(Future)_ Cost guard: skip multi-pass for books with no flag
+      history, always apply for books with ≥1 confirmed bad report.
+      Currently always-on; flip QUIZ_MULTI_PASS=0 in env to disable
+      globally if costs become a concern.
 
 ### Cost
 3x generation + 1 embeddings call per book = ~$0.04 per book first

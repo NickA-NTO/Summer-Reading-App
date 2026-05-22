@@ -1,7 +1,15 @@
-// AI-generated reading comprehension quiz. Generates a POOL of 8 multiple-
-// choice questions per book and caches them in Redis. The client picks 4 at
+// AI-generated reading comprehension quiz. Generates a POOL of 12 multiple-
+// choice questions per book and caches them in Redis. The client picks 5 at
 // random per attempt and shuffles the answer options, so a kid retaking the
 // quiz sees mostly different questions and never the same option ordering.
+//
+// Quality pipeline (each tier is independent and additive):
+//   1. Multi-pass cross-validation (TODO 1g) — 3 independent generation
+//      runs at different temperatures, cluster semantically, keep only
+//      questions that appear in 2+ runs.
+//   2. QC reviewer (TODO 1a) — second Opus pass scores each surviving
+//      question 0-10 against the canonical summary; drops < 7.
+// Can disable multi-pass via env QUIZ_MULTI_PASS=0 for cost or A/B testing.
 //
 // Auth: requires a valid rs_session cookie. Middleware excludes /api/* so
 // each endpoint does its own check.
@@ -16,6 +24,7 @@ import {
   guessGradeFromEmail,
 } from "../lib/store.js";
 import { normalizeGrade } from "../lib/xp.js";
+import { clusterAndExtractConsensus } from "../lib/quiz-validator.js";
 
 // Canonical book metadata for quiz generation. Summary is what Claude uses
 // to generate the 12-question pool; it should be detailed enough that good
@@ -349,7 +358,10 @@ const QCSchema = z.object({
 //     the reader, not the book. A G2 reading a K book gets G2-level questions.
 // v5: switched generation model Haiku 4.5 → Opus 4.5 and added a separate
 //     Opus 4.5 QC reviewer pass that drops questions with accuracy < 7/10.
-const SCHEMA_VERSION = 5;
+// v6: multi-pass cross-validation (1g) — 3 independent generation runs at
+//     temperatures 0.4/0.7/1.0, semantic clustering keeps only consensus
+//     questions (appearing in ≥2 runs), then QC accuracy review.
+const SCHEMA_VERSION = 6;
 
 // Quiz model + QC reviewer model. Opus 4.5 for both — generation needs the
 // stronger model for accuracy on lesser-known books; QC needs it to reliably
@@ -362,6 +374,19 @@ const QC_MIN_ACCURACY = 7;
 // If QC drops so many questions that fewer than this remain, the pool is
 // unusable and we fail rather than serving a tiny quiz.
 const MIN_USABLE_POOL = 8;
+
+// Multi-pass cross-validation (1g). When enabled, we generate the pool 3
+// times at different temperatures, cluster semantically, and keep only the
+// consensus questions. Set QUIZ_MULTI_PASS=0 in env to fall back to single-pass.
+const MULTI_PASS_ENABLED = process.env.QUIZ_MULTI_PASS !== "0";
+// Temperatures for the 3 independent passes. Spread keeps the runs
+// genuinely different so consensus = real consensus, not just identical
+// re-runs of the same temperature.
+const MULTI_PASS_TEMPS = [0.4, 0.7, 1.0];
+// A question must appear in at least this many distinct runs to survive.
+// With 3 runs, threshold 2 = "the model agrees on this from at least 2 of
+// 3 random seeds" — a strong signal it's not a one-off hallucination.
+const MULTI_PASS_CONSENSUS_THRESHOLD = 2;
 
 // How AI should calibrate question difficulty for each student grade.
 // The book itself stays the same — only the questions change to match
@@ -391,6 +416,51 @@ const GRADE_GUIDANCE = {
     "Same as Grade 4 with richer vocabulary, more sophisticated inference, " +
     "and analysis of literary technique where relevant.",
 };
+
+// One generation pass — extracted so the multi-pass orchestrator can call
+// it N times in parallel at different temperatures. The prompt is identical
+// across runs; only `temperature` varies. Returns the array of questions
+// (POOL_SIZE long) or throws.
+async function generateOnce(book, studentGrade, guidance, temperature) {
+  const { object } = await generateObject({
+    model: anthropic(GEN_MODEL),
+    schema: QuizSchema,
+    temperature,
+    system:
+      `You are an early-elementary reading specialist designing reading-` +
+      `comprehension questions for a GRADE ${studentGrade} reader.\n\n` +
+      `DIFFICULTY CALIBRATION for Grade ${studentGrade}:\n${guidance}\n\n` +
+      `Tone: warm and concrete. Each question has EXACTLY 4 options, ONE ` +
+      `of which is clearly correct. The other three should be plausible-` +
+      `but-wrong things a kid who skimmed might pick. Vary which index ` +
+      `(0,1,2,3) is correct across all questions — don't bunch the ` +
+      `correct answers at the same position.\n\n` +
+      `CRITICAL: Only ask about details that are explicitly in the plot ` +
+      `summary provided. Do NOT invent characters, events, items, or ` +
+      `numbers. If you can't verify a detail in the summary, do NOT use ` +
+      `it as a question or distractor.`,
+    prompt:
+      `Write ${POOL_SIZE} reading-comprehension questions for the book ` +
+      `"${book.title}" by ${book.author}.\n\n` +
+      `The student is in Grade ${studentGrade}. The book is recommended ` +
+      `for Grade ${book.grade} readers. If the student is OLDER than the ` +
+      `book's level, still calibrate questions to the STUDENT's grade — ` +
+      `don't dumb them down just because the book is short. If the student ` +
+      `is YOUNGER than the book, keep questions simple even though the ` +
+      `book is more advanced.\n\n` +
+      `Plot summary (the source of truth — do NOT quote it verbatim, ` +
+      `but every question must be answerable from these details):\n${book.summary}\n\n` +
+      `The questions should cover DIFFERENT aspects of the book so that any random ` +
+      `subset of 5 still tests broad comprehension.\n\n` +
+      `Hard rules:\n` +
+      `- Avoid trick questions.\n` +
+      `- Keep each question under 18 words.\n` +
+      `- Keep each option under 8 words.\n` +
+      `- No two questions should be near-duplicates.\n` +
+      `- Every fact you assert must appear in the plot summary above.`,
+  });
+  return object.questions;
+}
 
 // QC reviewer: takes a freshly-generated pool of questions and scores each
 // for accuracy against the book's canonical summary. Drops questions with
@@ -530,48 +600,71 @@ export default async function handler(req, res) {
   const guidance = GRADE_GUIDANCE[studentGrade] || GRADE_GUIDANCE.K;
 
   try {
-    // ---------- Generation pass (Opus 4.5) ----------
-    const { object } = await generateObject({
-      model: anthropic(GEN_MODEL),
-      schema: QuizSchema,
-      system:
-        `You are an early-elementary reading specialist designing reading-` +
-        `comprehension questions for a GRADE ${studentGrade} reader.\n\n` +
-        `DIFFICULTY CALIBRATION for Grade ${studentGrade}:\n${guidance}\n\n` +
-        `Tone: warm and concrete. Each question has EXACTLY 4 options, ONE ` +
-        `of which is clearly correct. The other three should be plausible-` +
-        `but-wrong things a kid who skimmed might pick. Vary which index ` +
-        `(0,1,2,3) is correct across all questions — don't bunch the ` +
-        `correct answers at the same position.\n\n` +
-        `CRITICAL: Only ask about details that are explicitly in the plot ` +
-        `summary provided. Do NOT invent characters, events, items, or ` +
-        `numbers. If you can't verify a detail in the summary, do NOT use ` +
-        `it as a question or distractor.`,
-      prompt:
-        `Write ${POOL_SIZE} reading-comprehension questions for the book ` +
-        `"${book.title}" by ${book.author}.\n\n` +
-        `The student is in Grade ${studentGrade}. The book is recommended ` +
-        `for Grade ${book.grade} readers. If the student is OLDER than the ` +
-        `book's level, still calibrate questions to the STUDENT's grade — ` +
-        `don't dumb them down just because the book is short. If the student ` +
-        `is YOUNGER than the book, keep questions simple even though the ` +
-        `book is more advanced.\n\n` +
-        `Plot summary (the source of truth — do NOT quote it verbatim, ` +
-        `but every question must be answerable from these details):\n${book.summary}\n\n` +
-        `The questions should cover DIFFERENT aspects of the book so that any random ` +
-        `subset of 5 still tests broad comprehension.\n\n` +
-        `Hard rules:\n` +
-        `- Avoid trick questions.\n` +
-        `- Keep each question under 18 words.\n` +
-        `- Keep each option under 8 words.\n` +
-        `- No two questions should be near-duplicates.\n` +
-        `- Every fact you assert must appear in the plot summary above.`,
+    // ---------- Generation: multi-pass cross-validation (1g) ----------
+    // Run POOL generations in parallel at different temperatures. Settled
+    // promises let us tolerate 1-2 failures and still cluster on what we got.
+    let candidates; // Array<Array<Question>> — one entry per successful run
+    let multiPassStats = null;
+
+    if (MULTI_PASS_ENABLED) {
+      const settled = await Promise.allSettled(
+        MULTI_PASS_TEMPS.map((t) =>
+          generateOnce(book, studentGrade, guidance, t)
+        )
+      );
+      const successful = settled
+        .filter((s) => s.status === "fulfilled")
+        .map((s) => s.value);
+      const failed = settled.length - successful.length;
+      if (successful.length === 0) {
+        // All passes failed — bubble up.
+        throw settled[0]?.reason || new Error("all_generations_failed");
+      }
+      if (failed > 0) {
+        console.warn(
+          `[quiz_multi_pass_partial] ${bookId} grade=${studentGrade}: ` +
+            `${successful.length}/${settled.length} runs succeeded`
+        );
+      }
+      candidates = successful;
+    } else {
+      // Single-pass fallback — env-toggleable for A/B comparison.
+      const questions = await generateOnce(
+        book,
+        studentGrade,
+        guidance,
+        0.7 // sensible default
+      );
+      candidates = [questions];
+    }
+
+    // Cluster across runs, keep only consensus questions (≥2 of 3 runs).
+    // If only one run came back, this returns it as-is.
+    const consensus = await clusterAndExtractConsensus(candidates, {
+      bookTitle: book.title,
+      bookSummary: book.summary,
+      consensusThreshold: MULTI_PASS_CONSENSUS_THRESHOLD,
+      targetPoolSize: POOL_SIZE,
     });
+    multiPassStats = consensus.stats;
+
+    if (multiPassStats && multiPassStats.totalCandidates > 0) {
+      console.log(
+        `[quiz_multi_pass] ${bookId} grade=${studentGrade}: ` +
+          `${multiPassStats.totalCandidates} candidates → ` +
+          `${multiPassStats.clusterCount} clusters → ` +
+          `${multiPassStats.survivingClusters} consensus`
+      );
+    }
 
     // ---------- QC reviewer pass (Opus 4.5) ----------
-    // Independent second opinion: score each generated question for
+    // Independent second opinion: score each consensus question for
     // accuracy against the canonical summary. Drop low-scoring questions.
-    const reviewedPool = await qcAndFilter(book, studentGrade, object.questions);
+    const reviewedPool = await qcAndFilter(
+      book,
+      studentGrade,
+      consensus.questions
+    );
 
     if (reviewedPool.questions.length < MIN_USABLE_POOL) {
       // Too many questions failed QC to produce a usable quiz.
@@ -582,7 +675,7 @@ export default async function handler(req, res) {
         "survivors:",
         reviewedPool.questions.length,
         "of",
-        object.questions.length
+        consensus.questions.length
       );
       res.statusCode = 500;
       return res.end(
@@ -597,10 +690,11 @@ export default async function handler(req, res) {
     const payload = {
       questions: reviewedPool.questions,
       qc: {
-        generated: object.questions.length,
+        generated: consensus.questions.length,
         kept: reviewedPool.questions.length,
         dropped: reviewedPool.dropped,
       },
+      multiPass: multiPassStats,
     };
     await setCachedQuiz(cacheKey, payload);
 
