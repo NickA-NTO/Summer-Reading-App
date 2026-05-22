@@ -1005,6 +1005,70 @@ working here.
 
 ---
 
+## First-run intro / product tour
+
+**Goal:** A new student lands in Reading Spine and immediately understands
+(a) which voice will read to them when TTS is on, and (b) how to navigate
+the catalog, open a book, take a quiz, see the leaderboard. Right now we
+drop them into the catalog cold.
+
+### Two-part flow
+
+**Part 1 — Voice picker (first thing they see after sign-in):**
+- [ ] Modal: *"Hi! Pick a voice for read-aloud."* with 3-5 sample voices
+      the kid can tap to preview (Polly Neural voices for quality;
+      browser-voice fallback if Polly cap is hit).
+- [ ] Each option plays a short pre-recorded sample sentence (e.g. *"Once
+      upon a time there was a hungry caterpillar…"*).
+- [ ] Selection persists to the user's profile in Redis (new
+      `preferredVoiceId` field on the user hash) so it survives device
+      changes.
+- [ ] "Skip" / "I'll choose later" closes the modal and falls back to the
+      current default-voice behaviour. Doesn't block the rest of the tour.
+
+**Part 2 — Spotlight product tour (Shepherd.js-style):**
+- [ ] Dim the page and put a callout bubble next to each key UI region
+      in sequence:
+      1. Hero row — *"This is your Pick of the Week. Tap any book to
+         learn more!"*
+      2. Grade row strip — *"Your books are organized by grade. Yours is
+         highlighted — start there."*
+      3. Genre rows — *"Or browse by what you're in the mood for."*
+      4. Stats strip — *"Your XP and rank live up here."*
+      5. Leaderboard nav link — *"See how your school is doing here."*
+      6. Avatar dropdown — *"Settings, sign out, and the TTS toggle live
+         in your avatar."*
+- [ ] "Next" / "Back" / "Skip tour" buttons. Skip writes `tourCompleted: true`
+      to the user profile so we don't re-show on later logins.
+- [ ] Spotlight effect: SVG mask with a hole over the highlighted region;
+      keyboard-navigable for accessibility.
+
+### Triggering logic
+- [ ] First sign-in only — set `tourCompleted` after either flow ends
+      (skip or finish). Returning users never see it again.
+- [ ] Admin endpoint `POST /api/admin?action=reset-tour&email=...` so we
+      can re-trigger the tour for QA / demos without nuking other state.
+- [ ] Footer link "Replay intro" (small, low-key) so curious kids can
+      revisit it themselves.
+
+### Open decisions
+- [ ] **Vendored vs library?** Shepherd.js (~60kB) is the obvious pick
+      but adds a dep; we could roll our own spotlight in ~150 LOC and
+      stay zero-dep. _Recommend: roll our own — the tour is 6 steps and
+      we already have the modal/overlay primitives._
+- [ ] **Voice sample assets** — pre-render the same sentence in each
+      voice via Polly and host as a static asset, or call /api/tts on
+      first preview? Recommend pre-render (fast, no cap usage on every
+      kid's first login).
+- [ ] **Accessibility** — the spotlight must be navigable via keyboard
+      and screen-reader-friendly (proper `aria-live`, focus management).
+
+### Cost / risk
+Tiny. Pre-rendered voice samples are a one-time ~5kB×N upload to Vercel
+Blob. The tour itself is pure client-side with one Redis write at the end.
+
+---
+
 ## 1i upgrade — Option A (automated TimeBack sync)
 
 **Goal:** Replace the manual paste flow shipped in 1i Option B with a fully
