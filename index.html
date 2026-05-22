@@ -965,6 +965,10 @@
 <!-- ============ Stats / category strip (differentiator) ============ -->
 <div class="stats-strip">
   <div class="stats-inner">
+    <div class="stat" id="statPointsWrap" style="display:none">
+      <div class="ic" style="background:rgba(139,92,246,.16);color:#a78bfa">✨</div>
+      <span class="v" id="statPoints">0</span><span>points</span>
+    </div>
     <div class="stat"><div class="ic">📚</div><span class="v" id="statRead">0</span><span>books read</span></div>
     <div class="stat"><div class="ic">💬</div><span class="v" id="statComments">0</span><span>reviews</span></div>
     <div class="stat"><div class="ic">🔥</div><span class="v" id="statStreak">0</span><span>day streak</span></div>
@@ -1885,6 +1889,7 @@ document.getElementById("readToggle").addEventListener("click", async () => {
 
 // Single funnel for marking a book as read. Handles localStorage,
 // streak tracking, and server activity logging (for leaderboards).
+// Returns the points awarded by the server (0 if offline or duplicate).
 async function markBookAsRead(bookId) {
   state.data.read[bookId] = true;
   const today = new Date().toISOString().slice(0,10);
@@ -1894,18 +1899,21 @@ async function markBookAsRead(bookId) {
   saveData(state.session.email, state.data);
   refreshInteractiveBits();
   renderStats();
-  // Fire-and-forget server log. Don't block the UI on this.
+  // Server call — we DO need the response to display points earned.
   try {
-    await fetch("/api/activity", {
+    const r = await fetch("/api/activity", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "same-origin",
       body: JSON.stringify({ kind: "read", bookId }),
     });
-    // Refresh rank in the stats strip once the server has the new count
+    const data = r.ok ? await r.json() : null;
+    // Refresh stats strip with new points + rank
     refreshMyRank();
+    return data && data.points ? data.points : 0;
   } catch {
     /* offline / network — local state still reflects the read */
+    return 0;
   }
 }
 
@@ -2183,20 +2191,36 @@ async function finishQuiz() {
   saveAttemptRecord(quizState.bookId, rec);
 
   if (passed) {
+    // Show interim success while we wait for the server-awarded points
     document.getElementById("quizContent").innerHTML = `
       <div class="quiz-result">
         <div class="emoji">🎉</div>
         <h3>Great reading!</h3>
         <div class="score">You got ${score} / ${total} right</div>
-        <p>Book marked as read. You can now leave a review.</p>
+        <p>Saving your progress…</p>
+      </div>`;
+
+    let earnedPoints = 0;
+    if (!state.data.read[quizState.bookId]) {
+      earnedPoints = await markBookAsRead(quizState.bookId);
+    }
+
+    const pointsLine = earnedPoints > 0
+      ? `<p style="font-size:18px;color:var(--ink);margin:14px 0 6px">You earned <strong style="color:#a78bfa">✨ ${earnedPoints} points</strong>!</p>
+         <p style="font-size:13px;color:var(--muted);margin:0 0 18px">Book marked as read. You can now leave a review.</p>`
+      : `<p>Book marked as read. You can now leave a review.</p>`;
+
+    document.getElementById("quizContent").innerHTML = `
+      <div class="quiz-result">
+        <div class="emoji">🎉</div>
+        <h3>Great reading!</h3>
+        <div class="score">You got ${score} / ${total} right</div>
+        ${pointsLine}
         <div class="actions">
           <button class="icon-btn read active" id="quizDone">Done</button>
         </div>
       </div>`;
     document.getElementById("quizDone").addEventListener("click", closeQuiz);
-    if (!state.data.read[quizState.bookId]) {
-      await markBookAsRead(quizState.bookId);
-    }
     return;
   }
 
@@ -2298,6 +2322,8 @@ function renderLeaderboard(data) {
     const podium = rank <= 3 ? ` podium-${rank}` : "";
     const meCls = e.isYou ? " me" : "";
     const medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : `#${rank}`;
+    const points = e.points ?? 0;
+    const books = e.books ?? 0;
     return `
       <li class="lb-row${podium}${meCls}">
         <div class="lb-rank">${medal}</div>
@@ -2306,21 +2332,25 @@ function renderLeaderboard(data) {
             ${escapeHtml(e.name)}
             ${e.isYou ? `<span class="me-tag">YOU</span>` : ""}
           </div>
-          ${e.grade ? `<div class="lb-grade">Grade ${escapeHtml(e.grade)}</div>` : ""}
+          <div class="lb-grade">
+            ${e.grade ? `Grade ${escapeHtml(e.grade)} · ` : ""}${books} ${books === 1 ? "book" : "books"} read
+          </div>
         </div>
-        <div class="lb-count">${e.count}<small>books</small></div>
+        <div class="lb-count">${points}<small>pts</small></div>
       </li>`;
   }).join("");
-  const meCard = data.me && data.me.count > 0 && !data.entries.some(e => e.isYou)
+  const myPoints = data.me ? data.me.points : 0;
+  const myBooks  = data.me ? data.me.books : 0;
+  const meCard = data.me && myPoints > 0 && !data.entries.some((e) => e.isYou)
     ? `<div class="lb-me-card">
          <span>Your rank: <strong>${data.me.rank ? "#" + data.me.rank : "—"}</strong></span>
-         <span><strong>${data.me.count}</strong> books read</span>
+         <span><strong>${myPoints}</strong> pts · <strong>${myBooks}</strong> ${myBooks === 1 ? "book" : "books"}</span>
        </div>`
     : "";
   body.innerHTML = `<ul class="lb-list">${rows}</ul>${meCard}`;
 }
 
-// Pull the user's rank into the stats strip
+// Pull the user's rank + total points into the stats strip
 async function refreshMyRank() {
   try {
     const r = await fetch("/api/leaderboard?window=all&limit=1", {
@@ -2328,13 +2358,22 @@ async function refreshMyRank() {
     });
     const data = await r.json();
     if (!data || !data.hasRedis) return;
-    const wrap = document.getElementById("statRankWrap");
-    const rank = data.me && data.me.rank;
-    if (rank) {
-      document.getElementById("statRank").textContent = "#" + rank;
-      wrap.style.display = "flex";
+    const me = data.me || {};
+
+    const rankWrap = document.getElementById("statRankWrap");
+    if (me.rank) {
+      document.getElementById("statRank").textContent = "#" + me.rank;
+      rankWrap.style.display = "flex";
     } else {
-      wrap.style.display = "none";
+      rankWrap.style.display = "none";
+    }
+
+    const pointsWrap = document.getElementById("statPointsWrap");
+    if ((me.points || 0) > 0) {
+      document.getElementById("statPoints").textContent = me.points;
+      pointsWrap.style.display = "flex";
+    } else {
+      pointsWrap.style.display = "none";
     }
   } catch {
     /* ignore */

@@ -4,6 +4,8 @@
 
 import { verifySession, parseCookies } from "../lib/session.js";
 import { recordRead, guessGradeFromEmail } from "../lib/store.js";
+import { getBook } from "../lib/books.js";
+import { pointsForBook, normalizeGrade } from "../lib/xp.js";
 
 export default async function handler(req, res) {
   res.setHeader("Content-Type", "application/json");
@@ -34,20 +36,28 @@ export default async function handler(req, res) {
 
   const kind = String(body.kind || "").toLowerCase();
   const bookId = String(body.bookId || "");
-  const grade = body.grade
-    ? String(body.grade).toUpperCase()
-    : guessGradeFromEmail(session.email);
+  // Student's working grade: client-supplied (will come from /api/auth/me
+  // once we wire up working-grade storage), falling back to email heuristic,
+  // ultimately defaulting to "K" inside normalizeGrade.
+  const grade = normalizeGrade(
+    body.grade || guessGradeFromEmail(session.email) || "K"
+  );
 
   if (kind !== "read" || !bookId) {
     res.statusCode = 400;
     return res.end(JSON.stringify({ error: "invalid_request" }));
   }
 
+  // Compute points based on book length + student's reading-rate grade
+  const book = getBook(bookId);
+  const points = book ? pointsForBook(book.wordCount, grade) : 0;
+
   const result = await recordRead({
     email: session.email,
     name: session.name,
     grade,
     bookId,
+    points,
   });
 
   res.statusCode = 200;
@@ -56,6 +66,8 @@ export default async function handler(req, res) {
       ok: true,
       recorded: result.recorded,
       reason: result.reason || null,
+      points: result.points || 0,
+      grade,
     })
   );
 }

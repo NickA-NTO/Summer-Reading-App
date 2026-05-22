@@ -30,7 +30,9 @@
       "Bash(git -c user.email=nick.alsford@trilogy.com -c user.name=NickA-NTO commit -m 'TTS: AWS Polly Neural with two-layer budget protection *)",
       "Bash(git -c user.email=nick.alsford@trilogy.com -c user.name=NickA-NTO commit -m 'TTS: drop Justin \\(no neural\\), rename to descriptive labels, bump cache version *)",
       "Bash(git -c user.email=nick.alsford@trilogy.com -c user.name=NickA-NTO commit -m 'TODO: quiz integrity & anti-gaming section + TimeBack integration *)",
-      "Bash(git -c user.email=nick.alsford@trilogy.com -c user.name=NickA-NTO commit -m 'TTS: always audition voice change, fix tooltip to show Polly voice *)"
+      "Bash(git -c user.email=nick.alsford@trilogy.com -c user.name=NickA-NTO commit -m 'TTS: always audition voice change, fix tooltip to show Polly voice *)",
+      "Bash(git -c user.email=nick.alsford@trilogy.com -c user.name=NickA-NTO commit -m 'TODO: replace TimeBack write API with Caliper event emission *)",
+      "Bash(git -c user.email=nick.alsford@trilogy.com -c user.name=NickA-NTO commit -m '1c Phase A: internal points + XP-style leaderboard *)"
     ]
   }
 }

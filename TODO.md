@@ -79,6 +79,22 @@ the book they claim to have read.
 - [ ] Teacher quiz-builder UI (drop in a paragraph, generate 4 questions via
       AI Gateway)
 
+### Accuracy — open issues (added 2026-05-21)
+- [ ] **Teacher spot-check** of AI-generated quizzes for 5-10 books
+      before classroom rollout. Lesser-known books (Geeger, Lighthouse
+      Family, Story about Ping, Henry and Mudge, Nate the Great) are
+      highest hallucination risk.
+- [ ] **Consider upgrading model** from Claude Haiku 4.5 to Sonnet 4.5
+      for generation — ~5x cost but materially fewer hallucinations.
+      Total ~$0.015 to re-generate the whole catalog vs. current ~$0.003.
+- [ ] **Ground truth from text** for public-domain books (Peter Rabbit,
+      Ugly Duckling, Mother Goose). Pass full text in the prompt.
+- [ ] **"Report this question" button** so kids/teachers can flag bad
+      questions; flagged ones get reviewed and the cache busted.
+- [ ] **Multi-pass cross-validation** — generate the question pool 3
+      times, only keep questions that show up across runs (semantic
+      check via embeddings).
+
 ---
 
 ## 1c. Grade-leveled difficulty + XP system
@@ -161,30 +177,38 @@ the denominator (WCPM) changes:
 A K reader gets more XP for the same book — fair, because it's harder for them.
 
 ### Data we need to add
-- [ ] `wordCount` field on every book in `CATEGORIES` (28 lookups, ~15 min)
-- [ ] WCPM lookup table in `lib/xp.js` (Hasbrouck-Tindal norms)
-- [ ] `workingGrade` attribute per student. MVP: derive from a teacher
-      dashboard or admin assignment. Stretch: pull from Google Workspace
-      `gradeLevel` org-unit attribute.
+- [x] `wordCount` field on every book — stored in `lib/books.js` (server)
+      since the server needs it to compute points. Client doesn't need it
+      yet; we'll add it to `CATEGORIES` when the UI shows "est. reading
+      time" or "worth X points" badges.
+- [x] WCPM lookup table in `lib/xp.js` (Hasbrouck-Tindal norms)
+- [ ] `workingGrade` attribute per student. **MVP shipped**: derive
+      from `guessGradeFromEmail`, defaults to "K" otherwise.
+      **Outstanding**: admin UI to override per student; eventually
+      pull from Google Workspace `gradeLevel` org-unit attribute.
 - [ ] Quiz prompt updates: include `studentGrade` so AI calibrates
       difficulty. Cache key becomes `quiz:v3:<bookId>:<studentGrade>`.
+      _(Phase B)_
 
 ### Build steps (in order)
-- [ ] **Phase A — XP without grade leveling** (~1 hr)
-  - Add `wordCount` to every book
-  - Hardcode a default grade per student (use `guessGradeFromEmail` plus
-    an admin override)
-  - Compute XP on quiz pass; store in Redis
-  - Replace leaderboard sort key from `count` to `xp`
+- [x] **Phase A — points without grade-leveled quizzes** (shipped)
+  - [x] Add `wordCount` to every book (in `lib/books.js`)
+  - [x] WCPM lookup table + `pointsForBook(wordCount, grade)` in `lib/xp.js`
+  - [x] Default grade per student via `guessGradeFromEmail` fallback
+  - [x] `/api/activity` computes points on quiz pass
+  - [x] `recordRead` writes to new `lb:points:*` sorted sets
+  - [x] `getLeaderboard` ranks by points (returns books + points per row)
+  - [x] Stats strip shows total points (✨) and rank (🏆)
+  - [x] Quiz success screen celebrates points earned
 - [ ] **Phase B — Grade-leveled quizzes** (~1 hr)
   - Server endpoint takes `studentGrade` and includes it in the AI prompt
   - Quiz cache keyed by `(bookId, studentGrade)` so each grade gets its own pool
-  - 8-question pool generated per grade; client still picks 5 random per
+  - 12-question pool generated per grade; client still picks 5 random per
     attempt
 - [ ] **Phase C — Grade-leveled retell** (depends on 1b being built first)
   - Pass `studentGrade` into the retell grading prompt: stricter
     plot-point coverage and vocabulary expectations at higher grades
-  - 80% retell score required for XP to be awarded
+  - 80% retell score required for full points to be awarded
 - [ ] **Phase D — Working-grade management UI**
   - Admin can set/edit a student's working grade
   - Optional self-service: kid picks their own grade once (locks until
