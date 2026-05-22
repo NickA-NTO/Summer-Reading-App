@@ -17,7 +17,8 @@ current. Strike items as they ship.
       random per attempt with shuffled option positions, so kids can't
       memorize answer locations across attempts. **Max 2 attempts per day,
       need 3/4 to pass.** _Needs migration to 5 questions @ 80% pass +
-      grade-leveled difficulty (see section 1c)._
+      grade-leveled difficulty (see section 1c). Also needs quiz-integrity
+      additions (see section 1d)._
 - [x] **Admin user list** — `/api/admin/users` returns everyone who has
       signed in, gated by the `ADMIN_EMAILS` env var. Modal accessible from
       the avatar dropdown for admins, with search and last-active / books-
@@ -202,6 +203,166 @@ A K reader gets more XP for the same book — fair, because it's harder for them
       Once retell ships, both required for full XP, quiz-only = half XP._
 - [ ] **Daily / weekly XP caps?** Prevents marathon gaming.
       _Recommend: not initially — see if it becomes a problem._
+
+---
+
+## 1d. Quiz integrity & anti-gaming
+
+**Goal:** Reading Spine has to actually prove reading, not just generate XP
+clicks. Three mechanisms address the most likely gaming vectors.
+
+### 1d.1 Question rotation on retake
+
+**Problem:** Today we generate an 8-question pool and pick 5 random per
+attempt. A student who fails attempt 1 sees questions 1, 3, 4, 7 → could
+get attempt 2 with questions 2, 5, 6, 7, 8 (overlap on Q7). With only an
+8-question pool, near-duplicate questions across attempts are inevitable
+even with shuffling.
+
+**Fix:**
+- [ ] Track which question IDs a student has seen for a given book.
+      Store as a Redis set `quiz:seen:<email>:<bookId>` (with TTL of the
+      24-hour cooldown).
+- [ ] On attempt 2, **exclude any question the student has already seen
+      on attempt 1**. Pool must be large enough — bump generation to
+      10–12 questions per book so attempt 2 always has 5 fresh questions
+      available.
+- [ ] If the pool is exhausted (somehow), force-regenerate a brand new
+      set via Claude with a "must be entirely different angle" prompt
+      and bump the cache key.
+- [ ] Verify with AI grading that attempt 2's questions aren't
+      semantically near-duplicates of attempt 1's (use a cheap embeddings
+      check, or just rely on the prompt to enforce diversity).
+
+### 1d.2 Reduced rewards on 2nd-attempt passes
+
+**Problem:** First-try passes mean the student actually retained the
+content. Second-try passes — especially after multiple shuffled exposures
+to the questions — are weaker signal.
+
+**Fix:**
+- [ ] **Leaderboard XP**: 1st attempt pass = **100%** of book XP; 2nd
+      attempt pass = **50%**. (Tunable in env var
+      `XP_RETAKE_MULTIPLIER`.)
+- [ ] **TimeBack XP** sync (depends on the TimeBack write API being
+      wired up — see new section below): mirror the same 100% / 50%
+      ratio so the school's official record matches.
+- [ ] Make the reduction visible in the post-quiz success screen:
+      "Great work! You earned **8 XP** (would have been 16 XP on first
+      try) — try to get it right first next time!"
+- [ ] Admin can override (e.g., if a student's first attempt was
+      glitched by a connectivity issue) — admin sets a per-attempt
+      override flag in Redis.
+
+### 1d.3 Speed-based fraud detection ("rapid-fire submissions")
+
+**Problem:** A G2 student submits a quiz for Book A at 12:00, then
+another for Book B at 12:05. That's 5 minutes for what should have been
+~30–60 minutes of actual reading. Almost certainly gaming — copying a
+friend's answers, asking ChatGPT, or just guessing.
+
+**Detection algorithm:**
+
+For each quiz submission, compute:
+
+```
+minExpectedReadingMins = bookWordCount / wcpmForStudentsGrade
+elapsedSinceLastSubmissionMins = nowMins - lastQuizSubmittedMins
+suspicionRatio = elapsedSinceLastSubmissionMins / minExpectedReadingMins
+```
+
+- `suspicionRatio < 0.25` → **definitely gaming**, hold XP for admin review
+- `suspicionRatio < 0.5` → **flagged**, but still award XP at 50%
+- `suspicionRatio >= 0.5` → normal
+
+For the *first* quiz of the day, compare against "last quiz of the
+previous session" with a generous floor (e.g., assume 30 min minimum
+gap if no recent quiz).
+
+**State to track:**
+```
+user:<email>:lastQuizAt          → ISO timestamp of last submission
+user:<email>:lastQuizBookId      → book they just claimed
+user:<email>:flagCount           → integer, lifetime offences
+user:<email>:flagCooldownUntil   → ISO timestamp, locked-out until
+user:<email>:heldXp              → array of {bookId, xp, reason, ts}
+                                   waiting for admin approval
+```
+
+**Consequences (escalating):**
+
+| Offence # | Cooldown (no quiz submissions allowed) | XP status |
+|---|---|---|
+| 1st | 2 hours | Held for admin approval; auto-warn student |
+| 2nd | 8 hours | Held; warn + notify teacher dashboard |
+| 3rd | 24 hours | Held; admin must approve to release |
+| 4th+ | 72 hours, escalating | Held; account flagged for review |
+
+**Student-facing UX when blocked:**
+
+The quiz button shows: **"⏰ Take a break and re-read. You can try
+quizzes again at 2:00pm."** No accusatory language — frame as healthy
+pacing. Tooltip: "Reading is best when you have time to enjoy it.
+Come back after lunch!"
+
+**Admin-facing UX:**
+- New "Held XP" section in the admin modal showing flagged events
+- Per-student "trust score" indicator (visible on the user list)
+- One-click "Approve" or "Reject" per held event
+- "Reset offence counter" button (in case the kid had a legitimately
+  fast read — like a 30-page Knuffle Bunny)
+
+**Open decisions:**
+- [ ] **Threshold tuning**: 0.25 / 0.5 ratios are guesses. After v1 ships,
+      review logs and adjust based on legit-fast-reader false positives.
+- [ ] **Offence counter reset window**: never, monthly, or
+      after-N-clean-submissions? _Recommend: decay 1 per week of clean
+      submissions to allow recovery._
+- [ ] **Whitelist for known fast readers**: should teachers be able to
+      mark a specific kid as "advanced reader, don't flag"? Probably yes.
+- [ ] **Notification channel for held events**: email digest to admin?
+      In-app red dot? Both?
+
+### Build order
+
+These are independent but all depend on the XP system from section 1c.
+
+1. Question rotation (1d.1) — small, ~1 hour, just Redis tracking
+2. Reduced 2nd-attempt rewards (1d.2) — small, ~30 min in-app, but
+   blocked by TimeBack write API for the sync part
+3. Speed-based fraud detection (1d.3) — medium, ~2-3 hours, needs new
+   admin UI
+
+---
+
+## 1e. TimeBack integration
+
+**Goal:** Reading Spine XP and leaderboard points sync to TimeBack so the
+school's official XP record reflects what kids earn here.
+
+### Decisions needed
+- [ ] **TimeBack write API** — does it exist? What's the auth? Confirm
+      with the TimeBack team that we can `POST` XP gains keyed by
+      student email or OneRoster ID.
+- [ ] **Mapping**: 1 Reading Spine XP = 1 TimeBack XP? Or a different
+      ratio (Reading Spine XP might be inflated vs. other TimeBack
+      activities)?
+- [ ] **When to sync**: immediately on quiz pass (low-latency, more
+      API calls) or batched nightly (cheaper, but delays the reward
+      feedback loop)?
+- [ ] **Sync the deductions too?** When a quiz is on 2nd-attempt or
+      held for fraud review, should TimeBack reflect that immediately
+      or only the final approved amount?
+
+### Build steps
+- [ ] Add `TIMEBACK_API_KEY` env var (sensitive)
+- [ ] `lib/timeback.js`: client + retry logic + idempotency key
+- [ ] `/api/activity` (existing): on quiz pass, additionally fire-and-
+      forget POST to TimeBack with the awarded XP
+- [ ] Idempotency: include `(email, bookId, attemptNumber)` as a key
+      so retries don't double-credit
+- [ ] Failure handling: queue failed syncs in Redis, retry from a
+      Vercel Cron every 5 min
 
 ---
 
