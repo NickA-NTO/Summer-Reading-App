@@ -1180,7 +1180,7 @@
         </h2>
         <p class="modal-author" id="modalAuthor"></p>
         <div class="modal-row1">
-          <span class="pill" id="modalAge">—</span>
+          <span class="pill" id="modalGrade">—</span>
           <span class="pill cat" id="modalCat">—</span>
           <span class="pill" id="modalRating">—</span>
         </div>
@@ -1403,6 +1403,15 @@ const CATEGORIES = [
 
 const ALL_BOOKS = CATEGORIES.flatMap(c => c.books.map(b => ({ ...b, category: c.title, categoryId: c.id })));
 const BOOK_BY_ID = Object.fromEntries(ALL_BOOKS.map(b => [b.id, b]));
+
+// categoryId → human grade letter. We organize the catalog by grade in
+// CATEGORIES; this is the canonical mapping the UI uses for badges/pills.
+// Alpha kids commonly read above age-grade, so this is the ONLY grade signal
+// we surface (age ranges are intentionally suppressed everywhere).
+const GRADE_BY_CATEGORY = { k: "K", a: "1", b: "2" };
+function gradeOf(book) {
+  return GRADE_BY_CATEGORY[book?.categoryId] || "";
+}
 
 function coverUrl(book) {
   return `https://covers.openlibrary.org/b/isbn/${book.isbn}-L.jpg?default=false`;
@@ -1912,10 +1921,10 @@ function renderHero() {
 
   document.getElementById("heroEyebrow").textContent = `PICK OF THE WEEK · ${featuredBook.category}`;
   document.getElementById("heroTitle").textContent = featuredBook.title;
+  const heroGrade = gradeOf(featuredBook);
   document.getElementById("heroMeta").innerHTML = `
     <strong>${escapeHtml(featuredBook.author)}</strong>
-    <span class="dot-sep"></span>
-    <span>${escapeHtml(featuredBook.age)}</span>
+    ${heroGrade ? `<span class="dot-sep"></span><span>Grade ${escapeHtml(heroGrade)}</span>` : ""}
     <span class="dot-sep"></span>
     <span>${pct}% loved this</span>
     <span class="dot-sep"></span>
@@ -2021,9 +2030,12 @@ function buildCard(book, isHot) {
   card.className = "card";
   card.setAttribute("tabindex", "0");
   card.setAttribute("aria-label", `${book.title} by ${book.author}`);
+  const gradeLabel = gradeOf(book);
   const badge = wasRead
     ? `<div class="badge read">✓ Read</div>`
-    : (isHot ? `<div class="badge hot">★ Top pick</div>` : `<div class="badge">K-2</div>`);
+    : (isHot
+        ? `<div class="badge hot">★ Top pick</div>`
+        : `<div class="badge">${gradeLabel ? "Grade " + escapeHtml(gradeLabel) : ""}</div>`);
   card.innerHTML = `
     ${badge}
     <img class="card-img" alt="${escapeAttr(book.title)} cover" src="${coverUrl(book)}"
@@ -2039,7 +2051,6 @@ function buildCard(book, isHot) {
       <div class="stats">
         <span class="up">👍 ${counts.up}</span>
         <span class="down">👎 ${counts.down}</span>
-        <span>${escapeHtml(book.age)}</span>
       </div>
     </div>
   `;
@@ -2077,7 +2088,8 @@ function openBook(id) {
 
   document.getElementById("modalTitleText").textContent = book.title;
   document.getElementById("modalAuthor").textContent = "By " + book.author;
-  document.getElementById("modalAge").textContent = book.age;
+  const bookGrade = gradeOf(book);
+  document.getElementById("modalGrade").textContent = bookGrade ? "Grade " + bookGrade : "—";
   document.getElementById("modalCat").textContent = book.category;
   document.getElementById("modalBlurb").textContent = book.blurb;
 

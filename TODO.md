@@ -894,8 +894,11 @@ working here.
 
 ## Polish (small wins, anytime)
 
-- [ ] Default card badge shows grade letter (`K` / `1` / `2`) instead of `K-2`
-- [ ] Grade pill in the modal metadata row
+- [x] Default card badge shows grade letter (`Grade K` / `Grade 1` / `Grade 2`)
+      instead of `K-2`. Hot/Read badges still take precedence.
+- [x] Grade pill in the modal metadata row (replaced the old age pill).
+- [x] Removed the "Ages X–Y" copy from cards, hero, and modal — Alpha kids
+      often read above age-grade, so working-grade is the only signal we show.
 - [ ] Search bar in the header (filter all books by title/author)
 - [ ] "My List" actually works (save-for-later separate from reads)
 - [ ] Empty-state illustration for the "Keep Reading" row when it's empty
@@ -903,3 +906,34 @@ working here.
 - [ ] Light theme toggle (some classrooms have screens in bright sun)
 - [ ] Accessibility audit (keyboard nav, screen reader, focus rings)
 - [ ] Custom domain: `read.alpha.school` or similar
+
+---
+
+## 1i upgrade — Option A (automated TimeBack sync)
+
+**Goal:** Replace the manual paste flow shipped in 1i Option B with a fully
+automated daily sync.
+
+### Build steps
+- [ ] Use the TimeBack Reporting MCP `persistQueryToAPI` tool to publish the
+      working-grade SQL (`rpt2_mastery` JOIN `rpt2_student` for Reading subject,
+      Alpha-domain emails only) as a callable HTTPS endpoint. Save the URL + token.
+- [ ] Add env vars on Vercel: `TIMEBACK_GRADE_SYNC_URL`,
+      `TIMEBACK_GRADE_SYNC_TOKEN`, `RS_SYNC_TOKEN` (an internal shared
+      secret so the cron can call our bulk endpoint without admin cookies).
+- [ ] Loosen `/api/admin?action=bulk-set-grades` auth so it accepts either
+      an admin session OR a `?token=<RS_SYNC_TOKEN>` header — letting the
+      cron call it server-to-server.
+- [ ] Add a Vercel cron (e.g. 4 AM UTC daily) hitting a new
+      `/api/cron/sync-grades` that fetches the persisted TimeBack endpoint,
+      transforms `{data: [...]}` → `{updates: [...]}`, and POSTs to the bulk
+      endpoint with `RS_SYNC_TOKEN`.
+- [ ] Add `gradeSyncLog` Redis list — each run appends
+      `{ts, applied, skippedAdmin, skippedSame, skippedNotUser, errors}`.
+      Surface last 10 runs in the admin modal.
+- [ ] Dry-run mode (`?dry=1`) on the bulk endpoint — returns what WOULD
+      change without writing. Run it once manually before flipping the cron on.
+
+### Cost / risk
+Essentially free: one HTTPS call per day + the Redis writes for the diff.
+No new dependencies. Manual paste flow stays as fallback if the cron breaks.
