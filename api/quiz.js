@@ -220,6 +220,75 @@ const QUIZ_BOOKS = {
     summary:
       "Three siblings — Joe, Beth, and Frannie — move to the countryside next to a magical enchanted forest. At the top of a giant Faraway Tree that grows in the forest, a different magical land arrives every few days through a hole in the clouds — but the land moves on after a while, so visitors have to climb back down before it leaves or they'll be stuck forever. The children meet the tree's strange residents: Moon-Face (a round-faced creature who lives at the top with a slippery-slip slide that goes all the way down inside the trunk), Silky the Fairy (who has long golden hair), the Saucepan Man (deaf, covered in pots and pans that clang as he walks), and Mr. Watzisname (who is always asleep). They climb up to visit lands like the Land of Take-What-You-Want, the Land of Birthdays, the Rocking Land (where everything rocks back and forth), the Land of Topsy-Turvy, and the Land of Goodies. Each visit is a separate adventure where they sometimes barely escape back down the tree in time before the land moves on with them inside.",
   },
+
+  /* ---------- Usborne First Reading — Grade K ---------- */
+  u01: {
+    title: "The Enormous Turnip",
+    author: "Traditional (Usborne)",
+    grade: "K",
+    summary:
+      "An old man plants a tiny turnip seed and waters it every day. It grows into a huge, enormous turnip — far too big to pull out by himself. He calls his wife to help, but together they still cannot pull it out. The wife calls the little girl, the little girl calls the little boy, the little boy calls the dog, the dog calls the cat, and the cat calls the mouse. All of them pull together in a long chain, pulling as hard as they possibly can. Finally, with an enormous HEAVE, the turnip comes flying out of the ground and they all fall down in a heap. That evening they all share delicious turnip soup together. The story repeats the growing chain of helpers each time, showing that working together is how they succeed.",
+  },
+  u02: {
+    title: "The Gingerbread Man",
+    author: "Traditional (Usborne)",
+    grade: "K",
+    summary:
+      "A little old woman bakes a gingerbread man in her oven. As soon as the oven door opens, the gingerbread man jumps out and runs away, shouting 'Run, run, as fast as you can! You can't catch me, I'm the gingerbread man!' He runs away from the little old woman, the little old man, a cow, a horse, a group of farmers in a field, and a school full of children — all chasing him and all failing to catch him. Each time he escapes he repeats his rhyme. At last he comes to a river he cannot cross. A sly fox offers to carry him across on his tail. The gingerbread man climbs on. The fox flips him into the air and snaps him up, and that is the end of the gingerbread man.",
+  },
+  u03: {
+    title: "Chicken Licken",
+    author: "Traditional (Usborne)",
+    grade: "K",
+    summary:
+      "Chicken Licken is walking under an oak tree when an acorn falls and hits her on the head. She is convinced the sky is falling down and decides she must go and tell the king. On her way she meets Henny Penny, Cocky Locky, Ducky Lucky, Drakey Lakey, Goosey Loosey, and Turkey Lurkey one by one, and each time she says 'The sky is falling! I'm going to tell the king!' and each new animal joins her. Eventually they meet Foxy Loxy, who says he knows a short cut to the king's palace. He leads them all into his dark den underground. They are never seen again and Chicken Licken never does get to tell the king. The story's lesson is about not panicking and not following strangers.",
+  },
+
+  /* ---------- Usborne First Reading — Grade 1 ---------- */
+  u04: {
+    title: "Jack and the Beanstalk",
+    author: "Traditional (Usborne)",
+    grade: "1",
+    summary:
+      "Jack and his mother are very poor and their only cow has stopped giving milk. Jack's mother sends him to market to sell the cow. On the way he meets a strange man who offers magic beans in exchange for the cow. Jack trades the cow for the beans and brings them home. His mother is furious and throws the beans out the window. Overnight, a giant beanstalk grows all the way up into the clouds. Jack climbs it and discovers a huge castle. A kind giantess hides Jack from her husband, a terrifying giant who bellows 'Fee-fi-fo-fum! I smell the blood of an Englishman!' On his first visit Jack steals a bag of gold coins. On his second visit he steals a magic hen that lays golden eggs. On his third visit he steals a golden harp that plays beautiful music by itself. The harp cries out, waking the giant. Jack races down the beanstalk with the giant chasing him. Jack reaches the bottom and chops the beanstalk down with an axe. The giant falls and is never seen again. Jack and his mother live happily ever after with the golden hen providing for them.",
+  },
+  u05: {
+    title: "The Princess and the Pea",
+    author: "H.C. Andersen (Usborne)",
+    grade: "1",
+    summary:
+      "A prince travels the world looking for a real princess to marry, but he can never be certain any princess he meets is a genuine real one. He returns home sad and unmarried. One stormy night, a young woman arrives at the castle gate, soaking wet from the rain, claiming to be a real princess. The old queen decides to test her. She secretly places one single dried pea at the very bottom of the bed, then piles twenty mattresses on top, and twenty feather quilts on top of those. The young woman sleeps on this enormous stack. In the morning the prince asks how she slept. She says she had a terrible night — she tossed and turned and felt something terribly hard pressing up through all the mattresses, and she is black and blue with bruises. Only a real princess could be so delicate as to feel one pea through twenty mattresses and twenty quilts. The prince knows she must be a real princess and asks her to marry him. The pea is put on display in a museum where it can still be seen today.",
+  },
+  u06: {
+    title: "The Elves and the Shoemaker",
+    author: "Brothers Grimm (Usborne)",
+    grade: "1",
+    summary:
+      "A kind shoemaker and his wife have fallen on hard times. One evening he cuts out the last piece of leather he can afford to make one pair of shoes, but he is too tired to sew them and goes to bed. In the morning he finds a perfect pair of shoes already made on his workbench — the finest stitching he has ever seen. He sells the shoes for a high price and buys more leather. The same thing happens every night — he cuts the leather out, and every morning the shoes are finished without explanation. He becomes prosperous and famous. On Christmas Eve, he and his wife hide behind a curtain to watch. They see two tiny elves with bare feet and ragged clothes dancing and sewing the shoes with incredible skill. The shoemaker and his wife are so grateful they decide to make the elves a gift: warm little coats, trousers, and tiny shoes. They leave the gifts out. The elves discover them, put on the clothes with great joy, and dance out the door. The elves never return, but the shoemaker and his wife are never poor again.",
+  },
+
+  /* ---------- Usborne Young Reading Series 1 — Grade 2 ---------- */
+  u07: {
+    title: "The Wizard of Oz",
+    author: "L. Frank Baum (Usborne)",
+    grade: "2",
+    summary:
+      "Dorothy lives on a farm in Kansas with her Auntie Em, Uncle Henry, and her little dog Toto. A great tornado picks up their farmhouse and drops it in the magical land of Oz, crushing and killing the Wicked Witch of the East and freeing the Munchkins who lived under her power. The Good Witch of the North gives Dorothy the dead witch's silver slippers and tells her to follow the Yellow Brick Road to the Emerald City, where the great Wizard might help her get home. Along the Yellow Brick Road Dorothy meets a Scarecrow who wants a brain, a Tin Woodman who wants a heart, and a Cowardly Lion who wants courage. They travel together through dangers: a field of enchanted poppies that put Dorothy and the Lion to sleep, flying monkeys controlled by the Wicked Witch of the West, and a terrifying dark castle. The Wicked Witch of the West, who wants the silver slippers, captures Dorothy. Dorothy throws a bucket of water on her to put out the fire and accidentally melts the witch. When they reach the Wizard they discover he is an ordinary man hiding behind a curtain who can do no real magic. He sends them away with words: he gives the Scarecrow a diploma, the Tin Man a heart-shaped clock, the Lion a medal for courage. Dorothy learns she can use the silver slippers to go home by clicking her heels three times and saying 'There's no place like home.' She wakes up in Kansas, safe with her family.",
+  },
+  u08: {
+    title: "Aladdin",
+    author: "Traditional (Usborne)",
+    grade: "2",
+    summary:
+      "Aladdin is a poor, lazy boy living with his widowed mother in a city in China. A wicked sorcerer from Africa arrives, pretending to be Aladdin's long-lost uncle. He tricks Aladdin into climbing down into a magical underground cave to retrieve an old oil lamp, giving Aladdin a magic ring for protection. When Aladdin won't hand over the lamp before being helped out of the cave, the sorcerer seals him underground. Aladdin accidentally rubs the ring and summons a genie who takes him home. His mother discovers that rubbing the lamp releases an even more powerful Genie of the Lamp who can grant any wish. Aladdin uses the lamp's genie to become rich and to win the hand of the Sultan's beautiful daughter Princess Badr al-Budur in marriage. They live happily in a palace the genie builds for them. But the sorcerer returns. He tricks the princess into trading the old lamp for a shiny new one. Using the lamp, he moves the whole palace — and the princess — to Africa. Aladdin uses the ring genie to travel to Africa and find the princess. Together they drug the sorcerer's wine, steal back the lamp, and command the genie to carry the palace and everyone in it back home. Aladdin and the princess live happily ever after.",
+  },
+  u09: {
+    title: "Pinocchio",
+    author: "Carlo Collodi (Usborne)",
+    grade: "2",
+    summary:
+      "A kind old woodcarver named Geppetto carves a puppet from an enchanted piece of wood that can move and talk on its own even before it is finished. He names the puppet Pinocchio. The very first day Pinocchio runs away and gets Geppetto arrested. A wise Talking Cricket warns Pinocchio to be good and go to school, but Pinocchio ignores him. Pinocchio burns his own feet off and has many adventures: he is cheated by a Fox and Cat who promise to plant his gold coins in a magic 'Field of Miracles' where they will multiply, but they steal the coins. A blue-haired fairy named the Blue Fairy finds Pinocchio and nurses him back to health. When Pinocchio tells lies his nose grows longer. He is tricked into going to Pleasure Island — a place where naughty boys who never study are turned into donkeys. Pinocchio starts to turn into a donkey but escapes into the sea. He is swallowed by a great dogfish (a whale-like creature). Inside the fish Pinocchio finds old Geppetto who was also swallowed while searching for him. Pinocchio carries Geppetto on his back and swims to shore. Pinocchio finally learns to be hardworking, kind, and unselfish. The Blue Fairy rewards him by turning him from a wooden puppet into a real live boy.",
+  },
 };
 
 // 12 questions in the pool. Client picks 5 per attempt (80% pass = 4/5).

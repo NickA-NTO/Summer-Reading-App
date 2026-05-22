@@ -1132,7 +1132,7 @@
   <div class="stats-inner">
     <div class="stat" id="statPointsWrap" style="display:none">
       <div class="ic" style="background:rgba(139,92,246,.16);color:#a78bfa">✨</div>
-      <span class="v" id="statPoints">0</span><span>points</span>
+      <span class="v" id="statPoints">0</span><span>XP</span>
     </div>
     <div class="stat"><div class="ic">📚</div><span class="v" id="statRead">0</span><span>books read</span></div>
     <div class="stat"><div class="ic">💬</div><span class="v" id="statComments">0</span><span>reviews</span></div>
@@ -1300,6 +1300,15 @@ const CATEGORIES = [
       { id: "k08", isbn: "9780394800165", title: "Green Eggs and Ham", author: "Dr. Seuss", age: "Ages 4–7",
         palette: ["#16a34a","#f472b6"],
         blurb: "Sam-I-am will not stop offering green eggs and ham. Not in a house, not with a mouse — but maybe, just maybe, one tiny taste?" },
+      { id: "u01", isbn: "9781409507383", title: "The Enormous Turnip", author: "Traditional (Usborne)", age: "Ages 4–6",
+        palette: ["#8b5cf6","#fbbf24"],
+        blurb: "An old man plants a turnip seed. It grows enormous — so big that everyone has to pull together to get it out. How many helpers will it take?" },
+      { id: "u02", isbn: "9781409507390", title: "The Gingerbread Man", author: "Traditional (Usborne)", age: "Ages 4–6",
+        palette: ["#92400e","#f97316"],
+        blurb: "Run, run, as fast as you can! A freshly baked gingerbread man jumps out of the oven and runs from everyone who tries to catch and eat him." },
+      { id: "u03", isbn: "9781409507406", title: "Chicken Licken", author: "Traditional (Usborne)", age: "Ages 4–6",
+        palette: ["#fbbf24","#3b82f6"],
+        blurb: "An acorn falls on Chicken Licken's head — and she's sure the sky is falling! She gathers her friends to warn the king. But a sly fox has other ideas." },
     ],
   },
   {
@@ -1338,6 +1347,15 @@ const CATEGORIES = [
       { id: "a11", isbn: "9780688159320", title: "The Ugly Duckling", author: "Hans Christian Andersen", age: "Ages 4–8",
         palette: ["#94a3b8","#fde68a"],
         blurb: "A little duckling doesn't look like the others. He travels through a long winter feeling all alone — until one spring day he discovers exactly who he is." },
+      { id: "u04", isbn: "9781409507413", title: "Jack and the Beanstalk", author: "Traditional (Usborne)", age: "Ages 5–7",
+        palette: ["#15803d","#fbbf24"],
+        blurb: "Jack trades their cow for magic beans — and overnight a beanstalk grows into the clouds. At the top is a giant's castle full of treasure. And a very large, angry giant." },
+      { id: "u05", isbn: "9781409507420", title: "The Princess and the Pea", author: "H.C. Andersen (Usborne)", age: "Ages 5–7",
+        palette: ["#f9a8d4","#0d9488"],
+        blurb: "A prince searches the world for a real princess. One stormy night a visitor arrives — but can the queen's clever test really tell if she's genuine?" },
+      { id: "u06", isbn: "9781409507437", title: "The Elves and the Shoemaker", author: "Brothers Grimm (Usborne)", age: "Ages 5–7",
+        palette: ["#78350f","#f59e0b"],
+        blurb: "A kind shoemaker is too poor to buy leather. Each night a mystery helper secretly finishes the shoes — and business has never been better. Who is it?" },
     ],
   },
   {
@@ -1370,6 +1388,15 @@ const CATEGORIES = [
       { id: "b09", isbn: "9781405272223", title: "The Magic Faraway Tree", author: "Enid Blyton", age: "Ages 7–10",
         palette: ["#15803d","#a855f7"],
         blurb: "At the top of a magical tree, a different fantastic land arrives every day. The kids climb up to find Birthday Land, the Land of Topsy-Turvy, the Land of Sweets…" },
+      { id: "u07", isbn: "9780746073582", title: "The Wizard of Oz", author: "L. Frank Baum (Usborne)", age: "Ages 6–9",
+        palette: ["#fbbf24","#059669"],
+        blurb: "A tornado whisks Dorothy and her dog Toto to the magical land of Oz. To get home she must follow the Yellow Brick Road — and meet a scarecrow, a tin man, and a very cowardly lion." },
+      { id: "u08", isbn: "9780746056806", title: "Aladdin", author: "Traditional (Usborne)", age: "Ages 6–9",
+        palette: ["#1e40af","#f59e0b"],
+        blurb: "A poor boy, a magic lamp, and a genie who can grant any wish. But a wicked sorcerer wants that lamp — and he'll do anything to get it." },
+      { id: "u09", isbn: "9780746062968", title: "Pinocchio", author: "Carlo Collodi (Usborne)", age: "Ages 6–9",
+        palette: ["#2563eb","#dc2626"],
+        blurb: "Geppetto carves a wooden puppet who can talk and walk by himself. Pinocchio wants to be a real boy — but first he has to learn what it means to be good." },
     ],
   },
 ];
@@ -1431,6 +1458,18 @@ const BOOK_TAGS = {
   b07: ["adventures", "animals"],
   b08: ["feelings"],
   b09: ["adventures"],
+  // Usborne Grade K
+  u01: ["animals", "classics"],
+  u02: ["funny", "classics", "adventures"],
+  u03: ["funny", "animals", "classics"],
+  // Usborne Grade 1
+  u04: ["adventures", "classics"],
+  u05: ["classics", "feelings"],
+  u06: ["classics", "feelings"],
+  // Usborne Grade 2
+  u07: ["adventures", "classics"],
+  u08: ["adventures", "classics"],
+  u09: ["adventures", "classics", "feelings"],
 };
 
 function genreBooks(genreId) {
@@ -2117,6 +2156,15 @@ function refreshInteractiveBits() {
   } else {
     readBtn.style.display = "inline-flex";
     quizBtn.style.display = "none";
+    // Quiz books: once read, the button is decorative — clicking can't un-mark it.
+    // Use pointer-events none so it feels like a badge rather than a button.
+    if (hasQuiz && wasRead) {
+      readBtn.style.cursor = "default";
+      readBtn.title = "Quiz passed — reading confirmed ✓";
+    } else {
+      readBtn.style.cursor = "";
+      readBtn.title = "";
+    }
   }
 
   document.getElementById("voteUp").disabled   = !wasRead;
@@ -2180,6 +2228,9 @@ document.getElementById("readToggle").addEventListener("click", async () => {
   if (nowOn) {
     await markBookAsRead(activeBookId);
   } else {
+    // Quiz-enabled books: once read (earned via passing a quiz), the read
+    // state is permanent — you can't un-mark it to re-unlock the quiz.
+    if (QUIZ_ENABLED.has(activeBookId)) return;
     delete state.data.read[activeBookId];
     delete state.data.votes[activeBookId];
     saveData(state.session.email, state.data);
@@ -2664,29 +2715,20 @@ async function finishQuiz() {
 
     let pointsLine;
     if (serverResp && serverResp.held) {
-      // XP held for admin review (speed-flagged)
+      // XP held for admin review (speed-flagged). Show non-accusatory message.
       const timeStr = serverResp.heldInfo?.cooldownUntil
         ? ` until ${new Date(serverResp.heldInfo.cooldownUntil).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
         : "";
       pointsLine = `
         <p style="font-size:14px;color:var(--muted);margin:14px 0 6px">
           ⏰ <strong>Heads up:</strong> Your points are being reviewed by a teacher.
-          Try taking a bit more time to read next time. Quizzes are paused${timeStr}.
+          Try spending more time reading before your next quiz. Quizzes paused${timeStr}.
         </p>
         <p style="font-size:13px;color:var(--muted-2);margin:0 0 18px">Book marked as read.</p>`;
-    } else if (earnedPoints > 0 && serverResp && serverResp.isRetake) {
-      // 1d.2 — Second-attempt pass: show the retake note
-      pointsLine = `
-        <p style="font-size:18px;color:var(--ink);margin:14px 0 4px">
-          You earned <strong style="color:#a78bfa">✨ ${earnedPoints} points</strong>
-        </p>
-        <p style="font-size:12px;color:var(--muted);margin:0 0 18px">
-          Second try earns half points (${serverResp.basePoints || "more"} on a first try — you've got this next time!).
-        </p>`;
     } else if (earnedPoints > 0) {
       pointsLine = `
         <p style="font-size:18px;color:var(--ink);margin:14px 0 6px">
-          You earned <strong style="color:#a78bfa">✨ ${earnedPoints} points</strong>!
+          You earned <strong style="color:#a78bfa">✨ ${earnedPoints} XP</strong>!
         </p>
         <p style="font-size:13px;color:var(--muted);margin:0 0 18px">Book marked as read. You can now leave a review.</p>`;
     } else {
@@ -2821,7 +2863,7 @@ function renderLeaderboard(data) {
             ${e.grade ? `Grade ${escapeHtml(e.grade)} · ` : ""}${books} ${books === 1 ? "book" : "books"} read
           </div>
         </div>
-        <div class="lb-count">${points}<small>pts</small></div>
+        <div class="lb-count">${points}<small>XP</small></div>
       </li>`;
   }).join("");
   const myPoints = data.me ? data.me.points : 0;
@@ -2829,7 +2871,7 @@ function renderLeaderboard(data) {
   const meCard = data.me && myPoints > 0 && !data.entries.some((e) => e.isYou)
     ? `<div class="lb-me-card">
          <span>Your rank: <strong>${data.me.rank ? "#" + data.me.rank : "—"}</strong></span>
-         <span><strong>${myPoints}</strong> pts · <strong>${myBooks}</strong> ${myBooks === 1 ? "book" : "books"}</span>
+         <span><strong>${myPoints}</strong> XP · <strong>${myBooks}</strong> ${myBooks === 1 ? "book" : "books"}</span>
        </div>`
     : "";
   body.innerHTML = `<ul class="lb-list">${rows}</ul>${meCard}`;
