@@ -14,3 +14,4 @@ caliper-sample-event*.json
 # RAG experiment artifacts (raw text + generated outputs — re-generatable)
 scripts/.peter-rabbit-raw.txt
 scripts/rag-experiment-output.*
+package-lock.json

@@ -76,7 +76,7 @@ the book they claim to have read.
 
 ### Stretch
 - [ ] Adaptive questions — get harder if a kid keeps passing first try
-- [ ] Teacher quiz-builder UI (drop in a paragraph, generate 4 questions via
+- [ ] Admin quiz-builder UI (drop in a paragraph, generate 4 questions via
       AI Gateway)
 
 ### Accuracy — open issues (status 2026-05-22)
@@ -88,7 +88,7 @@ the book they claim to have read.
       Catches the most obvious hallucinations the generator slipped
       through.
 - [ ] **Archive.org / public-domain text RAG** (see new section below)
-- [ ] **"Report this question" button** so kids/teachers can flag bad
+- [ ] **"Report this question" button** so kids and admins can flag bad
       questions; flagged ones get reviewed and the cache busted.
       See section 1f.
 - [ ] **Multi-pass cross-validation** — generate the question pool 3
@@ -100,7 +100,7 @@ the book they claim to have read.
 
 ## 1f. "Report this question" workflow
 
-**Goal:** Kids and teachers can flag bad quiz questions in real time.
+**Goal:** Kids and admins can flag bad quiz questions in real time.
 Flagged questions get reviewed; bad ones cause cache invalidation and
 regeneration.
 
@@ -349,8 +349,7 @@ the challenge.
 
 ### Spec
 - **Working grade per student** — K, 1, 2, 3 (eventually 4+). Comes from
-  Google Workspace org units, teacher dashboard assignment, or admin
-  override.
+  the TimeBack mastery sync (1i) or an admin override.
 - **Quizzes are grade-leveled, not book-leveled** — the AI prompt includes
   the student's grade so questions test comprehension at that level.
   Examples:
@@ -559,7 +558,7 @@ user:<email>:heldXp              → array of {bookId, xp, reason, ts}
 | Offence # | Cooldown (no quiz submissions allowed) | XP status |
 |---|---|---|
 | 1st | 2 hours | Held for admin approval; auto-warn student |
-| 2nd | 8 hours | Held; warn + notify teacher dashboard |
+| 2nd | 8 hours | Held; warn + notify admin |
 | 3rd | 24 hours | Held; admin must approve to release |
 | 4th+ | 72 hours, escalating | Held; account flagged for review |
 
@@ -583,10 +582,71 @@ Come back after lunch!"
 - [ ] **Offence counter reset window**: never, monthly, or
       after-N-clean-submissions? _Recommend: decay 1 per week of clean
       submissions to allow recovery._
-- [ ] **Whitelist for known fast readers**: should teachers be able to
-      mark a specific kid as "advanced reader, don't flag"? Probably yes.
+- [ ] **Whitelist for known fast readers**: admins can mark a specific
+      kid as "advanced reader, don't flag." Probably yes.
 - [ ] **Notification channel for held events**: email digest to admin?
       In-app red dot? Both?
+
+### 1d.4 First-open fairness gate (soft order proxy)
+
+**Problem:** The WCPM speed check catches a kid bouncing between quizzes
+in a single sitting, but not the kid who opens *Fantastic Mr. Fox* in
+Reading Spine for the first time, clicks the Amazon link, then somehow
+submits a passing quiz 45 minutes later. They physically can't have
+ordered + received + read the book — but the WCPM check alone might let
+them through if it's their first quiz of the day.
+
+**Fix (shipped):**
+- [x] `POST /api/activity { kind: "open", bookId }` records a server
+      timestamp the first time a student opens a given book's modal.
+      SETNX semantics — only the first open writes; later opens are
+      ignored so the floor never shifts.
+- [x] In the fraud engine, read `firstOpenAt` and compute
+      `hoursSinceOpen`. If `< FIRST_OPEN_SUSPICION_HOURS` (default 6),
+      tag the submission as "open-suspicious."
+- [x] Soft combine matrix:
+      - WCPM clean + open clean        → clean
+      - WCPM clean + open suspicious   → soft_flag (one signal)
+      - WCPM soft  + open clean        → soft_flag (existing behavior)
+      - WCPM soft  + open suspicious   → **held** (both signals agree)
+      - WCPM hold  + anything          → held (WCPM hold is strong)
+- [x] If `firstOpenAt` is null (legacy users, device-hopping, race
+      conditions) the check is skipped — never penalize for missing
+      telemetry.
+
+**Net effect:** kids who already had a book at home and only just
+discovered it in the app stay protected by the WCPM check (they read at
+a normal pace because they actually read the book). Kids trying to
+quick-cheat right after opening get caught by the combined signal.
+
+### 1d.5 Hard order-aware gate (upgrade, gated on org-owned Amazon account)
+
+**Goal:** Replace the soft 6-hour heuristic with a deterministic gate
+once we own the Amazon account books are ordered through.
+
+### Build steps
+- [ ] When the org-owned Amazon account places an order for a kid (via
+      whatever ordering flow we land on — direct API or operator-driven),
+      record `order:<email>:<bookId>` =
+      `{orderedAt, expectedDeliveryAt, source: "org"}` in Redis.
+- [ ] Extend the quiz-modal logic: if there's an active "org" order for
+      `(email, bookId)` and `now < expectedDeliveryAt + minReadingTime`,
+      the quiz button is replaced with a friendly countdown:
+      *"📦 Your copy arrives Thursday — quiz unlocks Friday afternoon."*
+      Hard gate (not soft) because we KNOW the kid doesn't have the book.
+- [ ] Track own-account Amazon-link clicks via
+      `buyclick:<email>:<bookId> = clickedAt` (fire-and-forget on
+      Amazon-link tap). Use ONLY to *relax* the existing soft gate — if
+      a click is < 7 days old, treat the first-open suspicion threshold
+      as 0 (assume the kid just bought it). Never use to penalize.
+- [ ] Admin manual unlock — `POST /api/admin?action=unlock-quiz` for
+      cases where a kid has the book through library/loan/friend.
+      Bypasses the order-aware gate for one quiz attempt.
+
+### Cost / risk
+Mostly Redis writes + one new endpoint. The trickiest part is the order
+intake (depends on which Amazon flow lands). Soft 1d.4 covers us until
+this is ready.
 
 ### Build order
 
@@ -597,6 +657,8 @@ These are independent but all depend on the XP system from section 1c.
    blocked by TimeBack write API for the sync part
 3. Speed-based fraud detection (1d.3) — medium, ~2-3 hours, needs new
    admin UI
+4. First-open fairness gate (1d.4) — shipped 2026-05-22
+5. Hard order-aware gate (1d.5) — blocked on org-owned Amazon account
 
 ---
 
@@ -740,9 +802,9 @@ that MCQ alone can't catch.
       badge ("Storyteller" star) on the kid's reading record._
 - [ ] **Pass criteria**: percent of key plot points covered? AI-assigned
       0–10 score? Pass/fail vs. graded?
-- [ ] **Privacy**: store the raw audio (in Vercel Blob) for teacher review,
+- [ ] **Privacy**: store the raw audio (in Vercel Blob) for admin review,
       or transcribe-and-discard? _Recommend: transcribe-and-discard by
-      default, with an opt-in "let my teacher hear it" toggle._
+      default — keep this strictly between the kid and the AI grader._
 - [ ] **Transcription provider**: OpenAI Whisper, Anthropic (no native ASR),
       Deepgram, or AssemblyAI? _Recommend: Deepgram or Whisper via
       a server-side proxy — both have streaming options for low latency._
@@ -788,7 +850,7 @@ For each pass, store on the user's quiz record:
 ### Stretch
 - [ ] Inline TTS coach if the kid is silent for >10s: "Tell me about how
       the story started…"
-- [ ] Teacher dashboard view of retell transcripts (with consent)
+- [ ] Admin dashboard view of retell transcripts (with consent)
 - [ ] Multi-language retell (Spanish, etc.) for ESL learners
 
 ---
@@ -817,10 +879,10 @@ that's awarded via Caliper events (see section 1e).
 - [ ] **Identity**: real names, "First L." initial, or kid-chosen handles?
       _Recommend: first name + last initial, pulled from Google profile._
 - [ ] **Class membership**: how do we know a kid's class?
-      - Option A: Google Workspace org units (admin sets up groups)
-      - Option B: a teacher dashboard where teachers add their roster
-      - Option C: kids self-select once at first login
-      _Recommend: Option B short-term, Option A long-term._
+      - Option A: pull from TimeBack's `rpt2_student.campus` (already
+        available via the MCP); per-campus leaderboards become trivial
+      - Option B: admin sets up groups manually in the admin modal
+      _Recommend: Option A — campus is already on the data we sync._
 - [ ] **Compliance**: do we need parental consent before a kid's name shows up
       on a public ranking? Confirm with Alpha School admin before launch.
 
@@ -914,9 +976,11 @@ working here.
 - [ ] **Migrate from localStorage to server-side state** for votes, reads,
       comments — needed once we have a DB. Keep localStorage as a fallback
       cache for offline.
-- [ ] **Teacher / admin role** — a separate role with class-management UI.
-      Will need a `role` column on `users` and a permissions check in
-      middleware.
+- [ ] **Multi-tier admin role** — admins can already manage everything via
+      `ADMIN_EMAILS`. If we ever need finer-grained roles (read-only auditor,
+      org-admin vs campus-admin), add a `role` column on `users` and a
+      middleware permission check. Not urgent — single-tier admin is fine
+      for now since Reading Spine has no in-app teacher persona.
 - [ ] **Preview env vars** — set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`,
       `AUTH_SECRET`, `ALLOWED_DOMAIN` for **Preview** env in Vercel, and add
       `*.vercel.app` preview redirect URIs to the Google OAuth client. Without

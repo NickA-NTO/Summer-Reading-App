@@ -567,8 +567,8 @@ export default async function handler(req, res) {
   }
 
   // Resolve the student's working grade. For now: derive from email.
-  // Eventually this will come from an explicit per-student field set
-  // by a teacher/admin (TODO 1c Phase D).
+  // Eventually this will come from the TimeBack mastery sync (1i) or an
+  // explicit admin override.
   const studentGrade = normalizeGrade(
     guessGradeFromEmail(session.email) || "K"
   );

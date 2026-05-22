@@ -2074,6 +2074,21 @@ function openBook(id) {
   if (!book) return;
   activeBookId = id;
 
+  // Fire-and-forget: record the first time this student opens this book
+  // in the app. Server uses SETNX so only the first open writes; later
+  // opens are ignored. This timestamp is the floor the fraud engine uses
+  // to decide whether a quiz pass came suspiciously soon after discovery.
+  // Failures are silent — never block the UI on telemetry.
+  if (state.session?.email) {
+    fetch("/api/activity", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ kind: "open", bookId: id }),
+      keepalive: true,
+    }).catch(() => {});
+  }
+
   const holder = document.getElementById("modalCoverHolder");
   holder.innerHTML = `
     <img class="modal-cover-img" alt="${escapeAttr(book.title)} cover" src="${coverUrl(book)}"
@@ -2583,7 +2598,7 @@ function renderQuizQuestion() {
         🚩 Something doesn't look right
       </button>
       <span class="quiz-report-thanks" id="qReportThanks" style="display:none">
-        ✓ Thanks — your teacher will look at this.
+        ✓ Thanks — we'll take a look at this question.
       </span>
     </div>`;
   document.getElementById("qSpeak").addEventListener("click", () => {
@@ -2733,7 +2748,7 @@ async function finishQuiz() {
         : "";
       pointsLine = `
         <p style="font-size:14px;color:var(--muted);margin:14px 0 6px">
-          ⏰ <strong>Heads up:</strong> Your XP is being reviewed by a teacher.
+          ⏰ <strong>Heads up:</strong> Your XP is being reviewed.
           Try spending more time reading before your next quiz. Quizzes paused${timeStr}.
         </p>
         <p style="font-size:13px;color:var(--muted-2);margin:0 0 18px">Book marked as read.</p>`;

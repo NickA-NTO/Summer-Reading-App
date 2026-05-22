@@ -6,8 +6,8 @@ import { guessGradeFromEmail, redis } from "../../lib/store.js";
 import { normalizeGrade } from "../../lib/xp.js";
 
 // Resolve the student's working grade:
-//   1. If the admin/teacher has explicitly set it in the user's Redis
-//      profile, use that.
+//   1. If the admin (or TimeBack sync) has explicitly set it in the user's
+//      Redis profile, use that.
 //   2. Otherwise infer from the email local-part (guessGradeFromEmail).
 //   3. Default to "K" if neither yields anything.
 async function resolveWorkingGrade(email) {

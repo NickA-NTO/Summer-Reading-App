@@ -20,9 +20,12 @@ import {
   setLastQuizAt,
   applyFraudFlag,
   addHeldXpEntry,
+  recordFirstOpen,
+  getFirstOpenAt,
   FRAUD_RATIO_HOLD,
   FRAUD_RATIO_SOFT,
   FRAUD_FRESHNESS_WINDOW_MS,
+  FIRST_OPEN_SUSPICION_HOURS,
 } from "../lib/store.js";
 import { getBook } from "../lib/books.js";
 import { pointsForBook, normalizeGrade, WCPM_BY_GRADE } from "../lib/xp.js";
@@ -74,6 +77,24 @@ export default async function handler(req, res) {
   const attemptNum =
     body.attemptNum != null ? Number(body.attemptNum) : null;
 
+  // -----------------------------------------------------------------------
+  // kind === "open"  — first-time book-modal open, no XP, no leaderboard.
+  // Sets a server-side timestamp the first time this (email, bookId) pair
+  // is seen. Used later by the fraud engine as the floor for "earliest
+  // moment they could possibly have started reading via Reading Spine."
+  // SETNX-style: subsequent opens are silently ignored so the floor never
+  // shifts later in time (which would let cheaters game it).
+  // -----------------------------------------------------------------------
+  if (kind === "open") {
+    if (!bookId) {
+      res.statusCode = 400;
+      return res.end(JSON.stringify({ error: "invalid_request" }));
+    }
+    const firstOpenAt = await recordFirstOpen(session.email, bookId);
+    res.statusCode = 200;
+    return res.end(JSON.stringify({ ok: true, firstOpenAt }));
+  }
+
   if (kind !== "read" || !bookId) {
     res.statusCode = 400;
     return res.end(JSON.stringify({ error: "invalid_request" }));
@@ -108,8 +129,12 @@ export default async function handler(req, res) {
       );
     }
 
-    // 2. Speed check — compare elapsed time to expected reading time.
-    //    Only meaningful if there's a recent lastQuizAt (within 8 hours).
+    // 2a. WCPM speed check — elapsed time between THIS quiz and the
+    //     student's previous quiz, against the book's expected reading
+    //     time. Catches fast quiz-to-quiz hopping (cheating across
+    //     multiple books in a session).
+    let wcpmStatus = "clean"; // "clean" | "soft" | "hold"
+    let wcpmDebug = null;
     if (
       fraud.lastQuizAt &&
       now - fraud.lastQuizAt < FRAUD_FRESHNESS_WINDOW_MS
@@ -119,35 +144,87 @@ export default async function handler(req, res) {
       const minExpectedMins = book.wordCount / wcpm;
       const ratio =
         minExpectedMins > 0 ? elapsedMins / minExpectedMins : 1.0;
+      wcpmDebug = {
+        elapsedMins: +elapsedMins.toFixed(1),
+        minExpectedMins: +minExpectedMins.toFixed(1),
+        ratio: +ratio.toFixed(3),
+      };
+      if (ratio < FRAUD_RATIO_HOLD) wcpmStatus = "hold";
+      else if (ratio < FRAUD_RATIO_SOFT) wcpmStatus = "soft";
+    }
 
-      if (ratio < FRAUD_RATIO_HOLD) {
-        // Definitely too fast — hold XP for admin review and flag.
-        fraudStatus = "held";
-        const flagResult = await applyFraudFlag(session.email);
-        const heldResult = await addHeldXpEntry({
-          email: session.email,
-          name: session.name || session.email.split("@")[0],
-          bookId,
-          bookTitle: book.title || bookId,
-          grade,
-          points: basePoints, // full points — admin can choose to approve all
-          suspicionRatio: +ratio.toFixed(3),
-          elapsedMins: +elapsedMins.toFixed(1),
-          minExpectedMins: +minExpectedMins.toFixed(1),
-          reason: "speed",
-        });
-        heldInfo = {
-          reason: "speed",
-          cooldownUntil: flagResult.cooldownUntil,
-          flagCount: flagResult.flagCount,
-          heldId: heldResult.id || null,
-        };
-        finalPoints = 0;
-      } else if (ratio < FRAUD_RATIO_SOFT) {
-        // Suspicious but not definitive — soft penalty (half points).
-        fraudStatus = "soft_flag";
-        finalPoints = Math.max(1, Math.floor(basePoints * 0.5));
+    // 2b. First-open fairness check (soft Amazon-ordering proxy).
+    //     The earliest moment we can be sure a student knew about the
+    //     book through Reading Spine is when they first opened its
+    //     modal. If the gap between that and this quiz submission is
+    //     too small, they physically couldn't have ordered + received
+    //     + read the book — unless they already owned it (in which
+    //     case the WCPM check above will usually pass).
+    //
+    //     If `firstOpenAt` is null we have no data → treat as clean
+    //     (don't punish for missing telemetry).
+    let openStatus = "clean"; // "clean" | "suspicious"
+    let openDebug = null;
+    const firstOpenAt = await getFirstOpenAt(session.email, bookId);
+    if (firstOpenAt) {
+      const hoursSinceOpen = (now - firstOpenAt) / 3_600_000;
+      openDebug = { hoursSinceOpen: +hoursSinceOpen.toFixed(2) };
+      if (hoursSinceOpen < FIRST_OPEN_SUSPICION_HOURS) {
+        openStatus = "suspicious";
       }
+    }
+
+    // 2c. Combine the two signals using a fair soft matrix:
+    //       WCPM clean   + open clean         → clean
+    //       WCPM clean   + open suspicious    → soft_flag (only 1 signal)
+    //       WCPM soft    + open clean         → soft_flag (existing behavior)
+    //       WCPM soft    + open suspicious    → held (both signals agree)
+    //       WCPM hold    + (any)              → held (WCPM hold is strong)
+    //
+    //     Net effect: a kid who already had the book at home is mostly
+    //     protected — the WCPM check sees a reasonable gap because they
+    //     read at a normal pace, and the first-open check by itself
+    //     downgrades only to a soft flag, never an outright hold.
+    let combined = "clean";
+    if (wcpmStatus === "hold") {
+      combined = "hold";
+    } else if (wcpmStatus === "soft" && openStatus === "suspicious") {
+      combined = "hold";
+    } else if (wcpmStatus === "soft" || openStatus === "suspicious") {
+      combined = "soft";
+    }
+
+    if (combined === "hold") {
+      fraudStatus = "held";
+      const flagResult = await applyFraudFlag(session.email);
+      const heldResult = await addHeldXpEntry({
+        email: session.email,
+        name: session.name || session.email.split("@")[0],
+        bookId,
+        bookTitle: book.title || bookId,
+        grade,
+        points: basePoints, // full points — admin can choose to approve all
+        suspicionRatio: wcpmDebug?.ratio ?? null,
+        elapsedMins: wcpmDebug?.elapsedMins ?? null,
+        minExpectedMins: wcpmDebug?.minExpectedMins ?? null,
+        hoursSinceOpen: openDebug?.hoursSinceOpen ?? null,
+        reason:
+          wcpmStatus === "hold"
+            ? "speed"
+            : openStatus === "suspicious" && wcpmStatus === "soft"
+              ? "speed_plus_recent_open"
+              : "speed",
+      });
+      heldInfo = {
+        reason: "speed",
+        cooldownUntil: flagResult.cooldownUntil,
+        flagCount: flagResult.flagCount,
+        heldId: heldResult.id || null,
+      };
+      finalPoints = 0;
+    } else if (combined === "soft") {
+      fraudStatus = "soft_flag";
+      finalPoints = Math.max(1, Math.floor(basePoints * 0.5));
     }
 
     // 3. Retake multiplier (1d.2) — applied ONLY on clean passes.
