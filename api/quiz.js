@@ -10,7 +10,12 @@ import { generateObject } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
 import { verifySession, parseCookies } from "../lib/session.js";
-import { getCachedQuiz, setCachedQuiz } from "../lib/store.js";
+import {
+  getCachedQuiz,
+  setCachedQuiz,
+  guessGradeFromEmail,
+} from "../lib/store.js";
+import { normalizeGrade } from "../lib/xp.js";
 
 // Canonical book metadata for quiz generation. Summary is what Claude uses
 // to generate the 12-question pool; it should be detailed enough that good
@@ -249,7 +254,38 @@ const QuizSchema = z.object({
 // Bump the schema version whenever we change shape — old cached entries are
 // then ignored automatically (cache key includes the version).
 // v3: pool size 8 → 12 + 27 new books backfilled
-const SCHEMA_VERSION = 3;
+// v4: cache keyed by (book, studentGrade) — quizzes are grade-leveled to
+//     the reader, not the book. A G2 reading a K book gets G2-level questions.
+const SCHEMA_VERSION = 4;
+
+// How AI should calibrate question difficulty for each student grade.
+// The book itself stays the same — only the questions change to match
+// the reader's level.
+const GRADE_GUIDANCE = {
+  K:
+    "Test LITERAL RECALL — what happened, who appeared, what they ate, " +
+    "basic colors and counts. Use very simple, concrete words a five-year-old " +
+    "would know. AVOID inference, theme, or abstract concepts.",
+  "1":
+    "Test recall plus simple SEQUENCE (what happened first, next, last) " +
+    "and BASIC CAUSE-AND-EFFECT (why was the character sad? what did the " +
+    "character do next?). Use simple-to-moderate vocabulary.",
+  "2":
+    "Test recall, INFERENCE (what the character was feeling, what they " +
+    "might do next, why they made a choice), sequence, cause-and-effect, " +
+    "and the LESSON OR THEME of the story. Multi-step thinking is " +
+    "appropriate. Use full grade-appropriate vocabulary.",
+  "3":
+    "Test DEEPER INFERENCE, theme, character motivation, prediction, and " +
+    "author's purpose. Vocabulary can be richer. Some questions can ask " +
+    "the student to synthesize information across the whole story.",
+  "4":
+    "Same as Grade 3 but with more complex inference and analytical " +
+    "thinking. Compare/contrast questions are appropriate.",
+  "5":
+    "Same as Grade 4 with richer vocabulary, more sophisticated inference, " +
+    "and analysis of literary technique where relevant.",
+};
 
 export default async function handler(req, res) {
   res.setHeader("Content-Type", "application/json");
@@ -270,8 +306,16 @@ export default async function handler(req, res) {
     return res.end(JSON.stringify({ available: false, bookId }));
   }
 
-  // Cache key includes schema version so we naturally evict old entries
-  const cacheKey = `v${SCHEMA_VERSION}:${bookId}`;
+  // Resolve the student's working grade. For now: derive from email.
+  // Eventually this will come from an explicit per-student field set
+  // by a teacher/admin (TODO 1c Phase D).
+  const studentGrade = normalizeGrade(
+    guessGradeFromEmail(session.email) || "K"
+  );
+
+  // Cache key: (book, student grade). Different grades get different
+  // question pools because difficulty is calibrated to the reader.
+  const cacheKey = `v${SCHEMA_VERSION}:${bookId}:${studentGrade}`;
   const cached = await getCachedQuiz(cacheKey);
   if (
     cached &&
@@ -285,6 +329,7 @@ export default async function handler(req, res) {
         available: true,
         bookId,
         poolSize: POOL_SIZE,
+        studentGrade,
         cached: true,
         ...cached,
       })
@@ -292,33 +337,36 @@ export default async function handler(req, res) {
   }
 
   const book = QUIZ_BOOKS[bookId];
+  const guidance = GRADE_GUIDANCE[studentGrade] || GRADE_GUIDANCE.K;
+
   try {
     const { object } = await generateObject({
       model: anthropic("claude-haiku-4-5"),
       schema: QuizSchema,
       system:
-        "You are an early-elementary reading specialist who designs quick " +
-        "reading-comprehension checks. Tone: warm and concrete. Vocabulary: " +
-        "Grade K-2 level. Each question has EXACTLY 4 options, ONE of which " +
-        "is clearly correct. The other three should be plausible-but-wrong " +
-        "things a kid who skimmed might pick. Vary which index (0,1,2,3) is " +
-        "correct across all questions — don't bunch the correct answers at " +
-        "the same position.",
+        `You are an early-elementary reading specialist designing reading-` +
+        `comprehension questions for a GRADE ${studentGrade} reader.\n\n` +
+        `DIFFICULTY CALIBRATION for Grade ${studentGrade}:\n${guidance}\n\n` +
+        `Tone: warm and concrete. Each question has EXACTLY 4 options, ONE ` +
+        `of which is clearly correct. The other three should be plausible-` +
+        `but-wrong things a kid who skimmed might pick. Vary which index ` +
+        `(0,1,2,3) is correct across all questions — don't bunch the ` +
+        `correct answers at the same position.`,
       prompt:
         `Write ${POOL_SIZE} reading-comprehension questions for the book ` +
-        `"${book.title}" by ${book.author}.\n` +
-        `Target reader: Grade ${book.grade}.\n\n` +
+        `"${book.title}" by ${book.author}.\n\n` +
+        `The student is in Grade ${studentGrade}. The book is recommended ` +
+        `for Grade ${book.grade} readers. If the student is OLDER than the ` +
+        `book's level, still calibrate questions to the STUDENT's grade — ` +
+        `don't dumb them down just because the book is short. If the student ` +
+        `is YOUNGER than the book, keep questions simple even though the ` +
+        `book is more advanced.\n\n` +
         `Plot summary (for your reference only — do NOT quote it verbatim):\n${book.summary}\n\n` +
         `The questions should cover DIFFERENT aspects of the book so that any random ` +
-        `subset of 4 still tests broad comprehension. Mix question types:\n` +
-        `  - What happened on a specific day / in a specific scene\n` +
-        `  - What the character ate / saw / did\n` +
-        `  - Counting / sequence questions\n` +
-        `  - End-of-book outcome / transformation\n` +
-        `  - Cause-and-effect (what made the character feel a certain way)\n\n` +
+        `subset of 5 still tests broad comprehension.\n\n` +
         `Hard rules:\n` +
-        `- Avoid trick questions or anything requiring inference outside the text.\n` +
-        `- Keep each question under 15 words.\n` +
+        `- Avoid trick questions.\n` +
+        `- Keep each question under 18 words.\n` +
         `- Keep each option under 8 words.\n` +
         `- No two questions should be near-duplicates.`,
     });
@@ -332,6 +380,7 @@ export default async function handler(req, res) {
         available: true,
         bookId,
         poolSize: POOL_SIZE,
+        studentGrade,
         cached: false,
         ...payload,
       })

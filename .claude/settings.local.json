@@ -32,7 +32,8 @@
       "Bash(git -c user.email=nick.alsford@trilogy.com -c user.name=NickA-NTO commit -m 'TODO: quiz integrity & anti-gaming section + TimeBack integration *)",
       "Bash(git -c user.email=nick.alsford@trilogy.com -c user.name=NickA-NTO commit -m 'TTS: always audition voice change, fix tooltip to show Polly voice *)",
       "Bash(git -c user.email=nick.alsford@trilogy.com -c user.name=NickA-NTO commit -m 'TODO: replace TimeBack write API with Caliper event emission *)",
-      "Bash(git -c user.email=nick.alsford@trilogy.com -c user.name=NickA-NTO commit -m '1c Phase A: internal points + XP-style leaderboard *)"
+      "Bash(git -c user.email=nick.alsford@trilogy.com -c user.name=NickA-NTO commit -m '1c Phase A: internal points + XP-style leaderboard *)",
+      "Bash(git -c user.email=nick.alsford@trilogy.com -c user.name=NickA-NTO commit -m '1c Phase B: grade-leveled quiz difficulty *)"
     ]
   }
 }

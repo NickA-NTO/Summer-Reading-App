@@ -200,11 +200,15 @@ A K reader gets more XP for the same book — fair, because it's harder for them
   - [x] `getLeaderboard` ranks by points (returns books + points per row)
   - [x] Stats strip shows total points (✨) and rank (🏆)
   - [x] Quiz success screen celebrates points earned
-- [ ] **Phase B — Grade-leveled quizzes** (~1 hr)
-  - Server endpoint takes `studentGrade` and includes it in the AI prompt
-  - Quiz cache keyed by `(bookId, studentGrade)` so each grade gets its own pool
-  - 12-question pool generated per grade; client still picks 5 random per
-    attempt
+- [x] **Phase B — Grade-leveled quizzes** (shipped)
+  - [x] Server resolves student's grade from `guessGradeFromEmail`
+  - [x] Cache key bumped to v4 and keyed by `(bookId, studentGrade)` —
+        different grades get different question pools because difficulty
+        is calibrated to the reader
+  - [x] AI system prompt includes per-grade difficulty guidance (K =
+        literal recall; G2 = inference, theme, cause-effect; etc.)
+  - [x] Prompt instructs Claude to NOT dumb down questions when student
+        is older than book level, and NOT over-complicate when younger
 - [ ] **Phase C — Grade-leveled retell** (depends on 1b being built first)
   - Pass `studentGrade` into the retell grading prompt: stricter
     plot-point coverage and vocabulary expectations at higher grades
