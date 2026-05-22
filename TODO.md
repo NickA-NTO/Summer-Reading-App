@@ -289,32 +289,48 @@ in the real book rather than my hand-written summary.
 - **Almost certainly copyright**: Knuffle Bunny (2004), Geeger (2020s),
   Mercy Watson (2005), Fantastic Mr. Fox (1970), Lighthouse Family (2002)
 
+### Verdict (2026-05-22 prototype)
+**Yes — full-text generation materially improves quiz quality.** See
+`scripts/rag-experiment-findings.md` for the side-by-side. In short:
+
+- Summary pool tests "did the kid see a synopsis?"
+- Full-text pool tests "did the kid actually read the book?"
+
+Specific wins from the full text: questions hit details our hand-written
+summary skips (sand-bank setting, Benjamin Bunny, gooseberry net, lost-shoe
+locations) and distractors are story-grounded rather than generic. Neither
+pool hallucinated. Cost goes from ~$0.025 to ~$0.04 per generation pass —
+trivial at catalog scale.
+
 ### Recommended approach
 - [ ] Build a `lib/book-text.js` with optional `fullText` field on each
-      book, populated where legally available
+      book, populated where legally available. Pre-fetched at deploy
+      time and committed as JSON, so production never hits Gutenberg
+      live.
 - [ ] Fetch + cache from:
       1. Project Gutenberg JSON API for known-PD works (Peter Rabbit,
-         Velveteen Rabbit, Ugly Duckling)
+         Velveteen Rabbit, Ugly Duckling, Goldilocks, the Usborne
+         folk-tale source stories)
       2. Archive.org Books API for books available without borrow
          (look up by ISBN, check `is_readable`)
-- [ ] When generating quizzes, if `fullText` is available pass an
-      excerpt (first 4000 chars, plus a random middle excerpt) into
-      the prompt INSTEAD of my hand-written summary
+- [ ] When generating quizzes, if `fullText` is available pass it as
+      the source-of-truth INSTEAD of the hand-written summary. Bump
+      `SCHEMA_VERSION` to invalidate old caches.
 - [ ] Document the legal posture: "We use Archive.org's public-domain
       and openly-licensed texts only. Copyrighted works fall back to
       our hand-written summaries."
 - [ ] Stretch: full-text RAG via chunked retrieval — embed every
       paragraph, retrieve top-5 most relevant for each question type
+      (probably overkill for picture books; revisit for the chapter
+      books only).
 
 ### Open decisions
 - [ ] **Legal review** — even quoting "small excerpts" of in-copyright
       books for internal AI prompting may or may not be fair use.
       Confirm with school's counsel before scraping anything beyond
       Project Gutenberg.
-- [ ] **Hosted text vs. live fetch** — pre-fetch all available texts
-      to Vercel Blob (faster, no per-request external dependency) or
-      fetch live each generation (always current, but adds latency)?
-      Recommend: pre-fetch at deploy time via a one-off script.
+- [x] **Hosted text vs. live fetch** — pre-fetch at deploy time, ship as
+      committed JSON. Decided.
 
 ---
 

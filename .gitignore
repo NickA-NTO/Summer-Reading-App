@@ -11,3 +11,6 @@ node_modules
 # TimeBack roster snapshots (PII — pasted into admin UI then deleted)
 timeback-grade-sync-*.json
 caliper-sample-event*.json
+# RAG experiment artifacts (raw text + generated outputs — re-generatable)
+scripts/.peter-rabbit-raw.txt
+scripts/rag-experiment-output.*
