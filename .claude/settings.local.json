@@ -19,7 +19,8 @@
       "Bash(vercel project *)",
       "Bash(git -c user.email=nick.alsford@trilogy.com -c user.name=NickA-NTO commit -m 'Replace catalog with curated K/1/2 grade-level reading list *)",
       "Bash(git -c user.email=nick.alsford@trilogy.com -c user.name=NickA-NTO commit -m 'Add AI quiz \\(The Very Hungry Caterpillar pilot\\), Amazon links, and leaderboard *)",
-      "Bash(git -c user.email=nick.alsford@trilogy.com -c user.name=NickA-NTO commit -m 'Quiz hardening, admin user list, TTS default off, Anthropic for quizzes *)"
+      "Bash(git -c user.email=nick.alsford@trilogy.com -c user.name=NickA-NTO commit -m 'Quiz hardening, admin user list, TTS default off, Anthropic for quizzes *)",
+      "Bash(git -c user.email=nick.alsford@trilogy.com -c user.name=NickA-NTO commit -m 'Auth: whitelist @superbuilders.com domain *)"
     ]
   }
 }
