@@ -567,6 +567,19 @@
   }
   .pill.cat { color: var(--accent-2); border-color: rgba(37,99,235,.3); background: rgba(37,99,235,.1); }
   .modal-body { padding: 22px 40px 28px; }
+
+  /* Below-level warning banner inside the book detail modal */
+  .level-warning {
+    display: flex; gap: 12px; align-items: flex-start;
+    background: rgba(245, 158, 11, .10);
+    border: 1px solid rgba(245, 158, 11, .35);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 18px;
+  }
+  .level-warning .lw-icon { font-size: 22px; line-height: 1.1; }
+  .level-warning .lw-title { color: #fbbf24; font-weight: 700; font-size: 14px; margin-bottom: 2px; }
+  .level-warning .lw-msg { color: #e8d49a; font-size: 13px; line-height: 1.45; }
   .blurb { font-size: 16px; line-height: 1.6; color: #d5dbe8; margin: 0 0 22px; max-width: 720px; }
 
   .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
@@ -1022,6 +1035,13 @@
       </div>
     </div>
     <div class="modal-body">
+      <div class="level-warning" id="levelWarning" style="display:none">
+        <span class="lw-icon">⚠️</span>
+        <div>
+          <div class="lw-title" id="levelWarningTitle">This book is below your reading level</div>
+          <div class="lw-msg" id="levelWarningMsg"></div>
+        </div>
+      </div>
       <p class="blurb" id="modalBlurb"></p>
       <div class="actions">
         <button class="icon-btn read" id="readToggle">＋ I read this</button>
@@ -1215,6 +1235,64 @@ function coverGradient(book) {
 /* Books with AI-generated quizzes ready (server has matching entries in
    QUIZ_BOOKS in api/quiz.js). All 28 books backfilled with plot summaries. */
 const QUIZ_ENABLED = new Set(ALL_BOOKS.map(b => b.id));
+
+/* Genre tags for browse-by-topic rows. Each book can belong to multiple
+   genres. Kept separate from CATEGORIES (which is grade-based) so books
+   appear in both their grade row AND any matching genre rows. */
+const GENRES = [
+  { id: "funny",      title: "Funny",         icon: "😂", sub: "Books that make you laugh" },
+  { id: "adventures", title: "Adventures",    icon: "🗺️", sub: "Big trips and brave kids" },
+  { id: "animals",    title: "Animals",       icon: "🐾", sub: "Furry, scaly, and feathery friends" },
+  { id: "feelings",   title: "Feelings",      icon: "💙", sub: "Stories about how we feel" },
+  { id: "classics",   title: "Classic Tales", icon: "📜", sub: "Stories that have lasted forever" },
+];
+
+const BOOK_TAGS = {
+  // Grade K
+  k01: ["animals"],
+  k02: ["funny"],
+  k03: ["adventures"],
+  k04: ["classics"],
+  k05: ["classics"],
+  k06: ["adventures", "funny"],
+  k07: ["funny", "animals"],
+  k08: ["funny"],
+  // Grade 1
+  a01: ["animals", "adventures", "classics"],
+  a02: ["animals", "feelings"],
+  a03: ["animals", "feelings"],
+  a04: ["adventures"],
+  a05: ["animals", "feelings"],
+  a06: ["feelings"],
+  a07: ["adventures", "feelings"],
+  a08: ["animals", "adventures"],
+  a09: ["animals", "feelings"],
+  a10: ["funny", "feelings"],
+  a11: ["classics", "feelings", "animals"],
+  // Grade 2
+  b01: ["funny", "classics"],
+  b02: ["adventures", "feelings"],
+  b03: ["classics", "feelings"],
+  b04: ["adventures", "feelings"],
+  b05: ["funny", "adventures"],
+  b06: ["funny", "animals"],
+  b07: ["adventures", "animals"],
+  b08: ["feelings"],
+  b09: ["adventures"],
+};
+
+function genreBooks(genreId) {
+  return ALL_BOOKS.filter(b => (BOOK_TAGS[b.id] || []).includes(genreId));
+}
+
+// Grade letter → numeric for "is this book below the student's level" checks
+function gradeToNumber(g) {
+  if (g == null) return null;
+  const s = String(g).trim().toUpperCase();
+  if (s === "K") return 0;
+  const m = s.match(/[0-9]+/);
+  return m ? Number(m[0]) : null;
+}
 
 /* ISBN-13 → ISBN-10 so Amazon links can use the canonical product URL. */
 function isbn10FromIsbn13(isbn13) {
@@ -1575,12 +1653,27 @@ function startApp(session) {
 function renderChips() {
   const row = document.getElementById("chipRow");
   row.innerHTML = "";
+  // Grade chips first (the primary organizing dimension)
   CATEGORIES.forEach(c => {
     const chip = document.createElement("button");
     chip.className = "chip";
     chip.textContent = `${c.icon}  ${c.title}`;
     chip.addEventListener("click", () => {
       const el = document.getElementById(`section-${c.id}`);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    row.appendChild(chip);
+  });
+  // Small divider then genre chips (browse by topic)
+  const sep = document.createElement("span");
+  sep.style.cssText = "width:1px;height:18px;background:var(--line);margin:0 4px;align-self:center";
+  row.appendChild(sep);
+  GENRES.forEach(g => {
+    const chip = document.createElement("button");
+    chip.className = "chip";
+    chip.textContent = `${g.icon}  ${g.title}`;
+    chip.addEventListener("click", () => {
+      const el = document.getElementById(`section-${g.id}`);
       if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
     });
     row.appendChild(chip);
@@ -1682,7 +1775,27 @@ function renderRows() {
     }, true /* isRecent — skip progress meter */));
   }
 
+  // Grade rows (primary)
   CATEGORIES.forEach(cat => root.appendChild(buildRow(cat)));
+
+  // Section divider before browse-by-topic
+  const divider = document.createElement("div");
+  divider.style.cssText = "max-width:1600px;margin:30px auto 0;padding:0 40px";
+  divider.innerHTML = `
+    <div style="border-top:1px solid var(--line);padding-top:22px">
+      <h2 style="margin:0 0 4px;font-size:14px;font-weight:600;color:var(--muted);
+                 letter-spacing:0.12em;text-transform:uppercase">
+        Browse by topic
+      </h2>
+    </div>`;
+  root.appendChild(divider);
+
+  // Genre rows (each book appears in every matching genre)
+  GENRES.forEach(g => {
+    const books = genreBooks(g.id);
+    if (!books.length) return;
+    root.appendChild(buildRow({ ...g, books }, true /* isRecent treatment — no progress meter */));
+  });
 }
 
 function buildRow(cat, isRecent) {
@@ -1777,6 +1890,12 @@ function openBook(id) {
   document.getElementById("modalCat").textContent = book.category;
   document.getElementById("modalBlurb").textContent = book.blurb;
 
+  // Below-level warning: if the book's grade is lower than the student's
+  // working grade, let them know they may earn fewer points. Doesn't block —
+  // kids can still read for fun, they just shouldn't expect big leaderboard
+  // gains for grinding easy books.
+  showLevelWarningIfNeeded(book);
+
   // Amazon (US) — always available
   document.getElementById("amazonLink").href = amazonUrl(book);
 
@@ -1784,6 +1903,36 @@ function openBook(id) {
   modal.classList.add("open");
   document.body.style.overflow = "hidden";
   // No autoplay: kids can tap "🔊 Title" or "🔊 Read blurb aloud" to hear it.
+}
+
+// Show the below-level warning in the book detail modal if the book's
+// recommended grade is lower than the student's working grade. Hides the
+// banner otherwise. Doesn't block — kids can still read whatever they want.
+function showLevelWarningIfNeeded(book) {
+  const banner = document.getElementById("levelWarning");
+  const studentGrade = state?.session?.grade || "K";
+  const studentLvl = gradeToNumber(studentGrade);
+  // book.categoryId is "k" / "g1" / "g2" — parse to a numeric level
+  const bookLvlRaw = String(book.categoryId || "").toLowerCase();
+  const bookLvl =
+    bookLvlRaw === "k"
+      ? 0
+      : (bookLvlRaw.match(/[0-9]+/) ? Number(bookLvlRaw.match(/[0-9]+/)[0]) : null);
+
+  if (studentLvl == null || bookLvl == null || bookLvl >= studentLvl) {
+    banner.style.display = "none";
+    return;
+  }
+
+  const yourGradeLabel = studentGrade === "K" ? "Grade K" : `Grade ${studentGrade}`;
+  document.getElementById("levelWarningTitle").textContent =
+    `This book is below your reading level (${yourGradeLabel})`;
+  document.getElementById("levelWarningMsg").textContent =
+    `You're welcome to read it for fun! Just so you know: quizzes for ` +
+    `easier books still match your grade, and you'll earn fewer points ` +
+    `than for a book at your level. Save the big point hauls for books ` +
+    `that challenge you.`;
+  banner.style.display = "flex";
 }
 
 function refreshInteractiveBits() {
@@ -2554,6 +2703,7 @@ function friendlyDate(ts) {
       name: me.name,
       picture: me.picture || null,
       isAdmin: !!me.isAdmin,
+      grade: me.grade || "K",
     });
   } catch (e) {
     // Network blip — show a friendly retry

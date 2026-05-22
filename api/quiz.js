@@ -251,12 +251,48 @@ const QuizSchema = z.object({
     .length(POOL_SIZE),
 });
 
+// QC reviewer schema — a structured rubric for each question.
+const QCSchema = z.object({
+  reviews: z.array(
+    z.object({
+      questionIndex: z.number().int().min(0),
+      accuracy: z
+        .number()
+        .int()
+        .min(0)
+        .max(10)
+        .describe(
+          "0 = clearly wrong or references something not in the book; " +
+            "10 = unambiguously answerable from the canonical summary."
+        ),
+      issues: z
+        .array(z.string())
+        .optional()
+        .describe("Specific problems found, if any."),
+    })
+  ),
+});
+
 // Bump the schema version whenever we change shape — old cached entries are
 // then ignored automatically (cache key includes the version).
 // v3: pool size 8 → 12 + 27 new books backfilled
 // v4: cache keyed by (book, studentGrade) — quizzes are grade-leveled to
 //     the reader, not the book. A G2 reading a K book gets G2-level questions.
-const SCHEMA_VERSION = 4;
+// v5: switched generation model Haiku 4.5 → Opus 4.5 and added a separate
+//     Opus 4.5 QC reviewer pass that drops questions with accuracy < 7/10.
+const SCHEMA_VERSION = 5;
+
+// Quiz model + QC reviewer model. Opus 4.5 for both — generation needs the
+// stronger model for accuracy on lesser-known books; QC needs it to reliably
+// flag the rare hallucination that slips through.
+const GEN_MODEL = "claude-opus-4-5";
+const QC_MODEL  = "claude-opus-4-5";
+
+// QC accuracy threshold. Anything below this gets dropped from the pool.
+const QC_MIN_ACCURACY = 7;
+// If QC drops so many questions that fewer than this remain, the pool is
+// unusable and we fail rather than serving a tiny quiz.
+const MIN_USABLE_POOL = 8;
 
 // How AI should calibrate question difficulty for each student grade.
 // The book itself stays the same — only the questions change to match
@@ -286,6 +322,91 @@ const GRADE_GUIDANCE = {
     "Same as Grade 4 with richer vocabulary, more sophisticated inference, " +
     "and analysis of literary technique where relevant.",
 };
+
+// QC reviewer: takes a freshly-generated pool of questions and scores each
+// for accuracy against the book's canonical summary. Drops questions with
+// accuracy below QC_MIN_ACCURACY. Returns { questions: [keepers], dropped: [{idx, accuracy, issues}] }.
+async function qcAndFilter(book, studentGrade, questions) {
+  const letters = ["A", "B", "C", "D"];
+  const formatted = questions
+    .map(
+      (q, i) =>
+        `${i}. ${q.q}\n   A) ${q.options[0]}\n   B) ${q.options[1]}\n   ` +
+        `C) ${q.options[2]}\n   D) ${q.options[3]}\n   ` +
+        `[marked correct: ${letters[q.answer]}]`
+    )
+    .join("\n\n");
+
+  let reviews;
+  try {
+    const { object } = await generateObject({
+      model: anthropic(QC_MODEL),
+      schema: QCSchema,
+      system:
+        "You are a strict reading-comprehension QC reviewer for an " +
+        "elementary-school reading app. Your job: catch hallucinations and " +
+        "inaccuracies in AI-generated quiz questions.\n\n" +
+        "For each question, verify it against the canonical plot summary. " +
+        "Score 0-10:\n" +
+        "  10 = unambiguously answerable from the summary; correct answer is " +
+        "clearly correct; distractors are plausible-but-wrong\n" +
+        "   7 = workable but minor wording issue (still ship it)\n" +
+        "   4 = answer is questionable, or 2+ options could be defended as correct\n" +
+        "   0 = fabricated detail not in the book, wrong answer, or " +
+        "unanswerable from the summary\n\n" +
+        "Be skeptical. If a question references a character name, number, " +
+        "color, action, or event you can't find in the summary, score it LOW. " +
+        "Don't pad scores to be nice — accuracy matters more than volume.",
+      prompt:
+        `Book: "${book.title}" by ${book.author}\n` +
+        `Grade level (calibration target): ${studentGrade}\n\n` +
+        `Canonical plot summary (the ONLY source of truth):\n${book.summary}\n\n` +
+        `Questions to review:\n\n${formatted}\n\n` +
+        `For EVERY question (indexes 0 through ${questions.length - 1}), ` +
+        `return an entry with that index, an accuracy score, and any specific ` +
+        `issues you found. Do not skip any.`,
+    });
+    reviews = object.reviews || [];
+  } catch (err) {
+    // QC call failed — degrade gracefully by accepting all generated questions.
+    // Better to serve a (possibly imperfect) quiz than to block on QC failure.
+    console.warn("[quiz_qc_failed]", String(err?.message || err));
+    return { questions, dropped: [] };
+  }
+
+  const reviewByIdx = new Map();
+  for (const r of reviews) reviewByIdx.set(r.questionIndex, r);
+
+  const survivors = [];
+  const dropped = [];
+  for (let i = 0; i < questions.length; i++) {
+    const r = reviewByIdx.get(i);
+    // If QC didn't review a question (model omission), keep it but log.
+    if (!r) {
+      survivors.push(questions[i]);
+      continue;
+    }
+    if (r.accuracy >= QC_MIN_ACCURACY) {
+      survivors.push(questions[i]);
+    } else {
+      dropped.push({
+        idx: i,
+        accuracy: r.accuracy,
+        issues: r.issues || [],
+        question: questions[i].q,
+      });
+    }
+  }
+
+  if (dropped.length > 0) {
+    console.log(
+      `[quiz_qc] ${book.title} grade=${studentGrade}: kept ${survivors.length}/${questions.length}`,
+      dropped.map((d) => `Q${d.idx}(${d.accuracy})`).join(", ")
+    );
+  }
+
+  return { questions: survivors, dropped };
+}
 
 export default async function handler(req, res) {
   res.setHeader("Content-Type", "application/json");
@@ -320,7 +441,7 @@ export default async function handler(req, res) {
   if (
     cached &&
     Array.isArray(cached.questions) &&
-    cached.questions.length === POOL_SIZE
+    cached.questions.length >= MIN_USABLE_POOL
   ) {
     res.statusCode = 200;
     res.setHeader("Cache-Control", "private, max-age=86400");
@@ -328,7 +449,7 @@ export default async function handler(req, res) {
       JSON.stringify({
         available: true,
         bookId,
-        poolSize: POOL_SIZE,
+        poolSize: cached.questions.length,
         studentGrade,
         cached: true,
         ...cached,
@@ -340,8 +461,9 @@ export default async function handler(req, res) {
   const guidance = GRADE_GUIDANCE[studentGrade] || GRADE_GUIDANCE.K;
 
   try {
+    // ---------- Generation pass (Opus 4.5) ----------
     const { object } = await generateObject({
-      model: anthropic("claude-haiku-4-5"),
+      model: anthropic(GEN_MODEL),
       schema: QuizSchema,
       system:
         `You are an early-elementary reading specialist designing reading-` +
@@ -351,7 +473,11 @@ export default async function handler(req, res) {
         `of which is clearly correct. The other three should be plausible-` +
         `but-wrong things a kid who skimmed might pick. Vary which index ` +
         `(0,1,2,3) is correct across all questions — don't bunch the ` +
-        `correct answers at the same position.`,
+        `correct answers at the same position.\n\n` +
+        `CRITICAL: Only ask about details that are explicitly in the plot ` +
+        `summary provided. Do NOT invent characters, events, items, or ` +
+        `numbers. If you can't verify a detail in the summary, do NOT use ` +
+        `it as a question or distractor.`,
       prompt:
         `Write ${POOL_SIZE} reading-comprehension questions for the book ` +
         `"${book.title}" by ${book.author}.\n\n` +
@@ -361,17 +487,52 @@ export default async function handler(req, res) {
         `don't dumb them down just because the book is short. If the student ` +
         `is YOUNGER than the book, keep questions simple even though the ` +
         `book is more advanced.\n\n` +
-        `Plot summary (for your reference only — do NOT quote it verbatim):\n${book.summary}\n\n` +
+        `Plot summary (the source of truth — do NOT quote it verbatim, ` +
+        `but every question must be answerable from these details):\n${book.summary}\n\n` +
         `The questions should cover DIFFERENT aspects of the book so that any random ` +
         `subset of 5 still tests broad comprehension.\n\n` +
         `Hard rules:\n` +
         `- Avoid trick questions.\n` +
         `- Keep each question under 18 words.\n` +
         `- Keep each option under 8 words.\n` +
-        `- No two questions should be near-duplicates.`,
+        `- No two questions should be near-duplicates.\n` +
+        `- Every fact you assert must appear in the plot summary above.`,
     });
 
-    const payload = { questions: object.questions };
+    // ---------- QC reviewer pass (Opus 4.5) ----------
+    // Independent second opinion: score each generated question for
+    // accuracy against the canonical summary. Drop low-scoring questions.
+    const reviewedPool = await qcAndFilter(book, studentGrade, object.questions);
+
+    if (reviewedPool.questions.length < MIN_USABLE_POOL) {
+      // Too many questions failed QC to produce a usable quiz.
+      console.error(
+        "[quiz_qc_too_strict]",
+        bookId,
+        studentGrade,
+        "survivors:",
+        reviewedPool.questions.length,
+        "of",
+        object.questions.length
+      );
+      res.statusCode = 500;
+      return res.end(
+        JSON.stringify({
+          error: "qc_no_viable_questions",
+          message:
+            "The quiz generator produced too many low-quality questions for this book. Try again — the next run will regenerate from scratch.",
+        })
+      );
+    }
+
+    const payload = {
+      questions: reviewedPool.questions,
+      qc: {
+        generated: object.questions.length,
+        kept: reviewedPool.questions.length,
+        dropped: reviewedPool.dropped,
+      },
+    };
     await setCachedQuiz(cacheKey, payload);
 
     res.statusCode = 200;
@@ -379,7 +540,7 @@ export default async function handler(req, res) {
       JSON.stringify({
         available: true,
         bookId,
-        poolSize: POOL_SIZE,
+        poolSize: reviewedPool.questions.length,
         studentGrade,
         cached: false,
         ...payload,

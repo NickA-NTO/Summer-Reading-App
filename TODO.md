@@ -79,21 +79,136 @@ the book they claim to have read.
 - [ ] Teacher quiz-builder UI (drop in a paragraph, generate 4 questions via
       AI Gateway)
 
-### Accuracy — open issues (added 2026-05-21)
+### Accuracy — open issues (status 2026-05-21)
 - [ ] **Teacher spot-check** of AI-generated quizzes for 5-10 books
       before classroom rollout. Lesser-known books (Geeger, Lighthouse
       Family, Story about Ping, Henry and Mudge, Nate the Great) are
       highest hallucination risk.
-- [ ] **Consider upgrading model** from Claude Haiku 4.5 to Sonnet 4.5
-      for generation — ~5x cost but materially fewer hallucinations.
-      Total ~$0.015 to re-generate the whole catalog vs. current ~$0.003.
-- [ ] **Ground truth from text** for public-domain books (Peter Rabbit,
-      Ugly Duckling, Mother Goose). Pass full text in the prompt.
+- [x] **Upgraded generation model** from Claude Haiku 4.5 to **Opus 4.5**
+      (~10x cost but materially fewer hallucinations). Catalog regen
+      cost: ~$0.03 (still tiny).
+- [x] **QC agent** (second Opus 4.5 pass) reviews each generated
+      question for accuracy, scores 0-10, drops anything below 7.
+      Catches the most obvious hallucinations the generator slipped
+      through.
+- [ ] **Archive.org / public-domain text RAG** (see new section below)
 - [ ] **"Report this question" button** so kids/teachers can flag bad
       questions; flagged ones get reviewed and the cache busted.
+      See section 1f.
 - [ ] **Multi-pass cross-validation** — generate the question pool 3
-      times, only keep questions that show up across runs (semantic
-      check via embeddings).
+      times with different seeds, use Opus 4.5 to identify questions
+      that appear (semantically) across all 3 runs. Only those make it
+      into the final pool. See section 1g.
+
+---
+
+## 1f. "Report this question" workflow
+
+**Goal:** Kids and teachers can flag bad quiz questions in real time.
+Flagged questions get reviewed; bad ones cause cache invalidation and
+regeneration.
+
+### Build steps
+- [ ] Small flag icon (🚩) next to each option in the quiz UI
+- [ ] On flag click: open a small modal with reason categories:
+      "The answer seems wrong" / "Question doesn't make sense" /
+      "This isn't in the book" / "Other"
+- [ ] `POST /api/quiz/report` — accepts `{bookId, questionText, options,
+      flaggedBy, reason, optionalNote}`. Stores in Redis list
+      `quiz:reports`.
+- [ ] Admin modal gets a "Flagged questions" tab showing pending
+      reports with one-click "Confirm bad" / "Dismiss" actions.
+- [ ] Confirming bad busts the cache (`quiz:v4:<bookId>:<grade>`) so
+      next request regenerates a fresh pool.
+- [ ] After N confirmed-bad reports on a book, auto-escalate to admin:
+      "Reading Spine has flagged this book's quizzes for review."
+
+---
+
+## 1g. Multi-pass cross-validation
+
+**Goal:** Reduce hallucinations further by only keeping questions that
+appear across multiple independent generation passes — the equivalent of
+"this is the consensus a model arrives at, not a one-shot guess."
+
+### Algorithm
+1. Generate question pool 3 times with different temperatures (0.4,
+   0.7, 1.0). 36 candidate questions total.
+2. Use Opus 4.5 (or text-embedding-3-small via OpenAI) to compute
+   semantic similarity between every pair of questions across runs.
+3. Cluster: any question appearing in 2 of 3 runs (similarity > 0.85)
+   is "high consensus." Discard one-offs.
+4. From the consensus pool, pick the top N=12 by clustering tightness
+   (most agreed-upon first).
+5. If consensus pool has < 12, regenerate the missing ones with a
+   "must be different from these existing questions" prompt.
+
+### Build steps
+- [ ] Add `@ai-sdk/openai` for embeddings (or use Claude with a
+      pairwise-comparison prompt)
+- [ ] `lib/quiz-validator.js`: clustering + consensus extraction
+- [ ] Wire into `api/quiz.js` between generation and cache-write
+- [ ] Add cost guard: skip multi-pass for books with low flag counts,
+      always apply it to books with ≥1 confirmed bad report
+
+### Cost
+3x generation + 1 embeddings call per book = ~$0.04 per book first
+time. Still negligible at catalog scale.
+
+---
+
+## 1h. Archive.org / public-domain text RAG
+
+**Goal:** For books whose full text is legally available, pass the actual
+text (or large excerpts) into the AI prompt so questions are grounded
+in the real book rather than my hand-written summary.
+
+### Source mapping
+
+| Source | Coverage | Access |
+|---|---|---|
+| **Project Gutenberg** | Public-domain only (pre-1929 ish) | Free HTTP / JSON API |
+| **Archive.org Open Library** | Many books; full text via "borrow" requires login + limited concurrent loans | Books API + IIIF/text APIs |
+| **Standard Ebooks** | Curated public-domain editions, clean text | Free |
+| **Wikisource** | Public-domain works | Free, structured |
+| **Publisher previews** (Penguin, HarperCollins) | First-chapter excerpts | Variable; scraping risk |
+
+### Which of our 28 books are public-domain?
+- **Definitely PD (pre-1929)**: Peter Rabbit (1902), Ugly Duckling (1843),
+  Mother Goose (anonymous, very old), Goldilocks (folk tale)
+- **Likely still copyright**: Wild Things (1963), Cat in the Hat (1957),
+  Hungry Caterpillar (1969), Velveteen Rabbit (1922 — PD), Frog and Toad
+  (1970), Owl at Home (1975), Corduroy (1968), Where the Wild Things Are,
+  Magic Faraway Tree (1943 — depends on jurisdiction)
+- **Almost certainly copyright**: Knuffle Bunny (2004), Geeger (2020s),
+  Mercy Watson (2005), Fantastic Mr. Fox (1970), Lighthouse Family (2002)
+
+### Recommended approach
+- [ ] Build a `lib/book-text.js` with optional `fullText` field on each
+      book, populated where legally available
+- [ ] Fetch + cache from:
+      1. Project Gutenberg JSON API for known-PD works (Peter Rabbit,
+         Velveteen Rabbit, Ugly Duckling)
+      2. Archive.org Books API for books available without borrow
+         (look up by ISBN, check `is_readable`)
+- [ ] When generating quizzes, if `fullText` is available pass an
+      excerpt (first 4000 chars, plus a random middle excerpt) into
+      the prompt INSTEAD of my hand-written summary
+- [ ] Document the legal posture: "We use Archive.org's public-domain
+      and openly-licensed texts only. Copyrighted works fall back to
+      our hand-written summaries."
+- [ ] Stretch: full-text RAG via chunked retrieval — embed every
+      paragraph, retrieve top-5 most relevant for each question type
+
+### Open decisions
+- [ ] **Legal review** — even quoting "small excerpts" of in-copyright
+      books for internal AI prompting may or may not be fair use.
+      Confirm with school's counsel before scraping anything beyond
+      Project Gutenberg.
+- [ ] **Hosted text vs. live fetch** — pre-fetch all available texts
+      to Vercel Blob (faster, no per-request external dependency) or
+      fetch live each generation (always current, but adds latency)?
+      Recommend: pre-fetch at deploy time via a one-off script.
 
 ---
 
