@@ -1253,7 +1253,7 @@
     <div class="lb-head">
       <button class="quiz-close" id="lbClose" style="top:18px;right:18px" aria-label="Close leaderboard">✕</button>
       <h2>🏆 Top Readers</h2>
-      <p class="lb-sub">See who's reading the most across Alpha School.</p>
+      <p class="lb-sub">Ranked by XP earned across Alpha School — read harder books to climb faster.</p>
       <div class="lb-tabs">
         <button class="lb-tab active" data-window="week">This Week</button>
         <button class="lb-tab" data-window="all">All Time</button>
@@ -2132,8 +2132,8 @@ function showLevelWarningIfNeeded(book) {
     `This book is below your reading level (${yourGradeLabel})`;
   document.getElementById("levelWarningMsg").textContent =
     `You're welcome to read it for fun! Just so you know: quizzes for ` +
-    `easier books still match your grade, and you'll earn fewer points ` +
-    `than for a book at your level. Save the big point hauls for books ` +
+    `easier books still match your grade, and you'll earn fewer XP ` +
+    `than for a book at your level. Save the big XP hauls for books ` +
     `that challenge you.`;
   banner.style.display = "flex";
 }
@@ -2733,7 +2733,7 @@ async function finishQuiz() {
         : "";
       pointsLine = `
         <p style="font-size:14px;color:var(--muted);margin:14px 0 6px">
-          ⏰ <strong>Heads up:</strong> Your points are being reviewed by a teacher.
+          ⏰ <strong>Heads up:</strong> Your XP is being reviewed by a teacher.
           Try spending more time reading before your next quiz. Quizzes paused${timeStr}.
         </p>
         <p style="font-size:13px;color:var(--muted-2);margin:0 0 18px">Book marked as read.</p>`;
@@ -3318,7 +3318,7 @@ function renderHeldXp(entries) {
             </div>
           </div>
           <div class="hx-actions">
-            <button class="hx-approve" data-id="${escapeAttr(e.id)}" title="Award ${e.points} pts">✅ Approve (${e.points} pts)</button>
+            <button class="hx-approve" data-id="${escapeAttr(e.id)}" title="Award ${e.points} XP">✅ Approve (${e.points} XP)</button>
             <button class="hx-reject" data-id="${escapeAttr(e.id)}">❌ Reject</button>
             <button class="hx-reset-flags" data-email="${escapeAttr(e.email)}" title="Clear all speed flags for this student">🔄 Reset flags</button>
           </div>
