@@ -109,19 +109,18 @@ Flagged questions get reviewed; bad ones cause cache invalidation and
 regeneration.
 
 ### Build steps
-- [ ] Small flag icon (🚩) next to each option in the quiz UI
-- [ ] On flag click: open a small modal with reason categories:
-      "The answer seems wrong" / "Question doesn't make sense" /
-      "This isn't in the book" / "Other"
-- [ ] `POST /api/quiz/report` — accepts `{bookId, questionText, options,
-      flaggedBy, reason, optionalNote}`. Stores in Redis list
-      `quiz:reports`.
-- [ ] Admin modal gets a "Flagged questions" tab showing pending
-      reports with one-click "Confirm bad" / "Dismiss" actions.
-- [ ] Confirming bad busts the cache (`quiz:v4:<bookId>:<grade>`) so
-      next request regenerates a fresh pool.
-- [ ] After N confirmed-bad reports on a book, auto-escalate to admin:
-      "Reading Spine has flagged this book's quizzes for review."
+- [x] "🚩 Something doesn't look right" button below the quiz options
+- [x] Small reason dialog: "Answer seems wrong" / "Not in the book" /
+      "I don't understand" / "Other"
+- [x] `POST /api/quiz-report` — stores reports in `quiz:reports:pending`
+      Redis hash with reporter email, name, reason, full question + options.
+- [x] Admin modal gets a "🚩 Flagged questions" section above the user
+      table showing pending reports with **Confirm bad** / **Dismiss**.
+- [x] Confirming bad calls `bustQuizCache(bookId)` which scans-and-deletes
+      all `quiz:v5:<bookId>:*` keys so next request regenerates fresh
+      through Opus + QC.
+- [ ] **(Stretch)** After N confirmed-bad reports on a book, auto-escalate:
+      "Reading Spine has flagged this book's quizzes for repeated review."
 
 ---
 
@@ -154,6 +153,111 @@ appear across multiple independent generation passes — the equivalent of
 ### Cost
 3x generation + 1 embeddings call per book = ~$0.04 per book first
 time. Still negligible at catalog scale.
+
+---
+
+## 1i. TimeBack working-grade auto-sync
+
+**Goal:** Stop relying on email heuristics or manual admin edits. Pull the
+canonical working grade from TimeBack's mastery system (the same one
+that drives our other apps' cohorting).
+
+### Current state
+- [x] **Manual fallback**: admin can set per-user working grade via the
+      admin modal (dropdown in user table). Grade persists to the user's
+      Redis profile and is returned by `/api/auth/me` on next sign-in.
+- [x] `resolveWorkingGrade()` in `api/auth/me.js` does: (1) explicit
+      Redis profile.grade if set, (2) `guessGradeFromEmail`, (3) "K".
+- [ ] **Auto-sync from TimeBack** (the real fix — below).
+
+### Algorithm (mirrors other Alpha apps)
+
+**Step 1 — Canonical source: `rpt2_mastery`**
+For each student with a Reading mastery row, read:
+```
+HMG = rpt2_mastery.highest_grade_mastered    # highest grade AlphaTest passed ≥90%
+WG  = rpt2_mastery.working_grade_level       # = HMG + 1, per TimeBack rule
+```
+Values are -1 (PK) → 0 (K) → 1…12.
+
+**Step 2 — Bucket into cohort (mechanical)**
+| Subject | pk2 cohort | g38 cohort |
+|---|---|---|
+| Reading | WG ≤ 2 (PK–G2) | WG ≥ 3 (G3–G8) |
+
+**Step 3 — Apply manual overrides** (`data/overrides.json → overrides[]`)
+For students with a mastery row but the canonical WG is wrong. Three classes:
+
+- **3a. Old-system pass**: student passed under a prior platform AlphaTest
+  doesn't recognise. Corrective signal = the TimeBack Reading course
+  they're currently enrolled in and actively using. Filter:
+  ```
+  enrollment exists in rpt2_enrollment for a Reading course
+  course.primary_grade_level > canonical WG
+  earned_xp > 0 OR active_minutes > 0 in rpt2_daily_activity within last 60d
+  ```
+  → override to course grade level. (e.g. Marshall Jensen: WG 1 → 4)
+
+- **3b. Mastery test invalidated**: passed but the test was voided
+  (admin error, glitch). User asserts correct WG; override directly.
+  (e.g. Corinne McGowan: WG 1 → 3)
+
+- **3c. Mastery is too fresh (cohort hygiene)**: student mastered G2
+  within last 30 days. RIT growth on Spring MAP still reflects PK-2
+  work. Pin WG back to 2 for one more reporting cycle, then drop the
+  override next refresh. (e.g. Diego Bash, Charlotte Pogue, Mya Hadnot)
+
+**Step 4 — Apply additions for missing students** (`data/overrides.json → additions[]`)
+Students with no Reading mastery row at all (fell out of Step 1). Used
+mainly for PK kids working in Mentava:
+```
+rostered  = exists in rpt2_enrollment WHERE course_id = Mentava
+            AND begin_date <= today AND (end_date IS NULL OR end_date >= today)
+active    = exists in rpt2_daily_activity WHERE app_name = 'Mentava'
+            AND calendar_date >= today - 30
+            AND (earned_xp > 0 OR active_minutes > 0)
+PK if rostered AND active
+```
+The rostering check is the critical gate — keeps unauthorized kids off.
+Anyone passing both gets WG -1 and is added to pk2.
+
+**Step 5 — Recompute cohort post-override**
+After an override flips WG, re-run Step 2. Student may move pk2 ↔ g38.
+`highest_mastered` recomputed as `WG - 1` (or null when WG ≤ 0).
+
+### Build steps
+- [ ] **Access**: figure out how Reading Spine reads `rpt2_mastery`,
+      `rpt2_enrollment`, `rpt2_daily_activity`, `rpt2_course`. Options:
+      (a) direct DB read (do we get credentials?), (b) a TimeBack
+      reporting API, (c) a nightly snapshot file we ingest.
+- [ ] **Sync function** `lib/timeback-grade-sync.js`: implements steps
+      1-5 exactly as described. Writes results to user profile in Redis
+      with a `gradeSetBy: "timeback-sync"` marker (distinct from
+      `"admin"` so we don't clobber teacher overrides).
+- [ ] **Cron**: Vercel Cron at e.g. 4am daily, calls a
+      `/api/admin/sync-grades` endpoint that runs the sync. Guarded
+      by `ADMIN_EMAILS` or a separate `SYNC_TOKEN`.
+- [ ] **Override files**: ship `data/overrides.json` in the repo
+      (committed; PR review = approval path). On sync, the file is
+      read and applied in step 3 / step 4.
+- [ ] **Manual override precedence**: if admin set the grade via the
+      UI (`gradeSetBy: "admin"`), the sync should leave it alone.
+      Use the marker to gate.
+- [ ] **Audit log**: every sync writes a Redis list
+      `grade:sync:log` entry with `{ts, changedCount, sample}` so
+      admins can see what happened. Surface in the admin modal.
+- [ ] **Dry-run mode**: `?dry=1` returns what WOULD change without
+      writing — for verification before the cron goes live.
+
+### Open decisions
+- [ ] How do we get access to TimeBack's `rpt2_*` tables? Direct read,
+      API, or snapshot? Needs a conversation with TimeBack team.
+- [ ] Should the sync run for all known users (HGETALL on `users` hash)
+      or pull from a TimeBack-side enrollment list (avoiding cases
+      where a kid signed in once but isn't enrolled in Reading)?
+- [ ] What's the legal/compliance posture on copying student grade
+      data into our Redis? Probably fine since both systems are
+      operated by Alpha — confirm with admin.
 
 ---
 

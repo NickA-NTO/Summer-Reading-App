@@ -759,6 +759,56 @@
   .quiz-result .actions {
     justify-content: center; gap: 10px; flex-wrap: wrap;
   }
+  /* Quiz "Something doesn't look right" report flow */
+  .quiz-report-row {
+    margin-top: 14px; text-align: center; font-size: 12px;
+  }
+  .quiz-report-btn {
+    background: transparent; border: none;
+    color: var(--muted-2); cursor: pointer;
+    text-decoration: underline dotted;
+    font-size: 12px; padding: 4px 8px;
+  }
+  .quiz-report-btn:hover { color: var(--warm); }
+  .quiz-report-thanks { color: var(--good); font-size: 12px; }
+
+  .report-dialog-backdrop {
+    position: fixed; inset: 0; z-index: 50;
+    background: rgba(0,0,0,.6); backdrop-filter: blur(4px);
+    display: grid; place-items: center; padding: 22px;
+  }
+  .report-dialog {
+    background: var(--bg-2); border: 1px solid var(--line);
+    border-radius: 16px; padding: 24px;
+    width: min(420px, 100%);
+    box-shadow: 0 30px 70px rgba(0,0,0,.6);
+  }
+  .report-dialog h4 { margin: 0 0 8px; font-size: 18px; font-weight: 700; }
+  .report-dialog .rd-q {
+    margin: 0 0 16px; padding: 10px 12px;
+    background: rgba(255,255,255,.05); border-radius: 8px;
+    font-size: 13px; color: var(--muted); font-style: italic;
+  }
+  .report-dialog .rd-reasons {
+    display: grid; gap: 8px; margin-bottom: 14px;
+  }
+  .report-dialog .rd-reasons button {
+    background: var(--panel); border: 1px solid var(--line);
+    color: var(--ink); padding: 11px 14px; border-radius: 10px;
+    font-size: 14px; text-align: left; cursor: pointer;
+    transition: all .15s;
+  }
+  .report-dialog .rd-reasons button:hover:not(:disabled) {
+    background: rgba(245,158,11,.10); border-color: var(--warm);
+  }
+  .report-dialog .rd-reasons button:disabled { opacity: .5; cursor: default; }
+  .report-dialog .rd-cancel {
+    background: transparent; border: none; color: var(--muted);
+    cursor: pointer; font-size: 13px; padding: 6px;
+    width: 100%;
+  }
+  .report-dialog .rd-cancel:hover { color: var(--ink); }
+
   .quiz-loading {
     text-align: center; padding: 60px 0; color: var(--muted);
   }
@@ -887,6 +937,71 @@
     text-align: right; padding-right: 12px;
   }
   .admin-empty-row { padding: 32px 12px; text-align: center; color: var(--muted); }
+
+  /* Inline grade editor in the user table */
+  .grade-edit {
+    background: var(--panel); color: var(--ink);
+    border: 1px solid var(--line); border-radius: 6px;
+    padding: 4px 8px; font-size: 12px; font-weight: 600;
+    cursor: pointer; outline: none;
+    transition: border-color .2s;
+  }
+  .grade-edit:hover { border-color: var(--line-2); }
+  .grade-edit:focus { border-color: var(--accent); }
+  .grade-edit:disabled { opacity: .5; cursor: not-allowed; }
+  .grade-edit option { background: var(--panel); color: var(--ink); }
+
+  /* Flagged question cards in admin */
+  .report-list {
+    display: grid; gap: 10px;
+    max-height: 36vh; overflow-y: auto;
+    padding-right: 4px;
+  }
+  .report-card {
+    background: rgba(245, 158, 11, .06);
+    border: 1px solid rgba(245, 158, 11, .25);
+    border-radius: 10px;
+    padding: 12px 14px;
+  }
+  .report-card .rc-head {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 10px; margin-bottom: 8px;
+  }
+  .report-card .rc-book {
+    font-weight: 600; color: var(--ink); font-size: 13px;
+  }
+  .report-card .rc-meta {
+    font-size: 11px; color: var(--muted); margin-top: 2px;
+  }
+  .report-card .rc-meta strong { color: var(--ink); }
+  .report-card .rc-reason {
+    background: rgba(245,158,11,.15);
+    color: #fbbf24; padding: 2px 6px; border-radius: 4px;
+    font-weight: 600;
+  }
+  .report-card .rc-q {
+    font-style: italic; color: #e8d49a;
+    background: rgba(0,0,0,.2); padding: 8px 10px; border-radius: 6px;
+    font-size: 13px; margin-bottom: 8px;
+  }
+  .report-card .rc-options {
+    list-style: none; padding: 0; margin: 0; display: grid; gap: 3px;
+    font-size: 12px;
+  }
+  .report-card .rc-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .report-card .rc-actions button {
+    background: var(--panel); border: 1px solid var(--line);
+    color: var(--ink); padding: 5px 10px; border-radius: 6px;
+    font-size: 11px; font-weight: 600; cursor: pointer;
+    white-space: nowrap;
+  }
+  .report-card .rc-confirm:hover {
+    background: rgba(248,113,113,.15); border-color: var(--bad); color: var(--bad);
+  }
+  .report-card .rc-dismiss:hover {
+    background: rgba(255,255,255,.06); border-color: var(--line-2);
+  }
+  .report-card .rc-actions button:disabled { opacity: .5; cursor: default; }
 
   @media (max-width: 720px) {
     .nav { padding: 14px 18px; }
@@ -2294,12 +2409,79 @@ function renderQuizQuestion() {
           <span class="letter">${letters[idx]}</span>
           <span>${escapeHtml(opt)}</span>
         </button>`).join("")}
+    </div>
+    <div class="quiz-report-row">
+      <button class="quiz-report-btn" id="qReport" type="button">
+        🚩 Something doesn't look right
+      </button>
+      <span class="quiz-report-thanks" id="qReportThanks" style="display:none">
+        ✓ Thanks — your teacher will look at this.
+      </span>
     </div>`;
   document.getElementById("qSpeak").addEventListener("click", () => {
     speak(`${q.q}. ${q.options.map((o,i) => `${letters[i]}. ${o}.`).join(" ")}`, { force: true });
   });
   document.querySelectorAll("#qOpts .quiz-option").forEach((btn) => {
     btn.addEventListener("click", () => answerQuestion(Number(btn.dataset.i)));
+  });
+  document.getElementById("qReport").addEventListener("click", () => openReportDialog(q));
+}
+
+// Opens a small inline dialog asking the kid WHY the question is wrong,
+// then POSTs to /api/quiz-report. Doesn't interrupt the quiz flow.
+function openReportDialog(q) {
+  const dialog = document.createElement("div");
+  dialog.className = "report-dialog-backdrop";
+  dialog.innerHTML = `
+    <div class="report-dialog">
+      <h4>What's wrong with this question?</h4>
+      <p class="rd-q">"${escapeHtml(q.q)}"</p>
+      <div class="rd-reasons">
+        <button data-reason="answer_wrong">The answer seems wrong</button>
+        <button data-reason="not_in_book">This isn't in the book</button>
+        <button data-reason="confusing">I don't understand it</button>
+        <button data-reason="other">Something else</button>
+      </div>
+      <button class="rd-cancel" id="rdCancel">Cancel</button>
+    </div>`;
+  document.body.appendChild(dialog);
+
+  const close = () => dialog.remove();
+  dialog.addEventListener("click", (e) => { if (e.target === dialog) close(); });
+  dialog.querySelector("#rdCancel").addEventListener("click", close);
+
+  dialog.querySelectorAll(".rd-reasons button").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const reason = btn.dataset.reason;
+      // Disable all buttons while submitting
+      dialog.querySelectorAll("button").forEach((b) => (b.disabled = true));
+      btn.textContent = "Sending…";
+      try {
+        await fetch("/api/quiz-report", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({
+            bookId: quizState.bookId,
+            question: q.q,
+            options: q.options,
+            markedCorrect: q.answer,
+            studentGrade: state?.session?.grade || null,
+            reason,
+          }),
+        });
+      } catch {
+        /* swallow */
+      }
+      close();
+      // Brief thank-you indicator
+      const thanks = document.getElementById("qReportThanks");
+      const reportBtn = document.getElementById("qReport");
+      if (thanks && reportBtn) {
+        reportBtn.style.display = "none";
+        thanks.style.display = "inline";
+      }
+    });
   });
 }
 
@@ -2555,11 +2737,16 @@ async function openAdmin() {
   document.getElementById("adminSearch").value = "";
   adminState.filter = "";
 
-  // Fetch users + TTS usage in parallel
+  await loadAdminData();
+}
+
+// Fetches users + TTS usage + flagged questions in parallel; re-renders.
+async function loadAdminData() {
   try {
-    const [usersRes, ttsRes] = await Promise.all([
+    const [usersRes, ttsRes, reportsRes] = await Promise.all([
       fetch("/api/admin/users", { credentials: "same-origin" }),
       fetch("/api/admin/tts-usage", { credentials: "same-origin" }),
+      fetch("/api/admin/quiz-reports", { credentials: "same-origin" }),
     ]);
     if (usersRes.status === 403) {
       document.getElementById("adminBody").innerHTML =
@@ -2568,6 +2755,7 @@ async function openAdmin() {
     }
     const data = await usersRes.json();
     const tts = ttsRes.ok ? await ttsRes.json() : null;
+    const reports = reportsRes.ok ? await reportsRes.json() : null;
     if (!data.hasRedis) {
       document.getElementById("adminBody").innerHTML = `
         <div class="lb-empty">
@@ -2579,10 +2767,11 @@ async function openAdmin() {
     }
     adminState.users = data.users || [];
     adminState.tts = tts;
+    adminState.reports = (reports && reports.reports) || [];
     renderAdminTable();
   } catch (err) {
     document.getElementById("adminBody").innerHTML =
-      `<div class="lb-empty">Couldn't load users.</div>`;
+      `<div class="lb-empty">Couldn't load admin data.</div>`;
   }
 }
 
@@ -2637,38 +2826,160 @@ function renderAdminTable() {
     return;
   }
 
-  const rows = list.map((u) => `
-    <tr>
-      <td>
-        <div class="a-name">${escapeHtml(u.name || "Reader")}</div>
-        <div class="a-email">${escapeHtml(u.email)}</div>
-      </td>
-      <td><span class="a-domain">@${escapeHtml(u.domain || "—")}</span></td>
-      <td class="a-when">${u.lastLoginAt ? friendlyDate(u.lastLoginAt) : "—"}</td>
-      <td class="a-when">${u.firstLoginAt ? friendlyDate(u.firstLoginAt) : "—"}</td>
-      <td class="a-count">${u.loginCount || 0}</td>
-      <td class="a-count">${u.booksRead || 0}</td>
-    </tr>
-  `).join("");
+  const GRADE_OPTIONS = ["PK","K","1","2","3","4","5","6","7","8","9","10","11","12"];
+  const rows = list.map((u) => {
+    const currentGrade = u.grade || "";
+    const opts = GRADE_OPTIONS.map((g) =>
+      `<option value="${g}"${g === currentGrade ? " selected" : ""}>${g}</option>`
+    ).join("");
+    return `
+      <tr>
+        <td>
+          <div class="a-name">${escapeHtml(u.name || "Reader")}</div>
+          <div class="a-email">${escapeHtml(u.email)}</div>
+        </td>
+        <td><span class="a-domain">@${escapeHtml(u.domain || "—")}</span></td>
+        <td>
+          <select class="grade-edit" data-email="${escapeAttr(u.email)}" title="Set working grade">
+            <option value=""${currentGrade ? "" : " selected"}>—</option>
+            ${opts}
+          </select>
+        </td>
+        <td class="a-when">${u.lastLoginAt ? friendlyDate(u.lastLoginAt) : "—"}</td>
+        <td class="a-count">${u.loginCount || 0}</td>
+        <td class="a-count">${u.booksRead || 0}</td>
+      </tr>`;
+  }).join("");
 
   document.getElementById("adminBody").innerHTML = `
     ${renderTtsUsageCard(adminState.tts)}
-    <div style="margin:14px 0 10px;color:var(--muted);font-size:12px">
-      Showing ${list.length} of ${adminState.users.length} ${adminState.users.length === 1 ? "user" : "users"}
+    ${renderQuizReports(adminState.reports || [])}
+    <div style="margin:18px 0 10px;display:flex;align-items:center;justify-content:space-between">
+      <span style="color:var(--muted);font-size:12px">
+        Showing ${list.length} of ${adminState.users.length} ${adminState.users.length === 1 ? "user" : "users"}
+      </span>
+      <span style="color:var(--muted-2);font-size:11px">
+        💡 Click a grade dropdown to set a student's working grade.
+      </span>
     </div>
     <div style="overflow-x:auto;max-height:55vh;overflow-y:auto;border:1px solid var(--line);border-radius:10px">
       <table class="admin-table">
         <thead><tr>
           <th>User</th>
           <th>Domain</th>
+          <th>Working grade</th>
           <th>Last login</th>
-          <th>First login</th>
           <th style="text-align:right">Logins</th>
           <th style="text-align:right">Books</th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>`;
+
+  // Wire up flagged-question action buttons (confirm = bust cache, dismiss = drop)
+  document.querySelectorAll(".rc-confirm, .rc-dismiss").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const id = btn.dataset.id;
+      const action = btn.classList.contains("rc-confirm") ? "confirm" : "dismiss";
+      const card = btn.closest(".report-card");
+      // Disable both buttons in this card while in flight
+      card.querySelectorAll("button").forEach((b) => (b.disabled = true));
+      btn.textContent = action === "confirm" ? "Removing…" : "Dismissing…";
+      try {
+        const r = await fetch("/api/admin/quiz-reports", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({ id, action }),
+        });
+        if (!r.ok) throw new Error(await r.text());
+        // Remove from local state and re-render so counts update
+        adminState.reports = (adminState.reports || []).filter((rep) => rep.id !== id);
+        renderAdminTable();
+      } catch (err) {
+        alert("Couldn't process report: " + (err.message || err));
+        card.querySelectorAll("button").forEach((b) => (b.disabled = false));
+      }
+    });
+  });
+
+  // Wire up grade-edit selects
+  document.querySelectorAll(".grade-edit").forEach((sel) => {
+    sel.addEventListener("change", async (e) => {
+      const email = sel.dataset.email;
+      const grade = sel.value;
+      if (!grade) return;
+      sel.disabled = true;
+      try {
+        const r = await fetch("/api/admin/set-grade", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({ email, grade }),
+        });
+        if (!r.ok) throw new Error(await r.text());
+        // Update local cache so re-render reflects new grade
+        const u = adminState.users.find((x) => x.email === email);
+        if (u) u.grade = grade;
+        // Brief visual confirmation
+        sel.style.borderColor = "var(--good)";
+        setTimeout(() => (sel.style.borderColor = ""), 800);
+      } catch (err) {
+        alert("Couldn't save grade: " + (err.message || err));
+      } finally {
+        sel.disabled = false;
+      }
+    });
+  });
+}
+
+function renderQuizReports(reports) {
+  if (!reports || !reports.length) {
+    return `
+      <div class="lb-me-card" style="display:flex;justify-content:space-between;align-items:center">
+        <span>🚩 <strong>Flagged questions</strong></span>
+        <span style="color:var(--muted)">None pending</span>
+      </div>`;
+  }
+  const reasonLabel = {
+    answer_wrong: "Answer seems wrong",
+    not_in_book: "Not in the book",
+    confusing: "Confusing",
+    other: "Other",
+  };
+  const letters = ["A", "B", "C", "D"];
+  const items = reports.map((r) => {
+    const marked = letters[r.markedCorrect] || "?";
+    const optionsHtml = (r.options || []).map((opt, i) => `
+      <li style="${i === r.markedCorrect ? "color:var(--good);font-weight:600" : "color:var(--muted)"}">
+        ${letters[i]}) ${escapeHtml(opt)}${i === r.markedCorrect ? " ← marked correct" : ""}
+      </li>`).join("");
+    return `
+      <div class="report-card" data-report-id="${escapeAttr(r.id)}">
+        <div class="rc-head">
+          <div>
+            <div class="rc-book">📕 ${escapeHtml(r.bookId)} · Grade ${escapeHtml(r.studentGrade || "?")}</div>
+            <div class="rc-meta">
+              Reported by <strong>${escapeHtml(r.reportedByName || r.reportedByEmail || "—")}</strong>
+              · ${friendlyDate(r.ts)}
+              · <span class="rc-reason">${escapeHtml(reasonLabel[r.reason] || r.reason)}</span>
+            </div>
+          </div>
+          <div class="rc-actions">
+            <button class="rc-confirm" data-id="${escapeAttr(r.id)}">Confirm bad</button>
+            <button class="rc-dismiss" data-id="${escapeAttr(r.id)}">Dismiss</button>
+          </div>
+        </div>
+        <div class="rc-q">"${escapeHtml(r.question)}"</div>
+        <ul class="rc-options">${optionsHtml}</ul>
+      </div>`;
+  }).join("");
+  return `
+    <div style="margin: 14px 0 8px; display:flex;align-items:center;gap:8px">
+      <span style="font-weight:600;color:var(--ink)">🚩 Flagged questions</span>
+      <span style="color:var(--muted);font-size:12px">${reports.length} pending</span>
+    </div>
+    <div class="report-list">${items}</div>`;
 }
 
 function friendlyDate(ts) {
