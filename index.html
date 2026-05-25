@@ -666,6 +666,12 @@
     box-shadow: 0 6px 16px rgba(139, 92, 246, .35);
   }
   .icon-btn.quiz:hover { box-shadow: 0 8px 20px rgba(139, 92, 246, .5); }
+  .icon-btn.quiz:disabled,
+  .icon-btn.quiz.locked {
+    background: rgba(139,92,246,.18); color: rgba(255,255,255,.65);
+    box-shadow: none; cursor: not-allowed;
+  }
+  .icon-btn.quiz.locked:hover { box-shadow: none; }
   /* "I'm reading this" — declares the active in-progress book (#16).
      Distinct from .read (which is "I finished it") and .quiz (the gate). */
   .icon-btn.reading {
@@ -1016,10 +1022,25 @@
     color: var(--ink);
     transition: top .3s ease, left .3s ease;
   }
+  .tour-head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; margin-bottom: 6px;
+  }
   .tour-step {
     color: var(--muted-2); font-size: 11px; font-weight: 600;
     letter-spacing: 0.1em; text-transform: uppercase;
-    margin-bottom: 4px;
+  }
+  .tour-speak {
+    background: rgba(20,184,166,.14); color: #5eead4;
+    border: 1px solid rgba(20,184,166,.4);
+    border-radius: 999px; padding: 4px 10px;
+    font-size: 11px; font-weight: 600; font-family: inherit;
+    cursor: pointer;
+  }
+  .tour-speak:hover { background: rgba(20,184,166,.22); }
+  .tour-speak.playing {
+    background: rgba(20,184,166,.32); color: #fff;
+    border-color: rgba(20,184,166,.7);
   }
   .tour-title {
     font-size: 16px; font-weight: 700; margin-bottom: 6px;
@@ -1470,7 +1491,10 @@
 <div class="tour-layer" id="tourLayer" aria-hidden="true">
   <div class="tour-spotlight" id="tourSpotlight"></div>
   <div class="tour-bubble" id="tourBubble">
-    <div class="tour-step" id="tourStep">Step 1 of 4</div>
+    <div class="tour-head">
+      <span class="tour-step" id="tourStep">Step 1 of 4</span>
+      <button class="tour-speak" id="tourSpeak" type="button" title="Hear it read aloud">🔊 Read this</button>
+    </div>
     <div class="tour-title" id="tourTitle">—</div>
     <div class="tour-body" id="tourBody">—</div>
     <div class="tour-actions">
@@ -2551,10 +2575,25 @@ function refreshInteractiveBits() {
   const startBtn = document.getElementById("startReading");
   readBtn.classList.toggle("active", wasRead);
   readBtn.textContent = wasRead ? "✓ Marked as read" : "＋ I read this";
+  // Quiz button is GATED behind "I'm reading this" — the kid must declare
+  // they're actively reading THIS book before the quiz unlocks. Prevents
+  // quiz-hopping across books a kid hasn't claimed to be reading.
+  const activeRead = state.session?.currentlyReading;
+  const isActiveBook = activeRead?.bookId === id;
   if (hasQuiz && !wasRead) {
     readBtn.style.display = "none";
     quizBtn.style.display = "inline-flex";
-    quizBtn.textContent = "📝 Take the Quiz";
+    if (isActiveBook) {
+      quizBtn.textContent = "📝 Take the Quiz";
+      quizBtn.disabled = false;
+      quizBtn.title = "";
+      quizBtn.classList.remove("locked");
+    } else {
+      quizBtn.textContent = "🔒 Mark as reading first";
+      quizBtn.disabled = true;
+      quizBtn.title = "Tap \"I'm reading this\" to unlock the quiz.";
+      quizBtn.classList.add("locked");
+    }
   } else {
     readBtn.style.display = "inline-flex";
     quizBtn.style.display = "none";
@@ -2856,6 +2895,16 @@ const quizState = {
 
 document.getElementById("quizBtn").addEventListener("click", () => {
   if (!activeBookId) return;
+  // Defensive gate (matches the disabled state in refreshInteractiveBits):
+  // refuse to open the quiz unless the kid has marked this book as their
+  // current read. Prevents quiz-hopping across books they haven't claimed.
+  const active = state.session?.currentlyReading;
+  if (active?.bookId !== activeBookId) {
+    // Nudge them toward the right action.
+    const startBtn = document.getElementById("startReading");
+    if (startBtn) startBtn.focus();
+    return;
+  }
   openQuiz(activeBookId);
 });
 document.getElementById("quizClose").addEventListener("click", closeQuiz);
@@ -4114,7 +4163,7 @@ const TOUR_STEPS = [
   {
     selector: ".stats-strip",
     title: "Your stats",
-    body: "Your XP and the books you've read live up here. Hit ~1,200 XP over summer to keep your reading on track.",
+    body: "Your XP and the books you've read live up here. Hit about 1,200 XP over summer to keep your reading on track.",
   },
   {
     selector: "#navLeaderboard",
@@ -4124,19 +4173,29 @@ const TOUR_STEPS = [
   {
     selector: ".rows-list, #rows",
     title: "Find your next book",
-    body: "Books are grouped by grade and topic. Tap one, then either start reading right away or click Take the Quiz when you've finished.",
+    body: "Books are grouped by grade and topic. Tap any book to open its details.",
+  },
+  {
+    // No specific element to spotlight here — the book modal isn't open
+    // during the tour. We highlight the catalog rows again and use the
+    // text + TTS to teach the flow.
+    selector: ".rows-list, #rows",
+    title: "Tap \"I'm reading this\" to start",
+    body: "When you open a book, click the green \"I'm reading this\" button to start it. The Take the Quiz button only works once you've marked a book as your current read. Pass the quiz to earn XP and move to your next book.",
   },
 ];
 let _tourIdx = 0;
+let _tourSpeakAudio = null;
 
 function startTour() {
   _tourIdx = 0;
   document.getElementById("tourLayer").classList.add("open");
   document.getElementById("tourSkip").onclick = endTour;
   document.getElementById("tourBack").onclick = () => {
-    if (_tourIdx > 0) { _tourIdx--; renderTourStep(); }
+    if (_tourIdx > 0) { _tourIdx--; cancelTourSpeech(); renderTourStep(); }
   };
   document.getElementById("tourNext").onclick = () => {
+    cancelTourSpeech();
     if (_tourIdx < TOUR_STEPS.length - 1) {
       _tourIdx++;
       renderTourStep();
@@ -4144,8 +4203,74 @@ function startTour() {
       endTour();
     }
   };
+  document.getElementById("tourSpeak").onclick = () => {
+    speakCurrentTourStep();
+  };
   window.addEventListener("resize", repositionTour);
   renderTourStep();
+}
+
+function cancelTourSpeech() {
+  if (_tourSpeakAudio) {
+    try { _tourSpeakAudio.pause(); } catch {}
+    _tourSpeakAudio = null;
+  }
+  if (window.speechSynthesis) {
+    try { window.speechSynthesis.cancel(); } catch {}
+  }
+  const btn = document.getElementById("tourSpeak");
+  if (btn) {
+    btn.classList.remove("playing");
+    btn.textContent = "🔊 Read this";
+  }
+}
+
+async function speakCurrentTourStep() {
+  cancelTourSpeech();
+  const step = TOUR_STEPS[_tourIdx];
+  if (!step) return;
+  const btn = document.getElementById("tourSpeak");
+  btn.classList.add("playing");
+  btn.textContent = "🔊 Speaking…";
+  const text = `${step.title}. ${step.body}`;
+  const voice =
+    (typeof chosenPollyVoice !== "undefined" && chosenPollyVoice) ||
+    state.session?.preferredVoiceId ||
+    "Ivy";
+  // Try Polly first via the same /api/tts endpoint TTS uses elsewhere.
+  try {
+    const r = await fetch(
+      `/api/tts?voice=${encodeURIComponent(voice)}&text=${encodeURIComponent(text)}`,
+      { credentials: "same-origin" }
+    );
+    if (r.ok) {
+      const j = await r.json();
+      if (j.url) {
+        _tourSpeakAudio = new Audio(j.url);
+        _tourSpeakAudio.onended = () => {
+          btn.classList.remove("playing");
+          btn.textContent = "🔊 Read this";
+        };
+        _tourSpeakAudio.play().catch(() => {});
+        return;
+      }
+    }
+    throw new Error("polly_unavailable");
+  } catch {
+    // Browser TTS fallback so the kid still hears something even when
+    // Polly is unconfigured or over budget.
+    try {
+      const u = new SpeechSynthesisUtterance(text);
+      u.onend = () => {
+        btn.classList.remove("playing");
+        btn.textContent = "🔊 Read this";
+      };
+      window.speechSynthesis.speak(u);
+    } catch {
+      btn.classList.remove("playing");
+      btn.textContent = "🔊 Read this";
+    }
+  }
 }
 
 function renderTourStep() {
@@ -4213,6 +4338,7 @@ function repositionTour() {
 }
 
 function endTour() {
+  cancelTourSpeech();
   document.getElementById("tourLayer").classList.remove("open");
   window.removeEventListener("resize", repositionTour);
   finishOnboarding(/* skipped */ false);

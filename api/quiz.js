@@ -22,6 +22,7 @@ import {
   getCachedQuiz,
   setCachedQuiz,
   guessGradeFromEmail,
+  getCurrentlyReading,
   redis,
 } from "../lib/store.js";
 import { normalizeGrade } from "../lib/xp.js";
@@ -841,6 +842,23 @@ export default async function handler(req, res) {
         visibleTracks: visible,
         message:
           "This book is on a track that hasn't been unlocked for you.",
+      })
+    );
+  }
+
+  // CurrentlyReading enforcement — the kid must have declared they're
+  // reading THIS book before they can take its quiz. Prevents quiz-
+  // hopping across books they haven't claimed to be working on.
+  const activeRead = await getCurrentlyReading(session.email);
+  if (!activeRead || activeRead.bookId !== bookId) {
+    res.statusCode = 403;
+    return res.end(
+      JSON.stringify({
+        error: "not_currently_reading",
+        bookId,
+        currentlyReading: activeRead || null,
+        message:
+          "Tap \"I'm reading this\" on the book first so we know it's the one you're working on.",
       })
     );
   }
