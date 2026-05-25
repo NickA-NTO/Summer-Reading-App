@@ -407,6 +407,64 @@ const QUIZ_BOOKS = {
     summary:
       "A kind old woodcarver named Geppetto carves a puppet from an enchanted piece of wood that can move and talk on its own even before it is finished. He names the puppet Pinocchio. The very first day Pinocchio runs away and gets Geppetto arrested. A wise Talking Cricket warns Pinocchio to be good and go to school, but Pinocchio ignores him. Pinocchio burns his own feet off and has many adventures: he is cheated by a Fox and Cat who promise to plant his gold coins in a magic 'Field of Miracles' where they will multiply, but they steal the coins. A blue-haired fairy named the Blue Fairy finds Pinocchio and nurses him back to health. When Pinocchio tells lies his nose grows longer. He is tricked into going to Pleasure Island — a place where naughty boys who never study are turned into donkeys. Pinocchio starts to turn into a donkey but escapes into the sea. He is swallowed by a great dogfish (a whale-like creature). Inside the fish Pinocchio finds old Geppetto who was also swallowed while searching for him. Pinocchio carries Geppetto on his back and swims to shore. Pinocchio finally learns to be hardworking, kind, and unselfish. The Blue Fairy rewards him by turning him from a wooden puppet into a real live boy.",
   },
+
+  /* ---------- Grade 3 ---------- */
+  c01: {
+    title: "Magic Tree House #1: Dinosaurs Before Dark",
+    author: "Mary Pope Osborne",
+    grade: "3",
+    summary:
+      "Eight-year-old Jack and his seven-year-old sister Annie live in the town of Frog Creek, Pennsylvania. While walking in the woods near their home, Annie spots a tree house high in an oak tree, full of books. They climb up using a rope ladder. Jack picks up a book about dinosaurs and wishes he could see one. The tree house starts to spin and they're suddenly in a prehistoric world. They meet a friendly herbivore called a Pteranodon, a peaceful Triceratops, and a duck-billed Anatosaurus. They also encounter a fearsome T-Rex who chases Jack. The Pteranodon helps Jack escape by carrying him through the air back to the tree house. Jack and Annie also find a gold medallion with the letter M engraved on it, hinting at a mysterious owner of the tree house. They wish to go home, and the tree house spins again, returning them to Frog Creek. Hardly any time has passed at home. Jack keeps the medallion as proof of their adventure. The book ends with hints that they'll return to the tree house for more time-traveling adventures.",
+  },
+  c02: {
+    title: "A to Z Mysteries: The Absent Author",
+    author: "Ron Roy",
+    grade: "3",
+    summary:
+      "Three friends — Dink (Donald David Duncan), Josh, and Ruth Rose — live in Green Lawn, Connecticut. Dink's favorite author, the mystery writer Wallis Wallace, is scheduled to come to the Green Lawn Book Nook to sign copies of his new book. Dink writes him a fan letter and Wallis writes back. On the day of the signing, Wallis never arrives. The bookstore owner Mr. Paskey is worried. Dink, Josh, and Ruth Rose decide to investigate. They find clues at the train station: torn pages from Wallis's book, a single shoe, and a strange phone call. They visit the local hotel, the Shangri-La Hotel, where they believe Wallis was staying. They search his hotel room and find more clues. Eventually they realize Wallis Wallace faked his own kidnapping as a publicity stunt for his new book — but he didn't intend for kids to genuinely worry. He shows up unharmed, apologizes, and signs Dink's book personally. The mystery is solved, and the kids have a great story to tell.",
+  },
+  c03: {
+    title: "Junie B. Jones and the Stupid Smelly Bus",
+    author: "Barbara Park",
+    grade: "3",
+    summary:
+      "Junie B. Jones (the B stands for Beatrice but she doesn't like Beatrice) is starting her first day of kindergarten. Her mother takes her to school. She meets her teacher, who she calls Mrs. (she can't remember the teacher's full name). She rides the school bus there with kids of all ages, and a mean kid named Jim sticks gum in her hair and another boy yells in her ear. Junie B. decides the bus is the stupidest, smelliest thing ever and refuses to ride it home. At the end of the school day, she hides in a supply closet in her classroom so she won't have to get on the bus. She entertains herself by exploring the empty school — eating lunch leftovers, drawing on the chalkboard, sneaking into the principal's office and playing with his stamps. Eventually the school staff notice she's missing. Her mother, the principal, and the police are called. Junie B. is found, lectured, but ultimately her parents come pick her up in the car instead of putting her back on the bus. The story is told in Junie B.'s funny, ungrammatical first-person voice.",
+  },
+  c04: {
+    title: "The Boxcar Children",
+    author: "Gertrude Chandler Warner",
+    grade: "3",
+    summary:
+      "Four orphaned siblings — Henry (the oldest, around 14), Jessie (12), Violet (10), and Benny (5) — have just lost their parents and run away rather than live with their unknown grandfather, whom they've heard is mean. They wander the countryside looking for food and shelter. During a thunderstorm they discover an abandoned red boxcar in the woods near a town and decide to make it their home. They fix it up with found objects — Henry finds a dump where they get cracked dishes, a teakettle, and a wheel for Benny's toy cart. Jessie finds a stream where they get water. Henry gets odd jobs in town (mowing lawns, picking cherries for Dr. Moore) to earn money. They adopt a stray dog named Watch. Violet gets sick, and Henry takes her to kind Dr. Moore. Dr. Moore figures out the children's identity and realizes he is friends with their grandfather, James Alden, who has been searching for them. Mr. Alden turns out to be loving and rich. He takes them home to live with him, and even has the boxcar moved into his backyard so they can play in it.",
+  },
+  c05: {
+    title: "Charlotte's Web",
+    author: "E.B. White",
+    grade: "3",
+    summary:
+      "On the Arable family farm, an eight-year-old girl named Fern saves a runty piglet from being killed by her father. She names him Wilbur and raises him on a bottle. When Wilbur outgrows her care, he is sold to her uncle Homer Zuckerman, who keeps him in a barn. Wilbur is lonely until he meets the other barn animals: the rat Templeton (selfish but useful), a goose, a sheep, and a wise gray spider named Charlotte A. Cavatica who lives in the doorway above his pen. Charlotte and Wilbur become best friends. When Wilbur learns Mr. Zuckerman plans to kill him for Christmas ham, he is terrified. Charlotte promises to save him. She weaves words into her web — 'SOME PIG,' then 'TERRIFIC,' then 'RADIANT,' and finally 'HUMBLE' — making Wilbur famous. The Zuckermans take Wilbur to the county fair, where Charlotte writes 'HUMBLE' in her last web. Wilbur wins a special prize, guaranteeing he'll never be killed. But Charlotte is dying — she has just laid 514 eggs in an egg sac, which Wilbur carries back to the barn. Charlotte dies alone at the fair. The next spring, hundreds of baby spiders hatch from Charlotte's sac. Most fly away on the wind, but three stay with Wilbur — Joy, Aranea, and Nellie — and Wilbur loves them, though he never forgets Charlotte.",
+  },
+  c06: {
+    title: "Stuart Little",
+    author: "E.B. White",
+    grade: "3",
+    summary:
+      "Stuart Little is born into a human family in New York City — Mr. and Mrs. Frederick C. Little, their son George, and a cat named Snowbell — but he is a mouse: only two inches tall, with whiskers and a tail. The family loves him and makes adjustments (a tiny bed, miniature clothes). Stuart has many small adventures: he gets accidentally rolled into a window shade and stuck for hours, falls into a kitchen drain searching for his mother's lost ring (and has to be rescued), and is briefly mistaken for a baby and taken away by the garbage truck. Stuart sails a model boat called the Wasp in a race in Central Park against a model schooner called the Lillian. He becomes friends with a small bird named Margalo who lives in the Little family's home, but Snowbell tries to eat her, and she escapes to the north. Stuart sets off in a tiny car to find her, traveling north out of the city. Along the way he visits a small town, briefly serves as a substitute schoolteacher, and meets a girl his size named Harriet Ames whom he takes on a date (which goes badly). The book ends with Stuart continuing his journey north, still hopeful he'll find Margalo — leaving the search unresolved.",
+  },
+  c07: {
+    title: "Because of Winn-Dixie",
+    author: "Kate DiCamillo",
+    grade: "3",
+    summary:
+      "Ten-year-old India Opal Buloni has just moved to the small town of Naomi, Florida, with her father, whom she calls 'the preacher.' Her mother left them when Opal was three, and Opal misses her. One day, Opal is sent to the Winn-Dixie supermarket for groceries. She finds a big, ugly, smiling stray dog causing chaos in the store. To save him from animal control, she claims he is hers and names him Winn-Dixie. The preacher reluctantly lets her keep him. Because of Winn-Dixie, Opal meets people she might never have known: Miss Franny Block, an elderly librarian with stories about her great-grandfather and a bear; Gloria Dump, a nearly-blind elderly woman with a 'mistake tree' hung with bottles representing her past mistakes; Otis, a quiet pet-store clerk who plays guitar and was once in prison; and three local kids — sisters Amanda Wilkinson, Stevie and Dunlap Dewberry. Opal asks her father to tell her ten things about her mother — and he does. She plans a party at Gloria's, complete with egg salad sandwiches and 'Littmus Lozenges' (a candy that tastes like sadness). A thunderstorm scares Winn-Dixie and he runs away. The whole new community searches for him together, and they find him hiding under Gloria's bed. Opal forgives her mother and accepts that she may never come back.",
+  },
+  c08: {
+    title: "Geronimo Stilton: Lost Treasure of the Emerald Eye",
+    author: "Geronimo Stilton",
+    grade: "3",
+    summary:
+      "Geronimo Stilton is the editor of The Rodent's Gazette, a newspaper in New Mouse City on Mouse Island. He is small, scholarly, nervous, and prefers his quiet life. One day his cousin Trap Stilton bursts in with a treasure map for the lost treasure of the Emerald Eye, hidden on a faraway tropical island. Trap insists they go look for it. Geronimo refuses but his sister Thea (an adventurous reporter) and his nine-year-old nephew Benjamin team up with Trap and drag him along. They charter a boat captained by the rough sea-cat — no, sea-mouse — Captain Stiltonitz. They sail through storms, get shipwrecked on the island, and encounter dangers including a giant snake, quicksand, and head-spinning jungle vines. Trap nearly gets them killed many times because he is reckless and refuses to read directions. Geronimo's careful map-reading and bravery (which surprises even him) saves them repeatedly. They find the treasure — but it turns out to be not gold but priceless ancient mouse artifacts. They donate them to the Mouse Museum and return home. Geronimo learns he is braver than he thought.",
+  },
 };
 
 // Pool sizes per quiz style:

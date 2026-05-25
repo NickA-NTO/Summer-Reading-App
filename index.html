@@ -1656,6 +1656,35 @@ const CATEGORIES = [
         blurb: "Geppetto carves a wooden puppet who can talk and walk by himself. Pinocchio wants to be a real boy — but first he has to learn what it means to be good." },
     ],
   },
+  {
+    id: "c", title: "Grade 3", sub: "First chapter books and beloved classics", icon: "🪄",
+    books: [
+      { id: "c01", isbn: "9780679824114", title: "Magic Tree House #1: Dinosaurs Before Dark", author: "Mary Pope Osborne", age: "Ages 6–9",
+        palette: ["#15803d","#fbbf24"],
+        blurb: "Jack and Annie find a tree house full of books. Open one and POOF — they're in a different time. Their first adventure: back to the age of the dinosaurs." },
+      { id: "c02", isbn: "9780679881681", title: "A to Z Mysteries: The Absent Author", author: "Ron Roy", age: "Ages 7–10",
+        palette: ["#a78bfa","#fbbf24"],
+        blurb: "Dink's favorite author was supposed to come to the bookstore — but he never shows up! Dink and his friends Josh and Ruth Rose follow the clues to find him." },
+      { id: "c03", isbn: "9780679826422", title: "Junie B. Jones and the Stupid Smelly Bus", author: "Barbara Park", age: "Ages 6–9",
+        palette: ["#f472b6","#3b82f6"],
+        blurb: "Junie B. is starting kindergarten and is NOT — repeat, NOT — getting on the smelly bus to come home. She has a hilarious plan instead." },
+      { id: "c04", isbn: "9780807508527", title: "The Boxcar Children", author: "Gertrude Chandler Warner", age: "Ages 7–10",
+        palette: ["#92400e","#facc15"],
+        blurb: "Four orphans — Henry, Jessie, Violet, and Benny — find an old boxcar in the woods and make it their home. Can they take care of each other?" },
+      { id: "c05", isbn: "9780064400558", title: "Charlotte's Web", author: "E.B. White", age: "Ages 7–10",
+        palette: ["#dc2626","#fde68a"],
+        blurb: "A clever spider named Charlotte writes words in her web to save a friendly pig named Wilbur. A tender story of friendship, life, and goodbye." },
+      { id: "c06", isbn: "9780064400565", title: "Stuart Little", author: "E.B. White", age: "Ages 7–10",
+        palette: ["#475569","#f8fafc"],
+        blurb: "Stuart Little is a mouse born to a human family in New York City. He sails toy boats in Central Park, drives a tiny car, and sets off to find his lost friend." },
+      { id: "c07", isbn: "9780763644321", title: "Because of Winn-Dixie", author: "Kate DiCamillo", age: "Ages 8–11",
+        palette: ["#a16207","#fde68a"],
+        blurb: "Opal finds a big stray dog in the supermarket and names him Winn-Dixie. He helps her make friends and even helps her understand her family." },
+      { id: "c08", isbn: "9780439559645", title: "Geronimo Stilton: Lost Treasure of the Emerald Eye", author: "Geronimo Stilton", age: "Ages 7–10",
+        palette: ["#16a34a","#fbbf24"],
+        blurb: "Geronimo is a journalist mouse who doesn't really like adventure — but his cousin Trap drags him on a treasure hunt across a tropical island." },
+    ],
+  },
 ];
 
 const ALL_BOOKS = CATEGORIES.flatMap(c => c.books.map(b => ({ ...b, category: c.title, categoryId: c.id })));
@@ -1665,7 +1694,7 @@ const BOOK_BY_ID = Object.fromEntries(ALL_BOOKS.map(b => [b.id, b]));
 // CATEGORIES; this is the canonical mapping the UI uses for badges/pills.
 // Alpha kids commonly read above age-grade, so this is the ONLY grade signal
 // we surface (age ranges are intentionally suppressed everywhere).
-const GRADE_BY_CATEGORY = { e: "Beginning", k: "K", a: "1", b: "2" };
+const GRADE_BY_CATEGORY = { e: "Beginning", k: "K", a: "1", b: "2", c: "3" };
 function gradeOf(book) {
   return GRADE_BY_CATEGORY[book?.categoryId] || "";
 }
@@ -1757,6 +1786,15 @@ const BOOK_TAGS = {
   u07: ["adventures", "classics"],
   u08: ["adventures", "classics"],
   u09: ["adventures", "classics", "feelings"],
+  // Grade 3 — chapter books
+  c01: ["adventures", "animals"],
+  c02: ["adventures"],
+  c03: ["funny", "feelings"],
+  c04: ["adventures", "classics", "feelings"],
+  c05: ["animals", "classics", "feelings"],
+  c06: ["animals", "classics", "adventures"],
+  c07: ["animals", "feelings", "classics"],
+  c08: ["adventures", "funny", "animals"],
 };
 
 function genreBooks(genreId) {
@@ -3494,12 +3532,13 @@ function renderAdminTable() {
 
   const GRADE_OPTIONS = ["PK","K","1","2","3","4","5","6","7","8","9","10","11","12"];
   // Track IDs + short labels for the per-user track chips. Must match
-  // TRACK_ORDER in lib/tracks.js. New tracks (G3+) get appended here.
+  // TRACK_ORDER in lib/tracks.js. New tracks (G4+) get appended here.
   const TRACK_CHIPS = [
     { id: "e", label: "Beg" },
     { id: "k", label: "K" },
     { id: "a", label: "1" },
     { id: "b", label: "2" },
+    { id: "c", label: "3" },
   ];
   const NEXT_STATE = { auto: "unlocked", unlocked: "locked", locked: "auto" };
 
