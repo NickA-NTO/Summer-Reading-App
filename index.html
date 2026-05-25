@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Reading Spine — Alpha School</title>
+<title>Alpha Summer Reading</title>
 <link rel="preconnect" href="https://covers.openlibrary.org" crossorigin />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -130,10 +130,18 @@
     box-shadow: 0 4px 14px var(--accent-glow);
   }
   .brand {
+    /* Stack the app name and the campus label as a tight two-line lockup.
+       line-height 1.15 + an explicit gap between the two spans prevents
+       descenders/uppercase letters from kissing the line above. */
     font-weight: 800; font-size: 17px; letter-spacing: -0.02em;
+    line-height: 1.15;
+    display: flex; flex-direction: column;
+  }
+  .brand .sub {
+    color: var(--muted); font-size: 10px; font-weight: 500;
+    letter-spacing: 0.14em; margin-top: 6px;
     line-height: 1;
   }
-  .brand .sub { display: block; color: var(--muted); font-size: 10px; font-weight: 500; letter-spacing: 0.1em; margin-top: 3px; }
   .nav-links { display: flex; gap: 22px; font-size: 14px; }
   .nav-links a {
     color: var(--muted); opacity: 1;
@@ -1292,7 +1300,7 @@
          background:linear-gradient(135deg,#2563eb,#1d4ed8);display:grid;
          place-items:center;color:#fff;font-weight:900;font-size:24px;
          box-shadow:0 8px 24px rgba(37,99,235,.45)">α</div>
-    <div style="font-weight:600;color:#f5f7fb;margin-bottom:4px">Reading Spine</div>
+    <div style="font-weight:600;color:#f5f7fb;margin-bottom:4px">Alpha Summer Reading</div>
     <div>Loading your library…</div>
   </div>
 </div>
@@ -1302,7 +1310,7 @@
   <div class="nav">
     <div class="brand-wrap">
       <div class="brand-mark">α</div>
-      <div class="brand">Reading Spine<span class="sub">ALPHA SCHOOL</span></div>
+      <div class="brand"><span>Alpha Summer Reading</span><span class="sub">ALPHA SCHOOL</span></div>
     </div>
     <nav class="nav-links">
       <a href="#" class="active">Home</a>
@@ -1458,7 +1466,7 @@
     <div class="lb-head">
       <button class="quiz-close" id="adminClose" style="top:18px;right:18px" aria-label="Close admin">✕</button>
       <h2>⚙️ Admin · Active Users</h2>
-      <p class="lb-sub">Everyone who has signed in to Reading Spine, most recent first.</p>
+      <p class="lb-sub">Everyone who has signed in to Alpha Summer Reading, most recent first.</p>
       <div style="margin: 14px 0 4px">
         <input id="adminSearch" type="search" placeholder="Search by email, name, or domain…"
                style="width:100%;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:11px 14px;font-size:14px;outline:none" />
@@ -1952,7 +1960,7 @@ document.getElementById("signout").addEventListener("click", () => {
   const retry = document.getElementById("authErrorRetry");
   const msg =
     err === "domain"
-      ? `Access denied. Reading Spine is only for @alpha.school, @trilogy.com, @2hourlearning.com, or @superbuilders.com accounts${
+      ? `Access denied. Alpha Summer Reading is only for @alpha.school, @trilogy.com, @2hourlearning.com, or @superbuilders.com accounts${
           got ? ` — you tried ${got}` : ""
         }.`
     : err === "email_unverified"
