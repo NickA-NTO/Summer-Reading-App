@@ -917,6 +917,140 @@
   }
   .lb-me-card strong { color: var(--ink); font-weight: 700; }
 
+  /* ============ First-run onboarding (#17) ============ */
+  /* Voice-picker modal. Visible only when .open. */
+  .onb-overlay {
+    position: fixed; inset: 0; z-index: 60;
+    background: rgba(2,5,11,.92);
+    display: none; align-items: center; justify-content: center;
+    padding: 24px;
+  }
+  .onb-overlay.open { display: flex; }
+  .onb-card {
+    width: 100%; max-width: 580px;
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 18px; padding: 28px 28px 22px;
+    box-shadow: 0 24px 56px rgba(0,0,0,.4);
+  }
+  .onb-eyebrow {
+    color: var(--muted-2); font-size: 11px; font-weight: 600;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .onb-title {
+    margin: 0 0 6px; font-size: 22px; font-weight: 700;
+    color: var(--ink);
+  }
+  .onb-sub {
+    margin: 0 0 18px; font-size: 14px; color: var(--muted);
+    line-height: 1.5;
+  }
+  .onb-voice-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+    margin-bottom: 18px;
+  }
+  .onb-voice {
+    background: rgba(255,255,255,.04); border: 2px solid var(--line);
+    border-radius: 12px; padding: 14px 14px 12px;
+    cursor: pointer; text-align: left;
+    transition: border-color .15s, background-color .15s;
+    color: var(--ink); font-family: inherit;
+  }
+  .onb-voice:hover { border-color: var(--line-2); }
+  .onb-voice.selected {
+    border-color: var(--accent); background: rgba(37,99,235,.1);
+  }
+  .onb-voice .v-emoji { font-size: 28px; display: block; margin-bottom: 4px; }
+  .onb-voice .v-label { font-weight: 700; font-size: 14px; }
+  .onb-voice .v-status {
+    font-size: 11px; color: var(--muted); margin-top: 4px;
+    font-weight: 500;
+  }
+  .onb-voice .v-status.playing { color: var(--accent); }
+  .onb-voice .v-status.selected { color: var(--good); }
+  .onb-actions {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 10px;
+  }
+  .onb-skip {
+    background: transparent; color: var(--muted);
+    border: 1px solid var(--line); border-radius: 8px;
+    padding: 8px 14px; font-weight: 600; font-size: 13px;
+    cursor: pointer; font-family: inherit;
+  }
+  .onb-skip:hover { color: var(--ink); border-color: var(--line-2); }
+  .onb-next {
+    background: linear-gradient(180deg, #3b82f6, #2563eb);
+    color: #fff; border: none; border-radius: 8px;
+    padding: 10px 18px; font-weight: 700; font-size: 14px;
+    cursor: pointer; font-family: inherit;
+    transition: box-shadow .15s, transform .05s;
+  }
+  .onb-next:hover { box-shadow: 0 6px 16px rgba(37,99,235,.4); }
+  .onb-next:active { transform: translateY(1px); }
+  .onb-next:disabled {
+    background: rgba(255,255,255,.08); color: var(--muted-2);
+    cursor: not-allowed; box-shadow: none;
+  }
+
+  /* Spotlight tour. The "hole" is a small div with a huge box-shadow
+     creating the dim outside. Bubble follows the highlighted element. */
+  .tour-layer {
+    position: fixed; inset: 0; z-index: 55;
+    pointer-events: none;
+    display: none;
+  }
+  .tour-layer.open { display: block; }
+  .tour-spotlight {
+    position: absolute; border-radius: 12px;
+    box-shadow: 0 0 0 9999px rgba(2,5,11,.78);
+    pointer-events: none;
+    transition: top .3s ease, left .3s ease, width .3s ease, height .3s ease;
+  }
+  .tour-bubble {
+    position: fixed; pointer-events: auto;
+    max-width: 340px;
+    background: var(--panel); border: 1px solid var(--accent);
+    border-radius: 14px; padding: 16px 18px;
+    box-shadow: 0 20px 48px rgba(0,0,0,.5);
+    color: var(--ink);
+    transition: top .3s ease, left .3s ease;
+  }
+  .tour-step {
+    color: var(--muted-2); font-size: 11px; font-weight: 600;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .tour-title {
+    font-size: 16px; font-weight: 700; margin-bottom: 6px;
+  }
+  .tour-body {
+    font-size: 13px; color: var(--muted); line-height: 1.5;
+    margin-bottom: 12px;
+  }
+  .tour-actions {
+    display: flex; gap: 8px; align-items: center;
+  }
+  .tour-skip {
+    background: transparent; color: var(--muted-2);
+    border: none; padding: 6px 10px; font-size: 12px;
+    cursor: pointer; font-family: inherit;
+    margin-right: auto;
+  }
+  .tour-skip:hover { color: var(--ink); }
+  .tour-back, .tour-next {
+    background: rgba(255,255,255,.06); color: var(--ink);
+    border: 1px solid var(--line); border-radius: 8px;
+    padding: 6px 12px; font-size: 13px; font-weight: 600;
+    cursor: pointer; font-family: inherit;
+  }
+  .tour-back:hover, .tour-next:hover { border-color: var(--line-2); }
+  .tour-back:disabled { opacity: .4; cursor: not-allowed; }
+  .tour-next {
+    background: linear-gradient(180deg, #3b82f6, #2563eb);
+    color: #fff; border-color: transparent;
+  }
+
   /* ============ Admin user table ============ */
   .admin-table {
     width: 100%; border-collapse: collapse; font-size: 13px;
@@ -1310,6 +1444,39 @@
     </div>
     <div class="lb-body" id="lbBody">
       <div class="lb-empty">Loading…</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ First-run onboarding (#17) ============ -->
+<!-- Voice picker modal — step 1 of the first-run flow. Hidden by default;
+     shown only when /api/auth/me returns tourCompleted: false. -->
+<div class="onb-overlay" id="onbVoiceOverlay" role="dialog" aria-modal="true">
+  <div class="onb-card">
+    <div class="onb-eyebrow">Step 1 of 2 · Pick your voice</div>
+    <h2 class="onb-title">Hi! Pick a voice to read to you.</h2>
+    <p class="onb-sub">Tap a card to hear it speak. Pick the one you like best — you can change it later.</p>
+    <div class="onb-voice-grid" id="onbVoiceGrid"></div>
+    <div class="onb-actions">
+      <button class="onb-skip" id="onbVoiceSkip" type="button">Skip for now</button>
+      <button class="onb-next" id="onbVoiceNext" type="button" disabled>Next →</button>
+    </div>
+  </div>
+</div>
+
+<!-- Spotlight tour layer — step 2 of the first-run flow. The cutout uses
+     the box-shadow trick (a small div + a huge box-shadow that darkens
+     everything else). No SVG mask needed; zero deps. -->
+<div class="tour-layer" id="tourLayer" aria-hidden="true">
+  <div class="tour-spotlight" id="tourSpotlight"></div>
+  <div class="tour-bubble" id="tourBubble">
+    <div class="tour-step" id="tourStep">Step 1 of 4</div>
+    <div class="tour-title" id="tourTitle">—</div>
+    <div class="tour-body" id="tourBody">—</div>
+    <div class="tour-actions">
+      <button class="tour-skip" id="tourSkip" type="button">Skip tour</button>
+      <button class="tour-back" id="tourBack" type="button">← Back</button>
+      <button class="tour-next" id="tourNext" type="button">Next →</button>
     </div>
   </div>
 </div>
@@ -1813,6 +1980,17 @@ voicePicker.addEventListener("change", () => {
     state.data.ttsVoice = chosenPollyVoice;
     saveData(state.session.email, state.data);
   }
+  // Persist to server-side profile so the choice survives device-hops.
+  // Fire-and-forget — localStorage already saved a copy above.
+  if (state?.session?.email) {
+    state.session.preferredVoiceId = chosenPollyVoice;
+    fetch("/api/activity", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ kind: "profile", preferredVoiceId: chosenPollyVoice }),
+    }).catch(() => {});
+  }
   updateTtsTooltip();
   // Always audition — picking a voice IS opting in to hear it,
   // regardless of whether the global TTS toggle is on.
@@ -1941,10 +2119,18 @@ function startApp(session) {
   document.getElementById("whoEmail").textContent = session.email;
   document.getElementById("avatar").textContent =
     session.name.trim().charAt(0).toUpperCase();
-  // Restore the user's preferred Polly voice (defaults to Ivy)
-  if (state.data.ttsVoice && document.querySelector(`#voicePicker option[value="${state.data.ttsVoice}"]`)) {
-    chosenPollyVoice = state.data.ttsVoice;
+  // Restore the user's preferred Polly voice. Server-side preference
+  // (preferredVoiceId from /api/auth/me) wins over the localStorage cache
+  // because it survives device-hopping. localStorage is the fallback for
+  // users who set it before the server persistence shipped.
+  const savedVoice =
+    session.preferredVoiceId ||
+    state.data.ttsVoice ||
+    null;
+  if (savedVoice && document.querySelector(`#voicePicker option[value="${savedVoice}"]`)) {
+    chosenPollyVoice = savedVoice;
     voicePicker.value = chosenPollyVoice;
+    state.data.ttsVoice = savedVoice; // keep localStorage in sync
   }
   // Hide the boot loader once we have real data
   const boot = document.getElementById("bootLoader");
@@ -3729,6 +3915,284 @@ function friendlyDate(ts) {
   return new Date(ts).toLocaleDateString();
 }
 
+/* ---------- 15b. First-run onboarding (#17) ---------- */
+//
+// Two-step flow shown only when /api/auth/me returns tourCompleted: false:
+//   1. Voice picker — tap-to-preview cards for the four Polly Neural voices
+//      we ship. Selection persists to user profile so it survives device-
+//      hopping. Skippable.
+//   2. Spotlight tour — 4-stop walkthrough of the catalog UI using a
+//      box-shadow cutout (no SVG masks, zero deps).
+// Completion of either path POSTs tourCompleted: true so we don't show
+// it again on later sign-ins.
+
+const ONB_VOICES = [
+  { id: "Ivy",     emoji: "👧", label: "Female Child" },
+  { id: "Kevin",   emoji: "👦", label: "Male Child" },
+  { id: "Joanna",  emoji: "👩", label: "Female Adult" },
+  { id: "Matthew", emoji: "👨", label: "Male Adult" },
+];
+const ONB_PREVIEW_TEXT =
+  "Hi! I'll read along with you. Pick a voice you like.";
+
+let _onbSelectedVoice = null;
+let _onbPreviewAudio = null;
+
+function startOnboarding() {
+  const overlay = document.getElementById("onbVoiceOverlay");
+  if (!overlay) return;
+  const grid = document.getElementById("onbVoiceGrid");
+  grid.innerHTML = ONB_VOICES.map((v) => `
+    <button class="onb-voice" data-voice="${v.id}" type="button">
+      <span class="v-emoji">${v.emoji}</span>
+      <div class="v-label">${v.label}</div>
+      <div class="v-status" data-role="status">Tap to hear</div>
+    </button>
+  `).join("");
+
+  // Pre-select current preference if one exists
+  _onbSelectedVoice = state.session?.preferredVoiceId || null;
+  if (_onbSelectedVoice) {
+    const btn = grid.querySelector(`[data-voice="${_onbSelectedVoice}"]`);
+    if (btn) {
+      btn.classList.add("selected");
+      btn.querySelector("[data-role=status]").textContent = "Selected";
+      btn.querySelector("[data-role=status]").className = "v-status selected";
+    }
+  }
+  document.getElementById("onbVoiceNext").disabled = !_onbSelectedVoice;
+
+  grid.querySelectorAll(".onb-voice").forEach((btn) => {
+    btn.addEventListener("click", () => onbHandleVoiceClick(btn));
+  });
+  document.getElementById("onbVoiceSkip").addEventListener("click", () => {
+    onbCleanupAudio();
+    overlay.classList.remove("open");
+    finishOnboarding(/* skipped */ true);
+  });
+  document.getElementById("onbVoiceNext").addEventListener("click", () => {
+    onbCleanupAudio();
+    overlay.classList.remove("open");
+    onbSaveVoice().then(() => startTour());
+  });
+
+  overlay.classList.add("open");
+}
+
+function onbCleanupAudio() {
+  if (_onbPreviewAudio) {
+    try { _onbPreviewAudio.pause(); } catch {}
+    _onbPreviewAudio = null;
+  }
+}
+
+async function onbHandleVoiceClick(btn) {
+  const voice = btn.dataset.voice;
+  // Mark selected (visual + state) and enable Next
+  document.querySelectorAll(".onb-voice").forEach((b) => {
+    b.classList.toggle("selected", b === btn);
+    const status = b.querySelector("[data-role=status]");
+    if (b === btn) {
+      status.textContent = "Playing…";
+      status.className = "v-status playing";
+    } else {
+      status.textContent = "Tap to hear";
+      status.className = "v-status";
+    }
+  });
+  _onbSelectedVoice = voice;
+  document.getElementById("onbVoiceNext").disabled = false;
+
+  // Play the preview through the existing TTS endpoint. Browser fallback
+  // is fine if Polly isn't configured — kid still gets a voice sample.
+  onbCleanupAudio();
+  try {
+    const url = `/api/tts?voice=${encodeURIComponent(voice)}&text=${encodeURIComponent(ONB_PREVIEW_TEXT)}`;
+    const r = await fetch(url, { credentials: "same-origin" });
+    if (r.ok) {
+      const j = await r.json();
+      if (j.url) {
+        _onbPreviewAudio = new Audio(j.url);
+        _onbPreviewAudio.onended = () => {
+          const status = btn.querySelector("[data-role=status]");
+          status.textContent = "Selected";
+          status.className = "v-status selected";
+        };
+        _onbPreviewAudio.play().catch(() => {});
+        return;
+      }
+    }
+    throw new Error("polly_unavailable");
+  } catch {
+    // Browser TTS fallback
+    try {
+      const u = new SpeechSynthesisUtterance(ONB_PREVIEW_TEXT);
+      window.speechSynthesis.speak(u);
+      u.onend = () => {
+        const status = btn.querySelector("[data-role=status]");
+        status.textContent = "Selected";
+        status.className = "v-status selected";
+      };
+    } catch {
+      const status = btn.querySelector("[data-role=status]");
+      status.textContent = "Selected";
+      status.className = "v-status selected";
+    }
+  }
+}
+
+async function onbSaveVoice() {
+  if (!_onbSelectedVoice) return;
+  // Update local state + the TTS pipeline immediately
+  state.session.preferredVoiceId = _onbSelectedVoice;
+  if (typeof chosenPollyVoice !== "undefined") {
+    chosenPollyVoice = _onbSelectedVoice;
+  }
+  const picker = document.getElementById("voicePicker");
+  if (picker && [...picker.options].some((o) => o.value === _onbSelectedVoice)) {
+    picker.value = _onbSelectedVoice;
+  }
+  if (state.data) state.data.ttsVoice = _onbSelectedVoice;
+  // Persist to server (fire-and-forget — local fallback is fine)
+  try {
+    await fetch("/api/activity", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ kind: "profile", preferredVoiceId: _onbSelectedVoice }),
+    });
+  } catch {}
+}
+
+/* ---- Spotlight tour ---- */
+
+const TOUR_STEPS = [
+  {
+    selector: ".hero-card",
+    title: "Your Pick of the Week",
+    body: "We feature a different book here every few hours. Tap any cover to see more.",
+  },
+  {
+    selector: ".stats-strip",
+    title: "Your stats",
+    body: "Your XP and the books you've read live up here. Hit ~1,200 XP over summer to keep your reading on track.",
+  },
+  {
+    selector: "#navLeaderboard",
+    title: "Top Readers leaderboard",
+    body: "See how your school is doing. Climb by reading harder books — not by speed-clicking.",
+  },
+  {
+    selector: ".rows-list, #rows",
+    title: "Find your next book",
+    body: "Books are grouped by grade and topic. Tap one, then either start reading right away or click Take the Quiz when you've finished.",
+  },
+];
+let _tourIdx = 0;
+
+function startTour() {
+  _tourIdx = 0;
+  document.getElementById("tourLayer").classList.add("open");
+  document.getElementById("tourSkip").onclick = endTour;
+  document.getElementById("tourBack").onclick = () => {
+    if (_tourIdx > 0) { _tourIdx--; renderTourStep(); }
+  };
+  document.getElementById("tourNext").onclick = () => {
+    if (_tourIdx < TOUR_STEPS.length - 1) {
+      _tourIdx++;
+      renderTourStep();
+    } else {
+      endTour();
+    }
+  };
+  window.addEventListener("resize", repositionTour);
+  renderTourStep();
+}
+
+function renderTourStep() {
+  const step = TOUR_STEPS[_tourIdx];
+  const target = step.selector
+    .split(",")
+    .map((s) => document.querySelector(s.trim()))
+    .find(Boolean);
+  if (!target) {
+    // Element missing — skip this step
+    if (_tourIdx < TOUR_STEPS.length - 1) {
+      _tourIdx++;
+      return renderTourStep();
+    }
+    return endTour();
+  }
+  // Scroll into view so the bounding rect is meaningful
+  target.scrollIntoView({ behavior: "smooth", block: "center" });
+  // Wait a frame for the scroll, then position
+  requestAnimationFrame(() => requestAnimationFrame(() => positionTour(target, step)));
+}
+
+function positionTour(target, step) {
+  const rect = target.getBoundingClientRect();
+  const spotlight = document.getElementById("tourSpotlight");
+  const bubble = document.getElementById("tourBubble");
+  // Pad the cutout so the target gets a little breathing room
+  const pad = 8;
+  Object.assign(spotlight.style, {
+    top: `${rect.top - pad}px`,
+    left: `${rect.left - pad}px`,
+    width: `${rect.width + pad * 2}px`,
+    height: `${rect.height + pad * 2}px`,
+  });
+
+  document.getElementById("tourStep").textContent =
+    `Step ${_tourIdx + 1} of ${TOUR_STEPS.length}`;
+  document.getElementById("tourTitle").textContent = step.title;
+  document.getElementById("tourBody").textContent = step.body;
+  document.getElementById("tourBack").disabled = _tourIdx === 0;
+  document.getElementById("tourNext").textContent =
+    _tourIdx === TOUR_STEPS.length - 1 ? "Finish ✓" : "Next →";
+
+  // Position bubble below the target if there's room, else above.
+  const bubbleH = bubble.offsetHeight || 160;
+  const bubbleW = bubble.offsetWidth || 320;
+  const viewH = window.innerHeight;
+  const viewW = window.innerWidth;
+  let top = rect.bottom + 16;
+  if (top + bubbleH > viewH - 16) top = Math.max(16, rect.top - bubbleH - 16);
+  let left = rect.left + rect.width / 2 - bubbleW / 2;
+  left = Math.max(16, Math.min(viewW - bubbleW - 16, left));
+  bubble.style.top = `${top}px`;
+  bubble.style.left = `${left}px`;
+}
+
+function repositionTour() {
+  if (!document.getElementById("tourLayer").classList.contains("open")) return;
+  const step = TOUR_STEPS[_tourIdx];
+  const target = step.selector
+    .split(",")
+    .map((s) => document.querySelector(s.trim()))
+    .find(Boolean);
+  if (target) positionTour(target, step);
+}
+
+function endTour() {
+  document.getElementById("tourLayer").classList.remove("open");
+  window.removeEventListener("resize", repositionTour);
+  finishOnboarding(/* skipped */ false);
+}
+
+async function finishOnboarding(skipped) {
+  if (state.session) state.session.tourCompleted = true;
+  // Persist (fire-and-forget). Don't care about skipped — the kid saw the
+  // flow and we don't want to show it again either way.
+  try {
+    await fetch("/api/activity", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ kind: "profile", tourCompleted: true }),
+    });
+  } catch {}
+}
+
 /* ---------- 16. Boot ---------- */
 (async function boot() {
   try {
@@ -3754,7 +4218,18 @@ function friendlyDate(ts) {
       grade: me.grade || "K",
       visibleTracks: Array.isArray(me.visibleTracks) ? me.visibleTracks : null,
       currentlyReading: me.currentlyReading || null,
+      preferredVoiceId: me.preferredVoiceId || null,
+      tourCompleted: !!me.tourCompleted,
     });
+
+    // First-run onboarding: voice picker → spotlight tour. Only shows
+    // when the server says the tour hasn't been completed yet. Don't
+    // wait for it to finish — the app is fully interactive underneath.
+    if (!me.tourCompleted) {
+      // Delay slightly so the catalog has time to render and the tour
+      // can find/highlight real elements.
+      setTimeout(() => startOnboarding(), 400);
+    }
   } catch (e) {
     // Network blip — show a friendly retry
     const boot = document.getElementById("bootLoader");

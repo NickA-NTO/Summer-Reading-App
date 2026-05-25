@@ -84,6 +84,11 @@ export default async function handler(req, res) {
       grade,
       visibleTracks,
       currentlyReading,
+      // Onboarding state (#17) — client uses these to decide whether to
+      // show the first-run voice picker + spotlight tour. tourCompleted=true
+      // suppresses it forever (admin can reset via the admin endpoint).
+      preferredVoiceId: profile?.preferredVoiceId || null,
+      tourCompleted: !!profile?.tourCompleted,
     })
   );
 }

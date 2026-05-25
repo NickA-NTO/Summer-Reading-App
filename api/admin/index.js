@@ -221,6 +221,34 @@ export default async function handler(req, res) {
     return json(res, 200, { ok: true, email, grade });
   }
 
+  // ========================== reset-tour =========================
+  // Clear the student's first-run onboarding state so the voice picker
+  // and spotlight tour show again on next sign-in. Used for QA, demos,
+  // and rare cases where a kid blew past the tour without taking it in.
+  // Body: { email }
+  if (action === "reset-tour" && req.method === "POST") {
+    const body = await readBody(req);
+    if (body === null) return json(res, 400, { error: "invalid_json" });
+    const email = String(body.email || "").trim().toLowerCase();
+    if (!email) return json(res, 400, { error: "email_required" });
+    const r = redis();
+    if (!r) return json(res, 500, { error: "no_redis" });
+    try {
+      const raw = await r.hget("users", email);
+      const prof = raw
+        ? typeof raw === "string"
+          ? JSON.parse(raw)
+          : raw
+        : {};
+      delete prof.tourCompleted;
+      delete prof.tourCompletedAt;
+      await r.hset("users", { [email]: JSON.stringify(prof) });
+      return json(res, 200, { ok: true, email });
+    } catch (err) {
+      return json(res, 500, { error: "redis_error", detail: String(err) });
+    }
+  }
+
   // ====================== set-track-overrides ====================
   // Body: { email, overrides: { e: "auto"|"unlocked"|"locked", k: ..., ... } }
   // Missing tracks default to "auto" (follow at-or-below-working-grade rule).
@@ -340,6 +368,6 @@ export default async function handler(req, res) {
   // ============================ 404 ==============================
   return json(res, 404, {
     error: "not_found",
-    hint: "Use ?action=users|tts-usage|quiz-reports|held-xp|set-grade|bulk-set-grades|set-track-overrides|test-caliper|caliper-health|caliper-drain-retry",
+    hint: "Use ?action=users|tts-usage|quiz-reports|held-xp|set-grade|bulk-set-grades|set-track-overrides|reset-tour|test-caliper|caliper-health|caliper-drain-retry",
   });
 }

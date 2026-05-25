@@ -25,6 +25,7 @@ import {
   setCurrentlyReading,
   getCurrentlyReading,
   clearCurrentlyReading,
+  updateUserOnboarding,
   FRAUD_RATIO_HOLD,
   FRAUD_RATIO_SOFT,
   FRAUD_FRESHNESS_WINDOW_MS,
@@ -109,6 +110,22 @@ export default async function handler(req, res) {
   // caller passed `swap: true` (acknowledged the prompt). On swap or empty
   // slot, set currentlyReading = { bookId, startedAt: now }.
   // -----------------------------------------------------------------------
+  // -----------------------------------------------------------------------
+  // kind === "profile" — persist onboarding settings (#17).
+  // Body: { kind: "profile", preferredVoiceId?, tourCompleted? }
+  // Used by the first-run flow: voice picker writes preferredVoiceId,
+  // the spotlight-tour finale writes tourCompleted=true. Either field is
+  // optional; only the present ones are written.
+  // -----------------------------------------------------------------------
+  if (kind === "profile") {
+    const result = await updateUserOnboarding(session.email, {
+      preferredVoiceId: body.preferredVoiceId,
+      tourCompleted: body.tourCompleted,
+    });
+    res.statusCode = result.ok ? 200 : 400;
+    return res.end(JSON.stringify(result));
+  }
+
   if (kind === "start") {
     if (!bookId) {
       res.statusCode = 400;
