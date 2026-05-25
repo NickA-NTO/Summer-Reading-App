@@ -1311,6 +1311,7 @@
           <div class="e" id="whoEmail">—</div>
         </div>
         <button id="menuAdmin" style="display:none">⚙️ Admin · Users</button>
+        <button id="menuReplayTour">🎬 Replay intro tour</button>
         <button id="signout">Sign out</button>
       </div>
     </div>
@@ -3470,6 +3471,16 @@ document.getElementById("menuAdmin").addEventListener("click", (e) => {
   document.getElementById("userMenu").classList.remove("open");
   openAdmin();
 });
+
+// Replay intro tour — for kids who skipped it, admins doing QA, or
+// anyone who just wants to see it again. Re-runs the same flow that
+// the first-run logic does. finishOnboarding() at the end re-marks
+// tourCompleted: true (idempotent), so this is safe to invoke repeatedly.
+document.getElementById("menuReplayTour").addEventListener("click", (e) => {
+  e.stopPropagation();
+  document.getElementById("userMenu").classList.remove("open");
+  startOnboarding();
+});
 document.getElementById("adminClose").addEventListener("click", closeAdmin);
 document.getElementById("adminOverlay").addEventListener("click", (e) => {
   if (e.target.id === "adminOverlay") closeAdmin();
@@ -4050,19 +4061,23 @@ function startOnboarding() {
   }
   document.getElementById("onbVoiceNext").disabled = !_onbSelectedVoice;
 
+  // Voice grid is re-rendered each call (innerHTML reset above), so the
+  // per-card click handlers are fresh DOM and don't accumulate.
   grid.querySelectorAll(".onb-voice").forEach((btn) => {
     btn.addEventListener("click", () => onbHandleVoiceClick(btn));
   });
-  document.getElementById("onbVoiceSkip").addEventListener("click", () => {
+  // Skip/Next are PERMANENT DOM — use onclick assignment so a second
+  // invocation (via "Replay intro tour" menu item) doesn't stack handlers.
+  document.getElementById("onbVoiceSkip").onclick = () => {
     onbCleanupAudio();
     overlay.classList.remove("open");
     finishOnboarding(/* skipped */ true);
-  });
-  document.getElementById("onbVoiceNext").addEventListener("click", () => {
+  };
+  document.getElementById("onbVoiceNext").onclick = () => {
     onbCleanupAudio();
     overlay.classList.remove("open");
     onbSaveVoice().then(() => startTour());
-  });
+  };
 
   overlay.classList.add("open");
 }
