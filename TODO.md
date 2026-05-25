@@ -1005,6 +1005,141 @@ working here.
 
 ---
 
+## Beginning Readers tier (lower-gate catalog)
+
+**Goal:** Open Reading Spine to transitional readers below the current
+20 WCPM @ 95% gate, without exposing them to books that cause despair.
+A new student who can decode CVC and reads ~10–19 WCPM @ 90% on K text
+gets a Track-B catalog of carefully chosen text-rich emergent titles
+they can actually finish, then auto-graduates to the full catalog once
+they show they're ready.
+
+### Two-track entry
+
+| Track | Gate (Acadience) | Catalog |
+|---|---|---|
+| **A — Full catalog** | ORF ≥ 20 WCPM @ 95% on K text | Everything |
+| **B — Beginning Readers** | NWF-WWR ≥ 13 (end of K) AND ORF ≥ 10 WCPM @ 90% on K text | ~12 emergent titles only |
+
+Below Track B: student is still in the decoding-instruction phase →
+belongs in Lalilo/Mentava, not here.
+
+### Catalog (~12 pilot titles, all Amazon-orderable, all text-rich enough for text-only MCQs)
+
+**Picture-light books where plot lives in the words — pure MCQ works:**
+- [ ] Mo Willems *Elephant & Piggie* ×5: *We Are in a Book!*,
+      *I Will Surprise My Friend!*, *Are You Ready to Play Outside?*,
+      *There Is a Bird on Your Head!*, *Should I Share My Ice Cream?*
+- [ ] Dr. Seuss Beginner Books ×2: *Hop on Pop*,
+      *One Fish Two Fish Red Fish Blue Fish*
+- [ ] Step Into Reading Step 2 ×3: *Tiny Goes to the Library*,
+      *Robin Hood and the Golden Arrow*, *The Pet Shop Mystery*
+- [ ] Usborne Very First Reading Books 5–8 ×2:
+      *Goose on the Loose*, *The Mouse's Houses*
+
+**Explicitly NOT included** (would require pictures to quiz on):
+- Bob Books Set 1 — plot is in the illustrations, text is too thin
+- Usborne Phonics Readers — same problem
+- Pete the Cat (I Can Read! Level 1) — emotion lives in art, not words
+
+### Quiz adjustments for this tier
+- [ ] New `quizStyle: "emergent"` field on these books in `QUIZ_BOOKS`.
+- [ ] Generator switches prompt template by style:
+      - **3 questions** instead of 5 (short books → padding-free)
+      - **2 of 3 pass threshold** (67%) instead of 4 of 5
+      - Question + option vocabulary constrained to first-100 Dolch
+        sight words + CVC patterns
+      - Test literal recall and dialogue ("Why did Piggie come over?"
+        "What did Elephant say?"), NOT plot inference
+- [ ] QC reviewer rubric: drop anything that depends on visual context
+      ("What color was X?" only allowed if color is mentioned in the text).
+- [ ] Multi-pass cross-validation (1g) still applies on top.
+
+### UX
+- [ ] TTS auto-prompted on every Track-B book: *"Tap the speaker to hear
+      it first!"* shown on modal open with a gentle pulse animation.
+- [ ] Cover-image quality matters more here than for older readers —
+      ensure all 12 have working OpenLibrary covers, fall back to a
+      hand-picked gradient if not.
+
+### Graduation criteria (auto-unlock full catalog)
+- [ ] When a Track-B student has earned **≥ 50 XP across ≥ 10 books**
+      with **first-attempt-pass rate ≥ 70%**, flip
+      `user.catalogTrack` from `"B"` to `"A"`. Show a celebration
+      modal: *"You've leveled up! New books unlocked."*
+- [ ] Manual admin override: a track field on each user with values
+      `"auto"` | `"A"` | `"B"`. Default `"auto"` runs the gate logic
+      above. Admin can pin to `"A"` or `"B"` for cases where the
+      Acadience score doesn't reflect actual ability.
+
+### Cost / risk
+About half a day's work plus prompt tuning. Quiz pipeline already
+handles per-book customization; the only new code is the `quizStyle`
+branch in `api/quiz.js` and a new row in `index.html` CATEGORIES.
+
+---
+
+## Admin track-locking + working-grade-aware catalog visibility
+
+**Goal:** Make sure students see only the tracks (grade rows) that
+fit them — by default driven from working grade, with admin override
+per-student.
+
+### Default visibility rule
+- A student with `workingGrade = X` sees tracks **at or below X**.
+  Example:
+    - K student → Beginning + Grade K
+    - G1 student → Beginning + Grade K + Grade 1
+    - G2 student → Beginning + Grade K + Grade 1 + Grade 2
+- Beginning Readers track is gated by the Track-B logic above
+  (NWF-WWR + ORF entry, or admin pin to Track B).
+- A student NEVER sees a track above their working grade by default —
+  prevents discouragement from being shown books they can't read yet.
+
+### Admin override
+- [ ] Add per-track toggle switches in the admin user table — one
+      column per active track (Beginning, K, 1, 2, …):
+
+      ```
+      Email            | Grade | Beg | K | 1 | 2
+      ace.weir@…       | 2     |  ☐  | ✓ | ✓ | ✓
+      colm.bowen@…     | K     |  ✓  | ✓ | ☐ | ☐
+      ```
+- [ ] Each toggle has three states: **auto** (follows the default
+      rule), **unlocked** (force-show), **locked** (force-hide).
+- [ ] `setVisibleTracks(email, overrides)` writes to the user profile
+      as `trackOverrides: { K: "auto", 1: "unlocked", 2: "locked" }`.
+
+### Server enforcement
+- [ ] Catalog endpoint (`/api/catalog`, new — or fold into `/api/auth/me`)
+      returns only the categories the student is allowed to see, based
+      on `(workingGrade, trackOverrides)`. Client-only filtering isn't
+      enough; server must enforce so direct-fetch attempts on hidden
+      books fail.
+- [ ] Quiz endpoint `/api/quiz?bookId=…` checks the student can see the
+      book's track. If not, returns 403. (Prevents the trivial
+      "guess-the-bookId" workaround.)
+
+### Use cases this enables
+- A K student rated by TimeBack as G2 (rare but happens — early decoders
+  with strong vocab) → admin unlocks Grade 1 and Grade 2 tracks for them.
+- A G2 student who's underperforming → admin temporarily locks the
+  Grade 2 track and unlocks Beginning while they catch up.
+- An advanced K student who passed every K book quickly → admin unlocks
+  Grade 1 early.
+
+### Org-wide default
+- [ ] Admin can also set the org default in env vars (e.g.
+      `DEFAULT_TRACK_POLICY="at_and_below"` vs `"only_working_grade"`).
+      Useful if Alpha wants stricter or more permissive defaults at
+      different campuses.
+
+### Build estimate
+Most of the work is the admin UI + the catalog-endpoint refactor.
+The visibility rule itself is ~20 LOC. Estimated half a day.
+
+---
+
 ## First-run intro / product tour
 
 **Goal:** A new student lands in Reading Spine and immediately understands
