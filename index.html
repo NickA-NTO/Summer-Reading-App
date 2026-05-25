@@ -206,6 +206,23 @@
     margin-left: 10px; cursor: pointer; font-size: 16px;
   }
 
+  /* Discoverable "?" button in the header — re-runs the intro tour for
+     anyone (kids who skipped, admins doing QA, returning users). */
+  .help-btn {
+    width: 32px; height: 32px; border-radius: 999px;
+    background: rgba(20,184,166,.18); color: #5eead4;
+    border: 1px solid rgba(20,184,166,.45);
+    font-weight: 700; font-size: 16px; line-height: 1;
+    cursor: pointer; font-family: inherit;
+    display: inline-flex; align-items: center; justify-content: center;
+    margin-right: 4px;
+    transition: background-color .15s, transform .05s, color .15s;
+  }
+  .help-btn:hover {
+    background: rgba(20,184,166,.32); color: #fff;
+  }
+  .help-btn:active { transform: scale(.95); }
+
   .avatar-wrap {
     display: flex; align-items: center; gap: 8px;
     cursor: pointer; position: relative;
@@ -1302,6 +1319,7 @@
       </select>
       <button id="ttsSwitch" class="switch" role="switch" aria-checked="false" aria-label="Toggle text to speech"></button>
     </div>
+    <button id="helpBtn" class="help-btn" type="button" title="Replay intro tour" aria-label="Replay intro tour">?</button>
     <div class="avatar-wrap" id="avatarWrap">
       <div class="avatar" id="avatar">?</div>
       <span class="caret">▼</span>
@@ -3476,9 +3494,15 @@ document.getElementById("menuAdmin").addEventListener("click", (e) => {
 // anyone who just wants to see it again. Re-runs the same flow that
 // the first-run logic does. finishOnboarding() at the end re-marks
 // tourCompleted: true (idempotent), so this is safe to invoke repeatedly.
+// Two entry points: the header "?" button (discoverable) and the menu
+// item under the avatar (canonical).
 document.getElementById("menuReplayTour").addEventListener("click", (e) => {
   e.stopPropagation();
   document.getElementById("userMenu").classList.remove("open");
+  startOnboarding();
+});
+document.getElementById("helpBtn").addEventListener("click", (e) => {
+  e.stopPropagation();
   startOnboarding();
 });
 document.getElementById("adminClose").addEventListener("click", closeAdmin);
