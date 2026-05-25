@@ -951,6 +951,36 @@
   .grade-edit:disabled { opacity: .5; cursor: not-allowed; }
   .grade-edit option { background: var(--panel); color: var(--ink); }
 
+  /* Per-user track-visibility chips (#14). One chip per track; click to
+     cycle through auto → unlocked → locked → auto. Color encodes state. */
+  .track-chips { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+  .track-chip {
+    background: rgba(255,255,255,.04); color: var(--muted);
+    border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 9px; font-size: 11px; font-weight: 600;
+    cursor: pointer; outline: none;
+    transition: background-color .15s, border-color .15s, color .15s;
+    min-width: 38px; text-align: center;
+    font-family: inherit;
+  }
+  .track-chip:hover { border-color: var(--line-2); }
+  .track-chip.state-auto {
+    /* Default — at-or-below working grade rule applies. */
+    background: rgba(255,255,255,.04); color: var(--muted);
+  }
+  .track-chip.state-unlocked {
+    /* Force-shown regardless of working grade. */
+    background: rgba(34,197,94,.18); color: #4ade80;
+    border-color: rgba(34,197,94,.45);
+  }
+  .track-chip.state-locked {
+    /* Force-hidden regardless of working grade. */
+    background: rgba(239,68,68,.16); color: #f87171;
+    border-color: rgba(239,68,68,.45);
+    text-decoration: line-through;
+  }
+  .track-chip:disabled { opacity: .5; cursor: not-allowed; }
+
   /* Flagged question cards in admin */
   .report-list {
     display: grid; gap: 10px;
@@ -2037,8 +2067,15 @@ function renderRows() {
     }, true /* isRecent — skip progress meter */));
   }
 
-  // Grade rows (primary)
-  CATEGORIES.forEach(cat => root.appendChild(buildRow(cat)));
+  // Grade rows — filtered by visibleTracks (#14). If the server hasn't told
+  // us which tracks are visible yet, default to showing everything (safe
+  // fallback during the brief window before /api/auth/me lands).
+  const visible = state.session?.visibleTracks;
+  const allowed = Array.isArray(visible) ? new Set(visible) : null;
+  CATEGORIES.forEach(cat => {
+    if (allowed && !allowed.has(cat.id)) return;
+    root.appendChild(buildRow(cat));
+  });
 
   // Section divider before browse-by-topic
   const divider = document.createElement("div");
@@ -3137,6 +3174,16 @@ function renderAdminTable() {
   }
 
   const GRADE_OPTIONS = ["PK","K","1","2","3","4","5","6","7","8","9","10","11","12"];
+  // Track IDs + short labels for the per-user track chips. Must match
+  // TRACK_ORDER in lib/tracks.js. New tracks (G3+) get appended here.
+  const TRACK_CHIPS = [
+    { id: "e", label: "Beg" },
+    { id: "k", label: "K" },
+    { id: "a", label: "1" },
+    { id: "b", label: "2" },
+  ];
+  const NEXT_STATE = { auto: "unlocked", unlocked: "locked", locked: "auto" };
+
   const rows = list.map((u) => {
     const currentGrade = u.grade || "";
     const opts = GRADE_OPTIONS.map((g) =>
@@ -3145,6 +3192,19 @@ function renderAdminTable() {
     const flagBadge = u.flagCount > 0
       ? `<span style="color:var(--bad);font-size:11px;font-weight:700;margin-left:6px" title="${u.flagCount} speed flag${u.flagCount !== 1 ? 's' : ''}">🚨×${u.flagCount}</span>`
       : "";
+    const overrides = u.trackOverrides || {};
+    const chips = TRACK_CHIPS.map((t) => {
+      const state = overrides[t.id] || "auto";
+      const tip =
+        state === "auto"
+          ? `${t.label}: follows working-grade rule (click to force-unlock)`
+          : state === "unlocked"
+            ? `${t.label}: force-unlocked (click to lock)`
+            : `${t.label}: force-locked (click to auto)`;
+      return `<button type="button" class="track-chip state-${state}"
+        data-email="${escapeAttr(u.email)}" data-track="${t.id}"
+        data-state="${state}" title="${tip}">${t.label}</button>`;
+    }).join("");
     return `
       <tr>
         <td>
@@ -3158,6 +3218,7 @@ function renderAdminTable() {
             ${opts}
           </select>
         </td>
+        <td><div class="track-chips">${chips}</div></td>
         <td class="a-when">${u.lastLoginAt ? friendlyDate(u.lastLoginAt) : "—"}</td>
         <td class="a-count">${u.loginCount || 0}</td>
         <td class="a-count">${u.booksRead || 0}</td>
@@ -3173,7 +3234,7 @@ function renderAdminTable() {
         Showing ${list.length} of ${adminState.users.length} ${adminState.users.length === 1 ? "user" : "users"}
       </span>
       <span style="color:var(--muted-2);font-size:11px">
-        💡 Click a grade dropdown to set a student's working grade.
+        💡 Set grade in the dropdown. Click a track chip to cycle auto / unlock / lock.
       </span>
     </div>
     <div style="overflow-x:auto;max-height:55vh;overflow-y:auto;border:1px solid var(--line);border-radius:10px">
@@ -3182,6 +3243,7 @@ function renderAdminTable() {
           <th>User</th>
           <th>Domain</th>
           <th>Working grade</th>
+          <th>Tracks</th>
           <th>Last login</th>
           <th style="text-align:right">Logins</th>
           <th style="text-align:right">Books</th>
@@ -3322,6 +3384,49 @@ function renderAdminTable() {
         alert("Couldn't save grade: " + (err.message || err));
       } finally {
         sel.disabled = false;
+      }
+    });
+  });
+
+  // Track-visibility chips — click cycles auto → unlocked → locked → auto.
+  // Each click POSTs the FULL per-user overrides map (server expects the
+  // complete payload, not a delta) so server stays canonical.
+  document.querySelectorAll(".track-chip").forEach((chip) => {
+    chip.addEventListener("click", async () => {
+      const email = chip.dataset.email;
+      const trackId = chip.dataset.track;
+      const current = chip.dataset.state || "auto";
+      const next =
+        current === "auto"
+          ? "unlocked"
+          : current === "unlocked"
+            ? "locked"
+            : "auto";
+
+      const user = adminState.users.find((x) => x.email === email);
+      if (!user) return;
+      const overrides = { ...(user.trackOverrides || {}) };
+      if (next === "auto") delete overrides[trackId];
+      else overrides[trackId] = next;
+
+      chip.disabled = true;
+      try {
+        const r = await fetch("/api/admin?action=set-track-overrides", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({ email, overrides }),
+        });
+        if (!r.ok) throw new Error(await r.text());
+        user.trackOverrides = overrides;
+        // Update chip in-place without full re-render
+        chip.dataset.state = next;
+        chip.classList.remove("state-auto", "state-unlocked", "state-locked");
+        chip.classList.add(`state-${next}`);
+      } catch (err) {
+        alert("Couldn't update track: " + (err.message || err));
+      } finally {
+        chip.disabled = false;
       }
     });
   });
@@ -3514,6 +3619,7 @@ function friendlyDate(ts) {
       picture: me.picture || null,
       isAdmin: !!me.isAdmin,
       grade: me.grade || "K",
+      visibleTracks: Array.isArray(me.visibleTracks) ? me.visibleTracks : null,
     });
   } catch (e) {
     // Network blip — show a friendly retry

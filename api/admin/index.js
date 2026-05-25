@@ -27,8 +27,10 @@ import {
   resetFraudFlags,
   setUserWorkingGrade,
   bulkSetWorkingGrades,
+  setTrackOverrides,
   redis,
 } from "../../lib/store.js";
+import { sanitizeTrackOverrides, TRACK_ORDER } from "../../lib/tracks.js";
 import {
   APP_CAP_CHARS,
   APP_CAP_USD,
@@ -219,6 +221,27 @@ export default async function handler(req, res) {
     return json(res, 200, { ok: true, email, grade });
   }
 
+  // ====================== set-track-overrides ====================
+  // Body: { email, overrides: { e: "auto"|"unlocked"|"locked", k: ..., ... } }
+  // Missing tracks default to "auto" (follow at-or-below-working-grade rule).
+  if (action === "set-track-overrides" && req.method === "POST") {
+    const body = await readBody(req);
+    if (body === null) return json(res, 400, { error: "invalid_json" });
+    const email = String(body.email || "").trim().toLowerCase();
+    if (!email) return json(res, 400, { error: "email_required" });
+    const cleaned = sanitizeTrackOverrides(body.overrides);
+    const result = await setTrackOverrides(email, cleaned);
+    if (!result.ok) {
+      return json(res, 500, { error: result.reason || "save_failed" });
+    }
+    return json(res, 200, {
+      ok: true,
+      email,
+      overrides: cleaned,
+      tracks: TRACK_ORDER,
+    });
+  }
+
   // ====================== bulk-set-grades ========================
   // Bulk apply working-grade updates (typically a TimeBack-sync payload
   // pasted into the admin UI). Body shape:
@@ -317,6 +340,6 @@ export default async function handler(req, res) {
   // ============================ 404 ==============================
   return json(res, 404, {
     error: "not_found",
-    hint: "Use ?action=users|tts-usage|quiz-reports|held-xp|set-grade|bulk-set-grades|test-caliper|caliper-health|caliper-drain-retry",
+    hint: "Use ?action=users|tts-usage|quiz-reports|held-xp|set-grade|bulk-set-grades|set-track-overrides|test-caliper|caliper-health|caliper-drain-retry",
   });
 }

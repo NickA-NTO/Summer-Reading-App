@@ -22,9 +22,14 @@ import {
   getCachedQuiz,
   setCachedQuiz,
   guessGradeFromEmail,
+  redis,
 } from "../lib/store.js";
 import { normalizeGrade } from "../lib/xp.js";
 import { clusterAndExtractConsensus } from "../lib/quiz-validator.js";
+import {
+  resolveVisibleTracks,
+  trackForBook,
+} from "../lib/tracks.js";
 
 // Canonical book metadata for quiz generation. Summary is what Claude uses
 // to generate the pool; it should be detailed enough that good
@@ -737,16 +742,50 @@ export default async function handler(req, res) {
     return res.end(JSON.stringify({ available: false, bookId }));
   }
 
-  // Resolve the student's working grade. For now: derive from email.
-  // Eventually this will come from the TimeBack mastery sync (1i) or an
-  // explicit admin override.
-  const studentGrade = normalizeGrade(
-    guessGradeFromEmail(session.email) || "K"
-  );
-
   // Look up the book up front so we know its quiz style (and minimum
   // usable pool size) before we touch the cache.
   const book = QUIZ_BOOKS[bookId];
+
+  // Resolve the student's working grade + track overrides from their Redis
+  // profile, falling back to email heuristic. This drives both the quiz
+  // calibration AND the track-visibility check below.
+  let profileGrade = null;
+  let trackOverrides = {};
+  const r = redis();
+  if (r) {
+    try {
+      const raw = await r.hget("users", String(session.email).toLowerCase());
+      if (raw) {
+        const prof = typeof raw === "string" ? JSON.parse(raw) : raw;
+        if (prof?.grade) profileGrade = prof.grade;
+        if (prof?.trackOverrides) trackOverrides = prof.trackOverrides;
+      }
+    } catch {
+      /* fall through to email heuristic */
+    }
+  }
+  const studentGrade = normalizeGrade(
+    profileGrade || guessGradeFromEmail(session.email) || "K"
+  );
+
+  // Track-visibility enforcement (#14). If admin has locked this book's
+  // track for this student (or default rule hides it), refuse to serve the
+  // quiz. Prevents bypassing the UI filter with a direct bookId fetch.
+  const bookTrack = trackForBook(book);
+  const visible = resolveVisibleTracks(studentGrade, trackOverrides);
+  if (bookTrack && !visible.includes(bookTrack)) {
+    res.statusCode = 403;
+    return res.end(
+      JSON.stringify({
+        error: "track_locked",
+        bookId,
+        bookTrack,
+        visibleTracks: visible,
+        message:
+          "This book is on a track that hasn't been unlocked for you.",
+      })
+    );
+  }
   const style = book.quizStyle || "comprehension";
   const minUsable = minUsableFor(style);
 
