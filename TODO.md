@@ -389,38 +389,41 @@ xpEarned        = floor(expectedMinutes)   // only if passed quiz AND retell
 | 5   | 140 |
 
 **Worked examples** (XP a G2 student earns on a clean first-attempt pass,
-including the +2 quiz-completion bonus described below):
+with the 3-min quiz allowance folded into the base):
 
-| Book | Words | Minutes (G2: 100 WCPM) | XP |
-|---|---|---|---|
-| The Very Hungry Caterpillar | 225 | 2.3 | **4 XP** (2 base + 2 quiz) |
-| Where the Wild Things Are | 340 | 3.4 | **5 XP** (3 + 2) |
-| The Cat in the Hat | 1,629 | 16.3 | **18 XP** (16 + 2) |
-| Fantastic Mr. Fox | 10,500 | 105 | **107 XP** (105 + 2) |
-| The Magic Faraway Tree | 46,000 | 460 | **462 XP** (460 + 2) |
+| Book | Words | Reading min (G2: 100 WCPM) | Total min (+3 quiz) | XP |
+|---|---|---|---|---|
+| The Very Hungry Caterpillar | 225 | 2.3 | 5.3 | **5 XP** |
+| Where the Wild Things Are | 340 | 3.4 | 6.4 | **6 XP** |
+| The Cat in the Hat | 1,629 | 16.3 | 19.3 | **19 XP** |
+| Fantastic Mr. Fox | 10,500 | 105 | 108 | **108 XP** |
+| The Magic Faraway Tree | 46,000 | 460 | 463 | **463 XP** |
 
 This naturally discourages gaming — a G2 grinding 50 K-level picture books
-nets ~200 XP, while a single Fantastic Mr. Fox passed cleanly nets 107 XP
+nets ~250 XP, while a single Fantastic Mr. Fox passed cleanly nets 108 XP
 in a fraction of the clicks.
 
-### Quiz-completion bonus (~1 XP per active minute calibration)
+### Quiz time folded into the XP base (~1 XP per active minute calibration)
 
-Base XP (`floor(wordCount / WCPM_grade)`) covers the *reading* time only.
-The quiz itself takes ~2 min that isn't otherwise credited. A flat bonus
-brings the effective rate to ~1.0 XP per minute of focused work:
+The XP formula is `floor((wordCount / WCPM_grade) + quizMinutes)` —
+expected reading time plus expected quiz time, both in minutes, so 1 XP =
+1 minute of total focused work by design. Quiz allowance is calibrated to
+the size of the quiz and the K-2 audience using TTS read-aloud on questions:
 
-| Pass status | Bonus | Effective XP/min |
+| Quiz size | Expected time | Used by |
 |---|---|---|
-| Clean, first attempt | **+2 XP** | ~1.00 |
-| Clean, retake (2nd attempt) | **+1 XP** | ~0.45 |
-| Soft-flagged (50% penalty) | **+1 XP** | reduced trust, reduced bonus |
-| Held for admin review | **0 XP** | no bonus until approved |
+| 5-question standard (4/5 pass) | **3 min** | Most of the catalog |
+| 3-question emergent (2/3 pass) | **2 min** | Beginning Readers tier (future) |
+
+Manual "I read this" submissions (no quiz taken) get reading-time only.
 
 Worked example for *Caterpillar* at Grade K (225 words, 30 WCPM):
-- Reading: 7.5 min  ·  Quiz: 2 min  ·  Total: 9.5 min
-- Base XP: `floor(225/30)` = 7
-- Clean first pass: 7 + 2 = **9 XP** → 9 / 9.5 = **0.95 XP/min**
-- Retake pass: `floor(7 × 0.7) + 1` = 5 → still under 1 XP/min by design
+- Reading: 7.5 min  ·  Quiz: 3 min  ·  Total expected: 10.5 min
+- Base XP: `floor(225/30 + 3)` = `floor(10.5)` = **10**
+- Clean first pass: **10 XP** → 10 / 10.5 = **0.95 XP/min**
+- Retake pass: `floor(10 × 0.7)` = **7 XP** (still under 1 XP/min by design)
+- Soft-flagged: `floor(10 × 0.5)` = **5 XP**
+- Held: **0 XP** until admin approves
 
 **The same G2 book is worth differently to different grades** because
 the denominator (WCPM) changes:

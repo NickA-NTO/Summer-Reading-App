@@ -42,19 +42,6 @@ const RETAKE_MULTIPLIER = Number(
   process.env.POINTS_RETAKE_MULTIPLIER || "0.7"
 );
 
-// Quiz-completion bonus — credits the ~2 min spent on the quiz that the
-// base XP formula (wordCount/WCPM) doesn't account for. Brings effective
-// rate to ~1.0 XP/min of focused work on first-pass clean reads.
-//   clean + 1st attempt  →  +2 XP (full credit for quiz time)
-//   clean + 2nd attempt  →  +1 XP (half credit; the kid did do another quiz)
-//   soft-flagged         →  +1 XP (reduced trust, reduced bonus)
-//   held                 →   0 XP (no bonus until admin approves)
-function quizCompletionBonus(fraudStatus, attemptNum) {
-  if (fraudStatus === "held") return 0;
-  if (fraudStatus === "soft_flag") return 1;
-  return attemptNum === 2 ? 1 : 2;
-}
-
 export default async function handler(req, res) {
   res.setHeader("Content-Type", "application/json");
 
@@ -118,7 +105,16 @@ export default async function handler(req, res) {
   }
 
   const book = getBook(bookId);
-  const basePoints = book ? pointsForBook(book.wordCount, grade) : 0;
+  // Quiz-driven reads (attemptNum present) include the expected quiz time
+  // in the XP base — that's how we land at ~1 XP per active minute of
+  // focused work (reading + quiz). Manual "I read this" reads (no quiz)
+  // omit it. When the Beginning Readers tier ships, set { emergent: true }
+  // here based on the book's quizStyle.
+  const basePoints = book
+    ? pointsForBook(book.wordCount, grade, {
+        includeQuizTime: attemptNum != null,
+      })
+    : 0;
 
   // -----------------------------------------------------------------------
   // Fraud detection — only for quiz passes (attemptNum is present).
@@ -246,16 +242,10 @@ export default async function handler(req, res) {
 
     // 3. Retake multiplier (1d.2) — applied ONLY on clean passes.
     //    Soft-flagged submissions already have a penalty; don't stack.
+    //    Note: basePoints now includes quiz time, so the 0.7 multiplier
+    //    fairly accounts for the second quiz attempt the kid took.
     if (fraudStatus === "clean" && attemptNum === 2) {
       finalPoints = Math.max(1, Math.floor(basePoints * RETAKE_MULTIPLIER));
-    }
-
-    // 4. Quiz-completion bonus — accounts for the ~2 min the kid spent
-    //    on the quiz that base XP (wordCount/WCPM) doesn't capture.
-    //    Pushes effective rate to ~1 XP/min of focused work on a clean
-    //    first pass. Held submissions get nothing until admin approval.
-    if (fraudStatus !== "held") {
-      finalPoints += quizCompletionBonus(fraudStatus, attemptNum);
     }
 
     // Always update lastQuizAt so the next submission gets a fresh baseline.
