@@ -4220,8 +4220,9 @@ const TOUR_STEPS = [
   },
   {
     // Highlight a single book card so the kid sees exactly what to tap.
-    // We pick the first card under .row .cards (any visible row works).
-    selectorFn: () => document.querySelector(".row .cards .card, .cards .card"),
+    // Cards live inside .row > .scroller-wrap > .scroller (not .cards —
+    // common mistake from earlier markup).
+    selectorFn: () => document.querySelector(".row .scroller .card[data-book-id]"),
     title: "Pick a book",
     body: "Tap any cover to open the book. Try this one!",
   },
@@ -4230,16 +4231,19 @@ const TOUR_STEPS = [
     // We open a sample book on enter, highlight #startReading, then close
     // it on exit so the tour ends with a clean catalog view.
     onEnter: () => {
-      const card =
-        document.querySelector(".row .cards .card, .cards .card");
-      const id = card?.dataset?.bookId || card?.getAttribute("data-book-id");
-      // Fall back to the hero featured book if cards don't carry IDs.
-      const target = id || (typeof featuredBook !== "undefined" && featuredBook?.id) || null;
-      if (target) openBook(target);
+      const card = document.querySelector(".row .scroller .card[data-book-id]");
+      const id = card?.getAttribute("data-book-id");
+      // Fall back to the hero featured book if cards somehow aren't rendered.
+      const target =
+        id ||
+        (typeof featuredBook !== "undefined" && featuredBook?.id) ||
+        null;
+      if (target && typeof openBook === "function") openBook(target);
     },
     onExit: () => {
       // Close the demo modal as the tour leaves this step.
-      if (typeof closeModal === "function" && document.getElementById("modal").classList.contains("open")) {
+      const modal = document.getElementById("modal");
+      if (modal?.classList.contains("open") && typeof closeModal === "function") {
         closeModal();
       }
     },
