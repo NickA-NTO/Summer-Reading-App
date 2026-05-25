@@ -388,19 +388,39 @@ xpEarned        = floor(expectedMinutes)   // only if passed quiz AND retell
 | 4   | 130 |
 | 5   | 140 |
 
-**Worked examples** (XP a G2 student earns on a clean pass):
+**Worked examples** (XP a G2 student earns on a clean first-attempt pass,
+including the +2 quiz-completion bonus described below):
 
 | Book | Words | Minutes (G2: 100 WCPM) | XP |
 |---|---|---|---|
-| The Very Hungry Caterpillar | 225 | 2.3 | **2 XP** |
-| Where the Wild Things Are | 340 | 3.4 | **3 XP** |
-| The Cat in the Hat | 1,629 | 16.3 | **16 XP** |
-| Fantastic Mr. Fox | 10,500 | 105 | **105 XP** |
-| The Magic Faraway Tree | 46,000 | 460 | **460 XP** |
+| The Very Hungry Caterpillar | 225 | 2.3 | **4 XP** (2 base + 2 quiz) |
+| Where the Wild Things Are | 340 | 3.4 | **5 XP** (3 + 2) |
+| The Cat in the Hat | 1,629 | 16.3 | **18 XP** (16 + 2) |
+| Fantastic Mr. Fox | 10,500 | 105 | **107 XP** (105 + 2) |
+| The Magic Faraway Tree | 46,000 | 460 | **462 XP** (460 + 2) |
 
 This naturally discourages gaming — a G2 grinding 50 K-level picture books
-nets ~100 XP, while a single Fantastic Mr. Fox passed cleanly nets 105 XP
-in roughly the same number of clicks.
+nets ~200 XP, while a single Fantastic Mr. Fox passed cleanly nets 107 XP
+in a fraction of the clicks.
+
+### Quiz-completion bonus (~1 XP per active minute calibration)
+
+Base XP (`floor(wordCount / WCPM_grade)`) covers the *reading* time only.
+The quiz itself takes ~2 min that isn't otherwise credited. A flat bonus
+brings the effective rate to ~1.0 XP per minute of focused work:
+
+| Pass status | Bonus | Effective XP/min |
+|---|---|---|
+| Clean, first attempt | **+2 XP** | ~1.00 |
+| Clean, retake (2nd attempt) | **+1 XP** | ~0.45 |
+| Soft-flagged (50% penalty) | **+1 XP** | reduced trust, reduced bonus |
+| Held for admin review | **0 XP** | no bonus until approved |
+
+Worked example for *Caterpillar* at Grade K (225 words, 30 WCPM):
+- Reading: 7.5 min  ·  Quiz: 2 min  ·  Total: 9.5 min
+- Base XP: `floor(225/30)` = 7
+- Clean first pass: 7 + 2 = **9 XP** → 9 / 9.5 = **0.95 XP/min**
+- Retake pass: `floor(7 × 0.7) + 1` = 5 → still under 1 XP/min by design
 
 **The same G2 book is worth differently to different grades** because
 the denominator (WCPM) changes:
@@ -506,7 +526,10 @@ to the questions — are weaker signal.
 
 **Fix:**
 - [x] **Internal XP**: 1st attempt pass = **100%** of book XP;
-      2nd attempt pass = **50%**. Tunable via env `POINTS_RETAKE_MULTIPLIER`.
+      2nd attempt pass = **70%** (softened from initial 50% once question
+      rotation 1d.1 shipped — fresh questions on retake kill the
+      memorize-and-retry attack, so the multiplier's only remaining job
+      is to nudge first-pass effort). Tunable via env `POINTS_RETAKE_MULTIPLIER`.
 - [ ] **Caliper event to TimeBack** (depends on 1e): reflect the 2nd
       attempt by setting `scoreGiven` to the actual quiz score, and
       include an `extension` field flagging it as the retake — TimeBack
