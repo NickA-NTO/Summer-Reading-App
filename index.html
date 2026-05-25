@@ -1271,8 +1271,49 @@
    - Blue palette, split hero, stats strip, category quick-nav chips
 --------------------------------------------------------------------------- */
 
-/* ---------- 1. Reading Spine K-2 catalog (organized by grade) ---------- */
+/* ---------- 1. Reading Spine catalog (Beginning Readers → Grade 2) ---------- */
 const CATEGORIES = [
+  {
+    id: "e", title: "Beginning Readers", sub: "Just starting to read on your own", icon: "🌱",
+    books: [
+      { id: "e01", isbn: "9781423133087", title: "We Are in a Book!", author: "Mo Willems", age: "Beginning",
+        palette: ["#f472b6","#a3e635"],
+        blurb: "Gerald the elephant and Piggie discover something amazing — they are characters in a BOOK! Will they say the magic word before the story ends?" },
+      { id: "e02", isbn: "9781423109624", title: "I Will Surprise My Friend!", author: "Mo Willems", age: "Beginning",
+        palette: ["#a3e635","#f472b6"],
+        blurb: "Piggie wants to surprise Gerald — but Gerald has the same idea! They hide and hide and hide. Will they ever find each other?" },
+      { id: "e03", isbn: "9781423113478", title: "Are You Ready to Play Outside?", author: "Mo Willems", age: "Beginning",
+        palette: ["#60a5fa","#fbbf24"],
+        blurb: "Piggie can't WAIT to play outside! Then it starts to rain. Can Gerald and Piggie find a way to have fun anyway?" },
+      { id: "e04", isbn: "9781423106869", title: "There Is a Bird on Your Head!", author: "Mo Willems", age: "Beginning",
+        palette: ["#fbbf24","#22c55e"],
+        blurb: "Gerald has a bird on his head. Then TWO birds. Then a nest. Then eggs. Then a whole bird family! What's an elephant to do?" },
+      { id: "e05", isbn: "9781423143437", title: "Should I Share My Ice Cream?", author: "Mo Willems", age: "Beginning",
+        palette: ["#fbbf24","#a78bfa"],
+        blurb: "Gerald has a yummy ice cream. Should he share it with Piggie? He thinks. And thinks. And thinks…" },
+      { id: "e06", isbn: "9780394800295", title: "Hop on Pop", author: "Dr. Seuss", age: "Beginning",
+        palette: ["#dc2626","#fbbf24"],
+        blurb: "Dr. Seuss's simplest book ever — short rhymes with words you already know. We like to hop. We like to hop on Pop!" },
+      { id: "e07", isbn: "9780394800134", title: "One Fish Two Fish Red Fish Blue Fish", author: "Dr. Seuss", age: "Beginning",
+        palette: ["#ef4444","#3b82f6"],
+        blurb: "Walking, talking, biking, hiking — meet a wild bunch of creatures in this silly rhyming romp from Dr. Seuss." },
+      { id: "e08", isbn: "9780064442121", title: "Biscuit", author: "Alyssa Satin Capucilli", age: "Beginning",
+        palette: ["#fde68a","#92400e"],
+        blurb: "Biscuit the little yellow puppy just won't go to bed. He wants a snack. He wants water. He wants a hug. What WILL it take?" },
+      { id: "e09", isbn: "9780064440042", title: "Little Bear", author: "Else Holmelund Minarik", age: "Beginning",
+        palette: ["#92400e","#fbbf24"],
+        blurb: "Four cozy stories about a little bear and his mother — a snowsuit, a birthday wish, a trip to the moon (sort of), and a goodnight kiss." },
+      { id: "e10", isbn: "9780064440592", title: "Frog and Toad All Year", author: "Arnold Lobel", age: "Beginning",
+        palette: ["#65a30d","#92400e"],
+        blurb: "Frog and Toad share five gentle stories through the seasons — sledding, ice cream, a Christmas surprise, and the joy of being friends all year long." },
+      { id: "e11", isbn: "9780746091500", title: "Goose on the Loose", author: "Phil Roxbee Cox (Usborne)", age: "Beginning",
+        palette: ["#fbbf24","#3b82f6"],
+        blurb: "A goose is on the loose! Will the boy with the broom be able to catch her in time? A short rhyming chase through the farm." },
+      { id: "e12", isbn: "9780746077368", title: "The Mouse's Houses", author: "Phil Roxbee Cox (Usborne)", age: "Beginning",
+        palette: ["#a78bfa","#fde68a"],
+        blurb: "A little mouse moves from one house to another, looking for the perfect place. A shoe? A teapot? A flowerpot? Where will she settle?" },
+    ],
+  },
   {
     id: "k", title: "Grade K", sub: "Picture books and read-alouds", icon: "🌱",
     books: [
@@ -1408,9 +1449,17 @@ const BOOK_BY_ID = Object.fromEntries(ALL_BOOKS.map(b => [b.id, b]));
 // CATEGORIES; this is the canonical mapping the UI uses for badges/pills.
 // Alpha kids commonly read above age-grade, so this is the ONLY grade signal
 // we surface (age ranges are intentionally suppressed everywhere).
-const GRADE_BY_CATEGORY = { k: "K", a: "1", b: "2" };
+const GRADE_BY_CATEGORY = { e: "Beginning", k: "K", a: "1", b: "2" };
 function gradeOf(book) {
   return GRADE_BY_CATEGORY[book?.categoryId] || "";
+}
+// Badges/pills use "Grade K", "Grade 1" etc. for numeric grades, but the
+// emergent tier reads better as just "Beginning" without the "Grade " prefix.
+function gradeBadgeLabel(book) {
+  const g = gradeOf(book);
+  if (!g) return "";
+  if (g === "Beginning") return "Beginning";
+  return "Grade " + g;
 }
 
 function coverUrl(book) {
@@ -1467,6 +1516,19 @@ const BOOK_TAGS = {
   b07: ["adventures", "animals"],
   b08: ["feelings"],
   b09: ["adventures"],
+  // Beginning Readers (Track B)
+  e01: ["funny", "animals"],
+  e02: ["funny", "animals"],
+  e03: ["funny", "animals", "feelings"],
+  e04: ["funny", "animals"],
+  e05: ["funny", "animals", "feelings"],
+  e06: ["funny", "classics"],
+  e07: ["funny", "classics", "animals"],
+  e08: ["animals", "feelings"],
+  e09: ["animals", "classics", "feelings"],
+  e10: ["animals", "classics", "feelings"],
+  e11: ["funny", "animals", "classics"],
+  e12: ["animals", "classics"],
   // Usborne Grade K
   u01: ["animals", "classics"],
   u02: ["funny", "classics", "adventures"],
@@ -1921,10 +1983,10 @@ function renderHero() {
 
   document.getElementById("heroEyebrow").textContent = `PICK OF THE WEEK · ${featuredBook.category}`;
   document.getElementById("heroTitle").textContent = featuredBook.title;
-  const heroGrade = gradeOf(featuredBook);
+  const heroBadge = gradeBadgeLabel(featuredBook);
   document.getElementById("heroMeta").innerHTML = `
     <strong>${escapeHtml(featuredBook.author)}</strong>
-    ${heroGrade ? `<span class="dot-sep"></span><span>Grade ${escapeHtml(heroGrade)}</span>` : ""}
+    ${heroBadge ? `<span class="dot-sep"></span><span>${escapeHtml(heroBadge)}</span>` : ""}
     <span class="dot-sep"></span>
     <span>${pct}% loved this</span>
     <span class="dot-sep"></span>
@@ -2030,12 +2092,12 @@ function buildCard(book, isHot) {
   card.className = "card";
   card.setAttribute("tabindex", "0");
   card.setAttribute("aria-label", `${book.title} by ${book.author}`);
-  const gradeLabel = gradeOf(book);
+  const badgeText = gradeBadgeLabel(book);
   const badge = wasRead
     ? `<div class="badge read">✓ Read</div>`
     : (isHot
         ? `<div class="badge hot">★ Top pick</div>`
-        : `<div class="badge">${gradeLabel ? "Grade " + escapeHtml(gradeLabel) : ""}</div>`);
+        : `<div class="badge">${escapeHtml(badgeText)}</div>`);
   card.innerHTML = `
     ${badge}
     <img class="card-img" alt="${escapeAttr(book.title)} cover" src="${coverUrl(book)}"
@@ -2103,8 +2165,8 @@ function openBook(id) {
 
   document.getElementById("modalTitleText").textContent = book.title;
   document.getElementById("modalAuthor").textContent = "By " + book.author;
-  const bookGrade = gradeOf(book);
-  document.getElementById("modalGrade").textContent = bookGrade ? "Grade " + bookGrade : "—";
+  const badgeText = gradeBadgeLabel(book);
+  document.getElementById("modalGrade").textContent = badgeText || "—";
   document.getElementById("modalCat").textContent = book.category;
   document.getElementById("modalBlurb").textContent = book.blurb;
 
@@ -2364,14 +2426,33 @@ document.addEventListener("click", () => userMenu.classList.remove("open"));
    answers across attempts. Need 4/5 (80%) to pass. Max 2 attempts per
    book per day. */
 
-const QUESTIONS_PER_ATTEMPT = 5;
-const PASS_THRESHOLD = 4;          // need 4/5 (80%) to pass
+// Default (comprehension) quiz: 5 per attempt, 4/5 pass = 80%.
+// Beginning Readers tier (emergent style): 3 per attempt, 2/3 pass = 67%.
+// Set per-attempt from quizState.style after the server responds with the
+// book's quizStyle, then read back through the questionsPerAttempt() /
+// passThreshold() helpers below.
+const QUESTIONS_PER_ATTEMPT_FULL = 5;
+const QUESTIONS_PER_ATTEMPT_EMERGENT = 3;
+const PASS_THRESHOLD_FULL = 4;
+const PASS_THRESHOLD_EMERGENT = 2;
 const MAX_ATTEMPTS_PER_DAY = 2;
+
+function questionsPerAttempt(style) {
+  return style === "emergent"
+    ? QUESTIONS_PER_ATTEMPT_EMERGENT
+    : QUESTIONS_PER_ATTEMPT_FULL;
+}
+function passThreshold(style) {
+  return style === "emergent"
+    ? PASS_THRESHOLD_EMERGENT
+    : PASS_THRESHOLD_FULL;
+}
 
 const quizState = {
   bookId: null,
-  pool: null,        // full 12-question pool from server
-  questions: null,   // 5-question subset for this attempt (with shuffled options)
+  pool: null,        // full pool from server (12 standard, 6 emergent)
+  questions: null,   // subset for this attempt (with shuffled options)
+  style: "comprehension", // "comprehension" | "emergent" — set from server response
   idx: 0,
   score: 0,
   answers: [],
@@ -2455,6 +2536,7 @@ async function openQuiz(bookId) {
   quizState.bookId = bookId;
   quizState.pool = null;
   quizState.questions = null;
+  quizState.style = book.categoryId === "e" ? "emergent" : "comprehension"; // override with server quizStyle once fetched
   quizState.idx = 0;
   quizState.score = 0;
   quizState.answers = [];
@@ -2482,7 +2564,7 @@ async function openQuiz(bookId) {
         </div>
       </div>`;
     document.getElementById("quizCooldownClose").addEventListener("click", closeQuiz);
-    setQuizProgress(QUESTIONS_PER_ATTEMPT);
+    setQuizProgress(0, questionsPerAttempt(BOOK_BY_ID[bookId]?.categoryId === "e" ? "emergent" : "comprehension"));
     return;
   }
 
@@ -2500,7 +2582,7 @@ async function openQuiz(bookId) {
         </div>
       </div>`;
     document.getElementById("quizLater2").addEventListener("click", closeQuiz);
-    setQuizProgress(QUESTIONS_PER_ATTEMPT);
+    setQuizProgress(0, questionsPerAttempt(BOOK_BY_ID[bookId]?.categoryId === "e" ? "emergent" : "comprehension"));
     return;
   }
 
@@ -2526,6 +2608,7 @@ async function openQuiz(bookId) {
       throw new Error(data.message || data.error || "no_quiz");
     }
     quizState.pool = data.questions;
+    quizState.style = data.quizStyle || "comprehension";
     startAttempt();
   } catch (err) {
     document.getElementById("quizContent").innerHTML = `
@@ -2549,15 +2632,16 @@ function startAttempt() {
   quizState.score = 0;
   quizState.answers = [];
 
+  const perAttempt = questionsPerAttempt(quizState.style);
   // Build candidate pool: on attempt 2, exclude already-seen questions.
   const seenSet = new Set(quizState.seenQTexts || []);
   const unseen = seenSet.size > 0
     ? quizState.pool.filter((q) => !seenSet.has(q.q))
     : quizState.pool;
-  // Fall back to full pool if somehow unseen count < QUESTIONS_PER_ATTEMPT
-  const candidates = unseen.length >= QUESTIONS_PER_ATTEMPT ? unseen : quizState.pool;
+  // Fall back to full pool if somehow unseen count < perAttempt
+  const candidates = unseen.length >= perAttempt ? unseen : quizState.pool;
 
-  const subset = pickN(candidates, QUESTIONS_PER_ATTEMPT);
+  const subset = pickN(candidates, perAttempt);
   quizState.questions = subset.map(withShuffledOptions);
   renderQuizQuestion();
 }
@@ -2568,8 +2652,8 @@ function closeQuiz() {
   if (window.speechSynthesis) speechSynthesis.cancel();
 }
 
-function setQuizProgress(idx) {
-  const total = QUESTIONS_PER_ATTEMPT;
+function setQuizProgress(idx, totalOverride) {
+  const total = totalOverride ?? questionsPerAttempt(quizState.style);
   document.getElementById("quizStep").textContent =
     `Question ${Math.min(idx + 1, total)} of ${total}`;
   document.getElementById("quizBar").style.width =
@@ -2693,9 +2777,9 @@ function answerQuestion(choice) {
 }
 
 async function finishQuiz() {
-  const total = QUESTIONS_PER_ATTEMPT;
+  const total = questionsPerAttempt(quizState.style);
   const score = quizState.score;
-  const passed = score >= PASS_THRESHOLD;
+  const passed = score >= passThreshold(quizState.style);
   setQuizProgress(total);
 
   // 1d.1 — Record the attempt and save seen question texts for rotation.
@@ -2783,7 +2867,7 @@ async function finishQuiz() {
     ? `<button class="icon-btn" id="quizRetry">Try again (${attemptsLeft} left)</button>`
     : "";
   const message = canRetry
-    ? `You need ${PASS_THRESHOLD} out of ${total}. Re-read the book and try once more — you've got ${attemptsLeft} attempt${attemptsLeft === 1 ? "" : "s"} left today.`
+    ? `You need ${passThreshold(quizState.style)} out of ${total}. Re-read the book and try once more — you've got ${attemptsLeft} attempt${attemptsLeft === 1 ? "" : "s"} left today.`
     : `You've used both attempts today. Come back tomorrow and try again.`;
 
   document.getElementById("quizContent").innerHTML = `

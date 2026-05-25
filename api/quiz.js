@@ -27,9 +27,113 @@ import { normalizeGrade } from "../lib/xp.js";
 import { clusterAndExtractConsensus } from "../lib/quiz-validator.js";
 
 // Canonical book metadata for quiz generation. Summary is what Claude uses
-// to generate the 12-question pool; it should be detailed enough that good
+// to generate the pool; it should be detailed enough that good
 // comprehension questions can be drawn from concrete plot beats.
+//
+// quizStyle:
+//   "comprehension" (default) — 12-question pool, 5/attempt, 4/5 pass.
+//   "emergent" — Beginning Readers tier: 6-question pool, 3/attempt,
+//                2/3 pass. Vocabulary in questions + options constrained
+//                to first-100 Dolch sight words + CVC patterns.
 const QUIZ_BOOKS = {
+  /* ---------- Beginning Readers (Track B emergent quiz style) ---------- */
+  e01: {
+    title: "We Are in a Book!",
+    author: "Mo Willems",
+    grade: "PK",
+    quizStyle: "emergent",
+    summary:
+      "Gerald the gray elephant and Piggie the pink pig look at the reader. Piggie notices someone is looking at them. They realize they are in a book and the reader is reading them! They are so excited. Piggie says they should make the reader say a word out loud. Gerald asks what word. Piggie says: BANANA. They wait. Then the reader (Piggie hopes) says BANANA. Gerald and Piggie laugh and laugh. But then Gerald notices the book is ending soon. Gerald is sad and worried. Piggie has a great idea: they can ask the reader to read the book AGAIN! Gerald asks, and they wait for the reader to start over.",
+  },
+  e02: {
+    title: "I Will Surprise My Friend!",
+    author: "Mo Willems",
+    grade: "PK",
+    quizStyle: "emergent",
+    summary:
+      "Piggie tells Gerald the elephant that she wants to surprise their friend. Gerald says he wants to surprise their friend too. They both decide to hide behind the same big rock and jump out to surprise each other. Piggie hides on one side. Gerald hides on the other side. Time passes. Each one waits and waits. They both start to worry. Piggie thinks something terrible happened to Gerald. Gerald thinks something terrible happened to Piggie. They both come out from behind the rock at the same time — and finally see each other! They are so happy they hug. They forgot all about the surprise — finding each other was the best surprise.",
+  },
+  e03: {
+    title: "Are You Ready to Play Outside?",
+    author: "Mo Willems",
+    grade: "PK",
+    quizStyle: "emergent",
+    summary:
+      "Piggie is so excited to play outside with Gerald the elephant. She says it is the best day ever. Then it starts to rain. A little rain at first, then a LOT of rain. Piggie is very sad and cries that she will never play outside ever again. Gerald tries to cheer her up. Two worms appear and they are happy in the rain. Piggie sees the worms playing and decides that if worms can have fun in the rain, so can she! She and Gerald jump and splash in the puddles. Then the rain stops. Piggie is sad again — until Gerald uses his elephant trunk to spray water on her like more rain. Now they can keep playing!",
+  },
+  e04: {
+    title: "There Is a Bird on Your Head!",
+    author: "Mo Willems",
+    grade: "PK",
+    quizStyle: "emergent",
+    summary:
+      "Piggie tells Gerald the elephant that there is a bird on his head. Gerald is upset. Then there are TWO birds on his head. The two birds fall in love and build a nest on Gerald's head. The birds lay three eggs in the nest. The eggs hatch into three baby birds. Now Gerald has a whole bird family on his head! Gerald asks Piggie what to do. Piggie suggests Gerald ASK the birds to move. Gerald is surprised this might work — he politely asks the birds to move somewhere else. The birds agree and fly to land on Piggie's head instead. Now Piggie has the bird family.",
+  },
+  e05: {
+    title: "Should I Share My Ice Cream?",
+    author: "Mo Willems",
+    grade: "PK",
+    quizStyle: "emergent",
+    summary:
+      "Gerald the elephant has a yummy ice cream cone. He wonders whether to share it with his best friend Piggie. He thinks about all the reasons he should share — Piggie would be so happy, friends share, sharing is nice. Then he thinks about all the reasons not to share — what if Piggie doesn't even like this flavor? While Gerald is thinking and thinking, the ice cream melts completely. Now Gerald has no ice cream at all. Piggie arrives with her OWN ice cream cone and shares it with Gerald. Gerald learns that he should have just shared in the first place.",
+  },
+  e06: {
+    title: "Hop on Pop",
+    author: "Dr. Seuss",
+    grade: "PK",
+    quizStyle: "emergent",
+    summary:
+      "A very simple rhyming book using short words and pairs of rhyming words. Examples: 'UP PUP — Pup is up.' 'CUP PUP — Pup in cup.' Two characters who like to hop ask Pop if they can hop on him. Pop says STOP — you must not hop on Pop! Other rhymes include: 'RED NED TED and ED in BED' (all sleeping); 'HOUSE MOUSE — Mouse on house, house on mouse'; 'WALL BALL — Up on a wall'; 'NIGHT FIGHT — These fellows had a fight'. The book teaches early readers that small words can be combined to make rhyming sentences.",
+  },
+  e07: {
+    title: "One Fish Two Fish Red Fish Blue Fish",
+    author: "Dr. Seuss",
+    grade: "PK",
+    quizStyle: "emergent",
+    summary:
+      "A book of short rhymes about counting and color. The narrator describes fish: one fish, two fish, red fish, blue fish. Then they meet many silly creatures: a fish with a little car, a fish with a winking eye, a fish from far away. They have a fight with a fish called Ned. They go on a ride with Mike on his bike — Mike has ten legs and Mike pedals while they sit. They visit Mr. Gump and his seven-hump Wump. They use his humps to ride. They put their cold feet on the Zeep at night to warm them up. They look for a hop. They have a Yink that likes to wink and drink pink ink. The whole book is full of silly invented creatures with rhyming names.",
+  },
+  e08: {
+    title: "Biscuit",
+    author: "Alyssa Satin Capucilli",
+    grade: "PK",
+    quizStyle: "emergent",
+    summary:
+      "A little girl tells her small yellow puppy Biscuit that it is time for bed. But Biscuit wants one more thing first. He wants a snack. He gets a snack. Then he wants a drink. She gives him water. Then he wants to hear a story. She reads him a story. Then he wants his blanket. She gets his blanket. Then he wants his doll. She gets his doll. Then he wants a hug. She gives him a hug. Then he wants a kiss. She kisses him goodnight. Finally Biscuit is ready for bed. The little girl is tired too — she crawls into bed with Biscuit and they fall asleep together.",
+  },
+  e09: {
+    title: "Little Bear",
+    author: "Else Holmelund Minarik",
+    grade: "PK",
+    quizStyle: "emergent",
+    summary:
+      "Four short stories about Little Bear and his Mother Bear. In 'What Will Little Bear Wear?', Little Bear is cold and asks his mother for a hat, then a coat, then snow pants — but his mother says he already has a wonderful fur coat. In 'Birthday Soup', Mother Bear is missing and Little Bear thinks she forgot his birthday. He makes a Birthday Soup for his friends Hen, Duck, and Cat. Just as they sit down, Mother Bear arrives with a beautiful birthday cake. In 'Little Bear Goes to the Moon', Little Bear puts on a space helmet (a paper bag) and pretends to fly to the moon by jumping off a hill. He lands and thinks he is on the moon — but it looks just like home. In 'Little Bear's Wish', Little Bear wishes for many things — to sit on a cloud, to find a Viking boat, to meet a princess — but his mother says she will tell him a story instead, and he is happy.",
+  },
+  e10: {
+    title: "Frog and Toad All Year",
+    author: "Arnold Lobel",
+    grade: "PK",
+    quizStyle: "emergent",
+    summary:
+      "Five gentle stories about best friends Frog and Toad through the seasons. 'Down the Hill' — Frog tries to get Toad outside in winter; they go sledding and crash but Toad decides he likes winter after all. 'The Corner' — Frog tells Toad about how, as a small frog, his father told him spring is just around the corner; Toad searches around every corner until he finds spring at home. 'Ice Cream' — Toad gets two chocolate ice cream cones on a hot day and runs back to Frog, but the ice cream melts all over him on the way; Frog hardly recognizes him covered in chocolate. 'The Surprise' — Frog and Toad each secretly rake the other's yard as a kind autumn surprise; the wind blows the leaves back so neither sees the surprise, but they are happy thinking of each other. 'Christmas Eve' — Toad worries when Frog is late on Christmas Eve, imagines many terrible things happening, then Frog arrives safe and they spend Christmas together.",
+  },
+  e11: {
+    title: "Goose on the Loose",
+    author: "Phil Roxbee Cox (Usborne)",
+    grade: "PK",
+    quizStyle: "emergent",
+    summary:
+      "A short rhyming Usborne Very First Reading book. A goose escapes from its pen on a farm and runs everywhere. A boy chases the goose with a broom. The goose runs past the pig, the cow, the sheep, and the duck. The animals all watch. The goose is too fast. Finally the boy gets clever and uses some food (corn) to lead the goose calmly back to its pen. The boy is happy and the goose is happy too.",
+  },
+  e12: {
+    title: "The Mouse's Houses",
+    author: "Phil Roxbee Cox (Usborne)",
+    grade: "PK",
+    quizStyle: "emergent",
+    summary:
+      "A short rhyming Usborne Very First Reading book. A little mouse is looking for a place to live. First she tries living in an old shoe — but it is too smelly. Then she tries a teapot — but it is too cold. Then she tries a flowerpot — but it is too small. She keeps looking. Finally she finds a perfect little hole in a wall — just the right size, warm, and safe. She moves in and is very happy in her new home.",
+  },
+
   /* ---------- Grade K ---------- */
   k01: {
     title: "The Very Hungry Caterpillar",
@@ -300,34 +404,48 @@ const QUIZ_BOOKS = {
   },
 };
 
-// 12 questions in the pool. Client picks 5 per attempt (80% pass = 4/5).
-// Bigger pool gives section 1d.1's question-rotation logic room to draw
-// fully fresh questions on attempt 2 with no overlap.
-const POOL_SIZE = 12;
+// Pool sizes per quiz style:
+//   "comprehension" — 12 in pool, 5/attempt, 4/5 pass (80%).
+//   "emergent"      — 6 in pool, 3/attempt, 2/3 pass (67%).
+// Bigger pools give 1d.1's question-rotation logic room to draw fully fresh
+// questions on attempt 2 with no overlap.
+const POOL_SIZE_FULL = 12;
+const POOL_SIZE_EMERGENT = 6;
+function poolSizeFor(style) {
+  return style === "emergent" ? POOL_SIZE_EMERGENT : POOL_SIZE_FULL;
+}
 
-const QuizSchema = z.object({
-  questions: z
-    .array(
-      z.object({
-        q: z
-          .string()
-          .describe(
-            "The question, in simple words a 5-year-old can read or hear read aloud."
-          ),
-        options: z
-          .array(z.string())
-          .length(4)
-          .describe("Exactly 4 answer choices, all plausible to a child."),
-        answer: z
-          .number()
-          .int()
-          .min(0)
-          .max(3)
-          .describe("Index (0-3) of the correct option."),
-      })
-    )
-    .length(POOL_SIZE),
-});
+// Quiz pool schemas. Two variants — same question shape, different array
+// length — because Zod's .length() is enforced strictly during generateObject.
+function quizSchemaFor(style) {
+  return z.object({
+    questions: z
+      .array(
+        z.object({
+          q: z
+            .string()
+            .describe(
+              "The question, in simple words a 5-year-old can read or hear read aloud."
+            ),
+          options: z
+            .array(z.string())
+            .length(4)
+            .describe("Exactly 4 answer choices, all plausible to a child."),
+          answer: z
+            .number()
+            .int()
+            .min(0)
+            .max(3)
+            .describe("Index (0-3) of the correct option."),
+        })
+      )
+      .length(poolSizeFor(style)),
+  });
+}
+// Default schema for the current pipeline (comprehension/full). Used where
+// the call site doesn't yet know about quizStyle; emergent gets its own
+// schema instance built per-call in the handler.
+const QuizSchema = quizSchemaFor("comprehension");
 
 // QC reviewer schema — a structured rubric for each question.
 const QCSchema = z.object({
@@ -361,7 +479,10 @@ const QCSchema = z.object({
 // v6: multi-pass cross-validation (1g) — 3 independent generation runs at
 //     temperatures 0.4/0.7/1.0, semantic clustering keeps only consensus
 //     questions (appearing in ≥2 runs), then QC accuracy review.
-const SCHEMA_VERSION = 6;
+// v7: emergent quiz style (Beginning Readers tier) — 6 questions in pool,
+//     literal-recall rubric with Dolch + CVC vocabulary constraint, separate
+//     cache namespace.
+const SCHEMA_VERSION = 7;
 
 // Quiz model + QC reviewer model. Opus 4.5 for both — generation needs the
 // stronger model for accuracy on lesser-known books; QC needs it to reliably
@@ -371,9 +492,14 @@ const QC_MODEL  = "claude-opus-4-5";
 
 // QC accuracy threshold. Anything below this gets dropped from the pool.
 const QC_MIN_ACCURACY = 7;
-// If QC drops so many questions that fewer than this remain, the pool is
-// unusable and we fail rather than serving a tiny quiz.
-const MIN_USABLE_POOL = 8;
+// Minimum survivors per style — below this, the pool is unusable and we fail
+// rather than serving a tiny quiz. Emergent quizzes use a smaller floor
+// since their pool is only 6 to begin with.
+const MIN_USABLE_POOL_FULL = 8;
+const MIN_USABLE_POOL_EMERGENT = 4;
+function minUsableFor(style) {
+  return style === "emergent" ? MIN_USABLE_POOL_EMERGENT : MIN_USABLE_POOL_FULL;
+}
 
 // Multi-pass cross-validation (1g). When enabled, we generate the pool 3
 // times at different temperatures, cluster semantically, and keep only the
@@ -420,44 +546,89 @@ const GRADE_GUIDANCE = {
 // One generation pass — extracted so the multi-pass orchestrator can call
 // it N times in parallel at different temperatures. The prompt is identical
 // across runs; only `temperature` varies. Returns the array of questions
-// (POOL_SIZE long) or throws.
+// (poolSize long for the book's style) or throws.
 async function generateOnce(book, studentGrade, guidance, temperature) {
+  const style = book.quizStyle || "comprehension";
+  const poolSize = poolSizeFor(style);
+  const schema = quizSchemaFor(style);
+
+  // Emergent quizzes have a different rubric — designed for kids who can
+  // decode CVC + basic sight words but aren't reading fluently yet. We can't
+  // ask grade-leveled inference questions; we ask plain literal recall.
+  const isEmergent = style === "emergent";
+
+  const systemEmergent =
+    `You are designing reading-comprehension questions for a BEGINNING ` +
+    `READER (Track B — student is past CVC decoding and starting to read ` +
+    `connected text, but not yet fluent).\n\n` +
+    `STRICT RULES for vocabulary:\n` +
+    `- Question + option words must be on the Dolch first-100 sight-word ` +
+    `  list OR be simple CVC words. Examples allowed: cat, dog, big, ` +
+    `  little, run, sit, eat, the, and, go, is, on, in, was, said, ` +
+    `  with, his, her, him, my, your.\n` +
+    `- NO multisyllabic words in the question or options unless they are ` +
+    `  proper names (Gerald, Piggie, Frog, Toad) that appear in the book.\n` +
+    `- Questions test LITERAL RECALL only: who did something, what did ` +
+    `  they do, where, how many. No inference. No "why do you think…".\n\n` +
+    `Each question has EXACTLY 4 options, ONE clearly correct, three ` +
+    `plausible-but-wrong. Vary which index (0–3) is correct across ` +
+    `questions.\n\n` +
+    `CRITICAL: only ask about details explicitly in the plot summary. ` +
+    `Do NOT invent characters, events, items, or numbers.`;
+
+  const systemFull =
+    `You are an early-elementary reading specialist designing reading-` +
+    `comprehension questions for a GRADE ${studentGrade} reader.\n\n` +
+    `DIFFICULTY CALIBRATION for Grade ${studentGrade}:\n${guidance}\n\n` +
+    `Tone: warm and concrete. Each question has EXACTLY 4 options, ONE ` +
+    `of which is clearly correct. The other three should be plausible-` +
+    `but-wrong things a kid who skimmed might pick. Vary which index ` +
+    `(0,1,2,3) is correct across all questions — don't bunch the ` +
+    `correct answers at the same position.\n\n` +
+    `CRITICAL: Only ask about details that are explicitly in the plot ` +
+    `summary provided. Do NOT invent characters, events, items, or ` +
+    `numbers. If you can't verify a detail in the summary, do NOT use ` +
+    `it as a question or distractor.`;
+
+  const promptEmergent =
+    `Write ${poolSize} literal-recall questions for the Beginning Reader ` +
+    `book "${book.title}" by ${book.author}.\n\n` +
+    `Plot summary (the source of truth — every question must be answerable ` +
+    `from these details):\n${book.summary}\n\n` +
+    `Hard rules:\n` +
+    `- Keep each question under 10 words.\n` +
+    `- Keep each option under 5 words.\n` +
+    `- No two questions should be near-duplicates.\n` +
+    `- Every fact you assert must appear in the plot summary above.\n` +
+    `- Use only Dolch first-100 sight words + CVC patterns + proper names ` +
+    `  that appear in the book.`;
+
+  const promptFull =
+    `Write ${poolSize} reading-comprehension questions for the book ` +
+    `"${book.title}" by ${book.author}.\n\n` +
+    `The student is in Grade ${studentGrade}. The book is recommended ` +
+    `for Grade ${book.grade} readers. If the student is OLDER than the ` +
+    `book's level, still calibrate questions to the STUDENT's grade — ` +
+    `don't dumb them down just because the book is short. If the student ` +
+    `is YOUNGER than the book, keep questions simple even though the ` +
+    `book is more advanced.\n\n` +
+    `Plot summary (the source of truth — do NOT quote it verbatim, ` +
+    `but every question must be answerable from these details):\n${book.summary}\n\n` +
+    `The questions should cover DIFFERENT aspects of the book so that any random ` +
+    `subset of 5 still tests broad comprehension.\n\n` +
+    `Hard rules:\n` +
+    `- Avoid trick questions.\n` +
+    `- Keep each question under 18 words.\n` +
+    `- Keep each option under 8 words.\n` +
+    `- No two questions should be near-duplicates.\n` +
+    `- Every fact you assert must appear in the plot summary above.`;
+
   const { object } = await generateObject({
     model: anthropic(GEN_MODEL),
-    schema: QuizSchema,
+    schema,
     temperature,
-    system:
-      `You are an early-elementary reading specialist designing reading-` +
-      `comprehension questions for a GRADE ${studentGrade} reader.\n\n` +
-      `DIFFICULTY CALIBRATION for Grade ${studentGrade}:\n${guidance}\n\n` +
-      `Tone: warm and concrete. Each question has EXACTLY 4 options, ONE ` +
-      `of which is clearly correct. The other three should be plausible-` +
-      `but-wrong things a kid who skimmed might pick. Vary which index ` +
-      `(0,1,2,3) is correct across all questions — don't bunch the ` +
-      `correct answers at the same position.\n\n` +
-      `CRITICAL: Only ask about details that are explicitly in the plot ` +
-      `summary provided. Do NOT invent characters, events, items, or ` +
-      `numbers. If you can't verify a detail in the summary, do NOT use ` +
-      `it as a question or distractor.`,
-    prompt:
-      `Write ${POOL_SIZE} reading-comprehension questions for the book ` +
-      `"${book.title}" by ${book.author}.\n\n` +
-      `The student is in Grade ${studentGrade}. The book is recommended ` +
-      `for Grade ${book.grade} readers. If the student is OLDER than the ` +
-      `book's level, still calibrate questions to the STUDENT's grade — ` +
-      `don't dumb them down just because the book is short. If the student ` +
-      `is YOUNGER than the book, keep questions simple even though the ` +
-      `book is more advanced.\n\n` +
-      `Plot summary (the source of truth — do NOT quote it verbatim, ` +
-      `but every question must be answerable from these details):\n${book.summary}\n\n` +
-      `The questions should cover DIFFERENT aspects of the book so that any random ` +
-      `subset of 5 still tests broad comprehension.\n\n` +
-      `Hard rules:\n` +
-      `- Avoid trick questions.\n` +
-      `- Keep each question under 18 words.\n` +
-      `- Keep each option under 8 words.\n` +
-      `- No two questions should be near-duplicates.\n` +
-      `- Every fact you assert must appear in the plot summary above.`,
+    system: isEmergent ? systemEmergent : systemFull,
+    prompt: isEmergent ? promptEmergent : promptFull,
   });
   return object.questions;
 }
@@ -573,14 +744,23 @@ export default async function handler(req, res) {
     guessGradeFromEmail(session.email) || "K"
   );
 
+  // Look up the book up front so we know its quiz style (and minimum
+  // usable pool size) before we touch the cache.
+  const book = QUIZ_BOOKS[bookId];
+  const style = book.quizStyle || "comprehension";
+  const minUsable = minUsableFor(style);
+
   // Cache key: (book, student grade). Different grades get different
   // question pools because difficulty is calibrated to the reader.
-  const cacheKey = `v${SCHEMA_VERSION}:${bookId}:${studentGrade}`;
+  // Emergent books ignore student grade — the quiz is the same no matter
+  // who's taking it.
+  const cacheGrade = style === "emergent" ? "emergent" : studentGrade;
+  const cacheKey = `v${SCHEMA_VERSION}:${bookId}:${cacheGrade}`;
   const cached = await getCachedQuiz(cacheKey);
   if (
     cached &&
     Array.isArray(cached.questions) &&
-    cached.questions.length >= MIN_USABLE_POOL
+    cached.questions.length >= minUsable
   ) {
     res.statusCode = 200;
     res.setHeader("Cache-Control", "private, max-age=86400");
@@ -590,13 +770,13 @@ export default async function handler(req, res) {
         bookId,
         poolSize: cached.questions.length,
         studentGrade,
+        quizStyle: style,
         cached: true,
         ...cached,
       })
     );
   }
 
-  const book = QUIZ_BOOKS[bookId];
   const guidance = GRADE_GUIDANCE[studentGrade] || GRADE_GUIDANCE.K;
 
   try {
@@ -644,7 +824,7 @@ export default async function handler(req, res) {
       bookTitle: book.title,
       bookSummary: book.summary,
       consensusThreshold: MULTI_PASS_CONSENSUS_THRESHOLD,
-      targetPoolSize: POOL_SIZE,
+      targetPoolSize: poolSizeFor(style),
     });
     multiPassStats = consensus.stats;
 
@@ -666,7 +846,7 @@ export default async function handler(req, res) {
       consensus.questions
     );
 
-    if (reviewedPool.questions.length < MIN_USABLE_POOL) {
+    if (reviewedPool.questions.length < minUsable) {
       // Too many questions failed QC to produce a usable quiz.
       console.error(
         "[quiz_qc_too_strict]",
@@ -675,7 +855,8 @@ export default async function handler(req, res) {
         "survivors:",
         reviewedPool.questions.length,
         "of",
-        consensus.questions.length
+        consensus.questions.length,
+        `(style=${style}, min=${minUsable})`
       );
       res.statusCode = 500;
       return res.end(
@@ -705,6 +886,7 @@ export default async function handler(req, res) {
         bookId,
         poolSize: reviewedPool.questions.length,
         studentGrade,
+        quizStyle: style,
         cached: false,
         ...payload,
       })

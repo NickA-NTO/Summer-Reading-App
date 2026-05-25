@@ -108,11 +108,12 @@ export default async function handler(req, res) {
   // Quiz-driven reads (attemptNum present) include the expected quiz time
   // in the XP base — that's how we land at ~1 XP per active minute of
   // focused work (reading + quiz). Manual "I read this" reads (no quiz)
-  // omit it. When the Beginning Readers tier ships, set { emergent: true }
-  // here based on the book's quizStyle.
+  // omit it. Emergent quizzes use a shorter expected time (2 min vs 3).
+  const isEmergent = book?.quizStyle === "emergent";
   const basePoints = book
     ? pointsForBook(book.wordCount, grade, {
         includeQuizTime: attemptNum != null,
+        emergent: isEmergent,
       })
     : 0;
 
