@@ -2,9 +2,14 @@
 // populate the user's name / email / avatar / working grade / visible tracks.
 
 import { verifySession, parseCookies, isAdmin } from "../../lib/session.js";
-import { guessGradeFromEmail, redis } from "../../lib/store.js";
-import { normalizeGrade } from "../../lib/xp.js";
+import {
+  guessGradeFromEmail,
+  redis,
+  getCurrentlyReading,
+} from "../../lib/store.js";
+import { normalizeGrade, stallAlarmDays, estimatedMinutes } from "../../lib/xp.js";
 import { resolveVisibleTracks } from "../../lib/tracks.js";
+import { getBook } from "../../lib/books.js";
 
 // Load the user's profile row from Redis (returns null on miss or error).
 async function loadProfile(email) {
@@ -51,6 +56,22 @@ export default async function handler(req, res) {
   const grade = resolveGrade(profile, session.email);
   const trackOverrides = profile?.trackOverrides || {};
   const visibleTracks = resolveVisibleTracks(grade, trackOverrides);
+  let currentlyReading = await getCurrentlyReading(session.email);
+  // Enrich with the alarm threshold + expected minutes so the client can
+  // render the stall warning without needing the book wordCount on the
+  // client side. Server is the single source of truth for these numbers.
+  if (currentlyReading?.bookId) {
+    const book = getBook(currentlyReading.bookId);
+    if (book) {
+      const opts = {
+        includeQuizTime: true,
+        emergent: book.quizStyle === "emergent",
+      };
+      currentlyReading.alarmDays = stallAlarmDays(book.wordCount, grade, opts);
+      currentlyReading.expectedMinutes = estimatedMinutes(book.wordCount, grade);
+      currentlyReading.title = book.title;
+    }
+  }
 
   res.statusCode = 200;
   res.end(
@@ -62,6 +83,7 @@ export default async function handler(req, res) {
       isAdmin: isAdmin(session.email),
       grade,
       visibleTracks,
+      currentlyReading,
     })
   );
 }

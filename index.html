@@ -666,6 +666,17 @@
     box-shadow: 0 6px 16px rgba(139, 92, 246, .35);
   }
   .icon-btn.quiz:hover { box-shadow: 0 8px 20px rgba(139, 92, 246, .5); }
+  /* "I'm reading this" — declares the active in-progress book (#16).
+     Distinct from .read (which is "I finished it") and .quiz (the gate). */
+  .icon-btn.reading {
+    background: linear-gradient(180deg, #14b8a6, #0d9488);
+    color: #fff; border-color: transparent; font-weight: 600;
+    box-shadow: 0 6px 16px rgba(20, 184, 166, .35);
+  }
+  .icon-btn.reading:hover { box-shadow: 0 8px 20px rgba(20, 184, 166, .5); }
+  .icon-btn.reading.active {
+    background: linear-gradient(180deg, #0d9488, #0f766e);
+  }
 
   /* ============ Quiz overlay ============ */
   .quiz-overlay {
@@ -1171,6 +1182,13 @@
       <div class="ic" style="background:rgba(245,158,11,.16);color:#fbbf24">🏆</div>
       <span class="v" id="statRank">—</span><span id="statRankLabel">rank</span>
     </div>
+    <div class="stat" id="statReadingWrap" style="display:none;cursor:pointer" title="Open this book">
+      <div class="ic" style="background:rgba(20,184,166,.16);color:#5eead4">📖</div>
+      <div style="display:flex;flex-direction:column;line-height:1.15">
+        <span class="v" id="statReadingTitle" style="font-size:13px">—</span>
+        <span id="statReadingMeta" style="font-size:11px;color:var(--muted)">—</span>
+      </div>
+    </div>
     <div class="chip-row" id="chipRow"></div>
   </div>
 </div>
@@ -1226,6 +1244,7 @@
       </div>
       <p class="blurb" id="modalBlurb"></p>
       <div class="actions">
+        <button class="icon-btn reading" id="startReading" style="display:none">📖 I'm reading this</button>
         <button class="icon-btn read" id="readToggle">＋ I read this</button>
         <button class="icon-btn quiz" id="quizBtn" style="display:none">📝 Take the Quiz</button>
         <button class="icon-btn up"   id="voteUp" disabled>👍 <span id="upCount">0</span></button>
@@ -1998,6 +2017,38 @@ function renderStats() {
   document.getElementById("statRead").textContent = readCount;
   document.getElementById("statComments").textContent = commentCount;
   document.getElementById("statStreak").textContent = streak;
+
+  // "Now reading" chip — visible when state.session.currentlyReading is set.
+  // Shows the book title + a soft progress line, and turns red when past
+  // the book-aware stall alarm threshold (max(14, 2 × ceil(min/20)) days).
+  const reading = state.session?.currentlyReading;
+  const wrap = document.getElementById("statReadingWrap");
+  if (reading?.bookId && !state.data.read[reading.bookId]) {
+    const book = BOOK_BY_ID[reading.bookId];
+    const title = reading.title || book?.title || reading.bookId;
+    const days = Math.max(
+      0,
+      Math.floor((Date.now() - (reading.startedAt || Date.now())) / 86_400_000)
+    );
+    const dayLabel = `day ${days + 1}`;
+    const alarm = reading.alarmDays || 14;
+    const stalled = days + 1 > alarm;
+    const titleEl = document.getElementById("statReadingTitle");
+    const metaEl = document.getElementById("statReadingMeta");
+    titleEl.textContent = title.length > 26 ? title.slice(0, 25) + "…" : title;
+    if (stalled) {
+      metaEl.innerHTML = `<span style="color:var(--bad);font-weight:600">⚠️ ${dayLabel} · stuck?</span>`;
+      wrap.title = `You've been on this book ${days + 1} days — alarm at ${alarm}. Try a different book or take the quiz.`;
+    } else {
+      metaEl.textContent = `${dayLabel} · open quiz when ready`;
+      wrap.title = `Open ${title} — alarm at ${alarm} days`;
+    }
+    wrap.style.display = "flex";
+    wrap.onclick = () => openBook(reading.bookId);
+  } else {
+    wrap.style.display = "none";
+    wrap.onclick = null;
+  }
 }
 
 /* ---------- 8. Hero billboard ---------- */
@@ -2273,6 +2324,7 @@ function refreshInteractiveBits() {
   const hasQuiz = QUIZ_ENABLED.has(id);
   const readBtn = document.getElementById("readToggle");
   const quizBtn = document.getElementById("quizBtn");
+  const startBtn = document.getElementById("startReading");
   readBtn.classList.toggle("active", wasRead);
   readBtn.textContent = wasRead ? "✓ Marked as read" : "＋ I read this";
   if (hasQuiz && !wasRead) {
@@ -2290,6 +2342,39 @@ function refreshInteractiveBits() {
     } else {
       readBtn.style.cursor = "";
       readBtn.title = "";
+    }
+  }
+
+  // "I'm reading this" button — only meaningful BEFORE the book is read,
+  // and only relevant for quiz-enabled books (the engagement signal we
+  // care about). Pure manual-read books skip it: clicking "I read this"
+  // is already the engagement signal there.
+  if (startBtn) {
+    const active = state.session?.currentlyReading;
+    if (wasRead || !hasQuiz) {
+      startBtn.style.display = "none";
+    } else if (active && active.bookId === id) {
+      // This is the active book — show as "Currently reading" with a
+      // soft started-on date. Click does nothing (acts as a status badge).
+      startBtn.style.display = "inline-flex";
+      startBtn.classList.add("active");
+      const days = Math.max(
+        0,
+        Math.floor((Date.now() - active.startedAt) / 86_400_000)
+      );
+      startBtn.textContent =
+        days === 0 ? "📖 Reading now" : `📖 Reading · day ${days + 1}`;
+      startBtn.title = "Click to mark a different book as your current read";
+    } else {
+      // Default state — invitation to start, or to switch if another book is active.
+      startBtn.style.display = "inline-flex";
+      startBtn.classList.remove("active");
+      startBtn.textContent = active
+        ? "📖 Read this instead"
+        : "📖 I'm reading this";
+      startBtn.title = active
+        ? `You're currently reading "${BOOK_BY_ID[active.bookId]?.title || active.bookId}". Click to switch.`
+        : "Tell the app this is the book you're working on";
     }
   }
 
@@ -2365,6 +2450,49 @@ document.getElementById("readToggle").addEventListener("click", async () => {
   }
 });
 
+// "I'm reading this" — declares the active in-progress book (#16). One
+// book in progress at a time per student; switching prompts to confirm.
+document.getElementById("startReading").addEventListener("click", async () => {
+  if (!activeBookId) return;
+  const active = state.session?.currentlyReading;
+  if (active && active.bookId === activeBookId) {
+    // Tapping it while it's the active book is a no-op (acts as status badge).
+    return;
+  }
+  const previousTitle = active ? (BOOK_BY_ID[active.bookId]?.title || active.bookId) : null;
+  const targetTitle = BOOK_BY_ID[activeBookId]?.title || activeBookId;
+  if (previousTitle && !confirm(
+    `You're already reading "${previousTitle}". Switch to "${targetTitle}"?`
+  )) {
+    return;
+  }
+  const startBtn = document.getElementById("startReading");
+  startBtn.disabled = true;
+  try {
+    const r = await fetch("/api/activity", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({
+        kind: "start",
+        bookId: activeBookId,
+        swap: !!previousTitle,
+      }),
+    });
+    const data = await r.json();
+    if (!r.ok || !data.ok) {
+      throw new Error(data.error || "couldn't_start");
+    }
+    state.session.currentlyReading = data.currentlyReading;
+    refreshInteractiveBits();
+    renderStats();
+  } catch (err) {
+    alert("Couldn't set this as your current book: " + (err.message || err));
+  } finally {
+    startBtn.disabled = false;
+  }
+});
+
 // Single funnel for marking a book as read. Handles localStorage,
 // streak tracking, and server activity logging (for leaderboards).
 //
@@ -2394,6 +2522,11 @@ async function markBookAsRead(bookId, attemptNum) {
       body: JSON.stringify(body),
     });
     const data = r.ok ? await r.json() : null;
+    // If the server cleared currentlyReading because this quiz finished
+    // the active book, sync local state so the UI updates.
+    if (data?.clearedCurrentlyReading && state.session) {
+      state.session.currentlyReading = null;
+    }
     // Refresh stats strip with new points + rank
     refreshMyRank();
     return data || { points: 0 };
@@ -3620,6 +3753,7 @@ function friendlyDate(ts) {
       isAdmin: !!me.isAdmin,
       grade: me.grade || "K",
       visibleTracks: Array.isArray(me.visibleTracks) ? me.visibleTracks : null,
+      currentlyReading: me.currentlyReading || null,
     });
   } catch (e) {
     // Network blip — show a friendly retry

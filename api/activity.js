@@ -22,6 +22,9 @@ import {
   addHeldXpEntry,
   recordFirstOpen,
   getFirstOpenAt,
+  setCurrentlyReading,
+  getCurrentlyReading,
+  clearCurrentlyReading,
   FRAUD_RATIO_HOLD,
   FRAUD_RATIO_SOFT,
   FRAUD_FRESHNESS_WINDOW_MS,
@@ -97,6 +100,46 @@ export default async function handler(req, res) {
     const firstOpenAt = await recordFirstOpen(session.email, bookId);
     res.statusCode = 200;
     return res.end(JSON.stringify({ ok: true, firstOpenAt }));
+  }
+
+  // -----------------------------------------------------------------------
+  // kind === "start"  — student declares they're actively reading this book.
+  // One book at a time per student. If there's already an active read AND
+  // it's a different book, return 409 with the existing record unless the
+  // caller passed `swap: true` (acknowledged the prompt). On swap or empty
+  // slot, set currentlyReading = { bookId, startedAt: now }.
+  // -----------------------------------------------------------------------
+  if (kind === "start") {
+    if (!bookId) {
+      res.statusCode = 400;
+      return res.end(JSON.stringify({ error: "invalid_request" }));
+    }
+    const existing = await getCurrentlyReading(session.email);
+    if (existing && existing.bookId !== bookId && !body.swap) {
+      res.statusCode = 409;
+      return res.end(
+        JSON.stringify({
+          ok: false,
+          error: "already_reading",
+          currentlyReading: existing,
+          message:
+            "You're already reading another book. Pass swap:true to switch.",
+        })
+      );
+    }
+    // First-open is set too (in case they clicked Start without opening
+    // the modal — covers the rare edge case where the start button is
+    // surfaced from a card directly).
+    await recordFirstOpen(session.email, bookId);
+    const result = await setCurrentlyReading(session.email, bookId);
+    res.statusCode = 200;
+    return res.end(
+      JSON.stringify({
+        ok: true,
+        currentlyReading: { bookId, startedAt: result.startedAt },
+        previouslyReading: existing || null,
+      })
+    );
   }
 
   if (kind !== "read" || !bookId) {
@@ -285,6 +328,23 @@ export default async function handler(req, res) {
   if (fraudStatus === "clean" && attemptNum === 2 && result.recorded) {
     response.isRetake = true;
     response.basePoints = basePoints;
+  }
+
+  // -----------------------------------------------------------------------
+  // Clear currentlyReading if this quiz pass finished the active book.
+  // Held submissions don't count (XP isn't awarded yet) — kid stays in
+  // "currently reading" until they actually pass.
+  // -----------------------------------------------------------------------
+  if (attemptNum != null && result.recorded && fraudStatus !== "held") {
+    try {
+      const active = await getCurrentlyReading(session.email);
+      if (active && active.bookId === bookId) {
+        await clearCurrentlyReading(session.email);
+        response.clearedCurrentlyReading = true;
+      }
+    } catch {
+      /* non-fatal — leaving stale currentlyReading is just a stat issue */
+    }
   }
 
   // -----------------------------------------------------------------------
