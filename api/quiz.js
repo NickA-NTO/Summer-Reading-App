@@ -468,20 +468,18 @@ const QUIZ_BOOKS = {
   },
 };
 
-// Pool sizes per quiz style:
-//   "comprehension" — 12 in pool, 5/attempt, 4/5 pass (80%).
-//   "emergent"      — 6 in pool, 3/attempt, 2/3 pass (67%).
-// Bigger pools give 1d.1's question-rotation logic room to draw fully fresh
-// questions on attempt 2 with no overlap.
+// Pool size: 12 questions per book, 5 per attempt, 4/5 to pass (80%).
+// SAME shape for every book in the catalog — Beginning Readers used to get a
+// 3-question quiz, but that was gameable by guessing (~16% pass-by-chance
+// per attempt vs ~0.7% on a 5-question 4/5 quiz). Questions are still
+// calibrated to the kid's grade via GRADE_GUIDANCE; only the count is fixed.
 const POOL_SIZE_FULL = 12;
-const POOL_SIZE_EMERGENT = 6;
-function poolSizeFor(style) {
-  return style === "emergent" ? POOL_SIZE_EMERGENT : POOL_SIZE_FULL;
+function poolSizeFor(_style) {
+  return POOL_SIZE_FULL;
 }
 
-// Quiz pool schemas. Two variants — same question shape, different array
-// length — because Zod's .length() is enforced strictly during generateObject.
-function quizSchemaFor(style) {
+// Quiz pool schema — uniform shape across the whole catalog.
+function quizSchemaFor(_style) {
   return z.object({
     questions: z
       .array(
@@ -503,13 +501,10 @@ function quizSchemaFor(style) {
             .describe("Index (0-3) of the correct option."),
         })
       )
-      .length(poolSizeFor(style)),
+      .length(POOL_SIZE_FULL),
   });
 }
-// Default schema for the current pipeline (comprehension/full). Used where
-// the call site doesn't yet know about quizStyle; emergent gets its own
-// schema instance built per-call in the handler.
-const QuizSchema = quizSchemaFor("comprehension");
+const QuizSchema = quizSchemaFor();
 
 // QC reviewer schema — a structured rubric for each question.
 const QCSchema = z.object({
@@ -546,7 +541,12 @@ const QCSchema = z.object({
 // v7: emergent quiz style (Beginning Readers tier) — 6 questions in pool,
 //     literal-recall rubric with Dolch + CVC vocabulary constraint, separate
 //     cache namespace.
-const SCHEMA_VERSION = 7;
+// v8: emergent quiz style RETIRED. All books now use the 12-question pool /
+//     5-per-attempt / 4-of-5-to-pass pipeline. PK readers get K-style
+//     literal-recall guidance via GRADE_GUIDANCE.PK so questions stay
+//     age-appropriate. Cache namespace bump invalidates all v7 emergent
+//     pools, forcing them to regenerate as 12-question pools on next request.
+const SCHEMA_VERSION = 8;
 
 // Quiz model + QC reviewer model. Opus 4.5 for both — generation needs the
 // stronger model for accuracy on lesser-known books; QC needs it to reliably
@@ -556,13 +556,12 @@ const QC_MODEL  = "claude-opus-4-5";
 
 // QC accuracy threshold. Anything below this gets dropped from the pool.
 const QC_MIN_ACCURACY = 7;
-// Minimum survivors per style — below this, the pool is unusable and we fail
-// rather than serving a tiny quiz. Emergent quizzes use a smaller floor
-// since their pool is only 6 to begin with.
+// Minimum survivors — below this, the pool is unusable and we fail
+// rather than serving a tiny quiz. Uniform across all books now that
+// emergent has been retired.
 const MIN_USABLE_POOL_FULL = 8;
-const MIN_USABLE_POOL_EMERGENT = 4;
-function minUsableFor(style) {
-  return style === "emergent" ? MIN_USABLE_POOL_EMERGENT : MIN_USABLE_POOL_FULL;
+function minUsableFor(_style) {
+  return MIN_USABLE_POOL_FULL;
 }
 
 // Multi-pass cross-validation (1g). When enabled, we generate the pool 3
@@ -582,6 +581,11 @@ const MULTI_PASS_CONSENSUS_THRESHOLD = 2;
 // The book itself stays the same — only the questions change to match
 // the reader's level.
 const GRADE_GUIDANCE = {
+  PK:
+    "Test LITERAL RECALL only — who, what, where, how many. Use only the " +
+    "simplest words (Dolch first-100 sight words + short CVC words + proper " +
+    "names from the book). Keep questions under 10 words and options under " +
+    "5 words. AVOID inference, theme, sequence, or any abstract concept.",
   K:
     "Test LITERAL RECALL — what happened, who appeared, what they ate, " +
     "basic colors and counts. Use very simple, concrete words a five-year-old " +
@@ -612,35 +616,15 @@ const GRADE_GUIDANCE = {
 // across runs; only `temperature` varies. Returns the array of questions
 // (poolSize long for the book's style) or throws.
 async function generateOnce(book, studentGrade, guidance, temperature) {
-  const style = book.quizStyle || "comprehension";
-  const poolSize = poolSizeFor(style);
-  const schema = quizSchemaFor(style);
+  const poolSize = POOL_SIZE_FULL;
+  const schema = quizSchemaFor();
 
-  // Emergent quizzes have a different rubric — designed for kids who can
-  // decode CVC + basic sight words but aren't reading fluently yet. We can't
-  // ask grade-leveled inference questions; we ask plain literal recall.
-  const isEmergent = style === "emergent";
+  // PK-leveled prompts deliberately tighten the vocabulary + length rules
+  // to keep questions readable for a 4-5 year old. Everything else uses
+  // the standard grade-calibrated comprehension prompt.
+  const isPreK = String(studentGrade || "").toUpperCase() === "PK";
 
-  const systemEmergent =
-    `You are designing reading-comprehension questions for a BEGINNING ` +
-    `READER (Track B — student is past CVC decoding and starting to read ` +
-    `connected text, but not yet fluent).\n\n` +
-    `STRICT RULES for vocabulary:\n` +
-    `- Question + option words must be on the Dolch first-100 sight-word ` +
-    `  list OR be simple CVC words. Examples allowed: cat, dog, big, ` +
-    `  little, run, sit, eat, the, and, go, is, on, in, was, said, ` +
-    `  with, his, her, him, my, your.\n` +
-    `- NO multisyllabic words in the question or options unless they are ` +
-    `  proper names (Gerald, Piggie, Frog, Toad) that appear in the book.\n` +
-    `- Questions test LITERAL RECALL only: who did something, what did ` +
-    `  they do, where, how many. No inference. No "why do you think…".\n\n` +
-    `Each question has EXACTLY 4 options, ONE clearly correct, three ` +
-    `plausible-but-wrong. Vary which index (0–3) is correct across ` +
-    `questions.\n\n` +
-    `CRITICAL: only ask about details explicitly in the plot summary. ` +
-    `Do NOT invent characters, events, items, or numbers.`;
-
-  const systemFull =
+  const system =
     `You are an early-elementary reading specialist designing reading-` +
     `comprehension questions for a GRADE ${studentGrade} reader.\n\n` +
     `DIFFICULTY CALIBRATION for Grade ${studentGrade}:\n${guidance}\n\n` +
@@ -654,20 +638,15 @@ async function generateOnce(book, studentGrade, guidance, temperature) {
     `numbers. If you can't verify a detail in the summary, do NOT use ` +
     `it as a question or distractor.`;
 
-  const promptEmergent =
-    `Write ${poolSize} literal-recall questions for the Beginning Reader ` +
-    `book "${book.title}" by ${book.author}.\n\n` +
-    `Plot summary (the source of truth — every question must be answerable ` +
-    `from these details):\n${book.summary}\n\n` +
-    `Hard rules:\n` +
-    `- Keep each question under 10 words.\n` +
-    `- Keep each option under 5 words.\n` +
-    `- No two questions should be near-duplicates.\n` +
-    `- Every fact you assert must appear in the plot summary above.\n` +
-    `- Use only Dolch first-100 sight words + CVC patterns + proper names ` +
-    `  that appear in the book.`;
+  const lengthRules = isPreK
+    ? `- Keep each question under 10 words.\n` +
+      `- Keep each option under 5 words.\n` +
+      `- Use only Dolch first-100 sight words + CVC patterns + proper ` +
+      `  names that appear in the book.\n`
+    : `- Keep each question under 18 words.\n` +
+      `- Keep each option under 8 words.\n`;
 
-  const promptFull =
+  const prompt =
     `Write ${poolSize} reading-comprehension questions for the book ` +
     `"${book.title}" by ${book.author}.\n\n` +
     `The student is in Grade ${studentGrade}. The book is recommended ` +
@@ -682,8 +661,7 @@ async function generateOnce(book, studentGrade, guidance, temperature) {
     `subset of 5 still tests broad comprehension.\n\n` +
     `Hard rules:\n` +
     `- Avoid trick questions.\n` +
-    `- Keep each question under 18 words.\n` +
-    `- Keep each option under 8 words.\n` +
+    lengthRules +
     `- No two questions should be near-duplicates.\n` +
     `- Every fact you assert must appear in the plot summary above.`;
 
@@ -691,8 +669,8 @@ async function generateOnce(book, studentGrade, guidance, temperature) {
     model: anthropic(GEN_MODEL),
     schema,
     temperature,
-    system: isEmergent ? systemEmergent : systemFull,
-    prompt: isEmergent ? promptEmergent : promptFull,
+    system,
+    prompt,
   });
   return object.questions;
 }
@@ -868,10 +846,7 @@ export default async function handler(req, res) {
 
   // Cache key: (book, student grade). Different grades get different
   // question pools because difficulty is calibrated to the reader.
-  // Emergent books ignore student grade — the quiz is the same no matter
-  // who's taking it.
-  const cacheGrade = style === "emergent" ? "emergent" : studentGrade;
-  const cacheKey = `v${SCHEMA_VERSION}:${bookId}:${cacheGrade}`;
+  const cacheKey = `v${SCHEMA_VERSION}:${bookId}:${studentGrade}`;
   const cached = await getCachedQuiz(cacheKey);
   if (
     cached &&

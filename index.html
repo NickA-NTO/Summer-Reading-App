@@ -3433,27 +3433,17 @@ document.addEventListener("click", () => userMenu.classList.remove("open"));
    answers across attempts. Need 4/5 (80%) to pass. Max 2 attempts per
    book per day. */
 
-// Default (comprehension) quiz: 5 per attempt, 4/5 pass = 80%.
-// Beginning Readers tier (emergent style): 3 per attempt, 2/3 pass = 67%.
-// Set per-attempt from quizState.style after the server responds with the
-// book's quizStyle, then read back through the questionsPerAttempt() /
-// passThreshold() helpers below.
+// Uniform quiz shape across the catalog: 5 questions per attempt, 4/5 to
+// pass (80%), max 2 attempts per book per day. Beginning Readers (PK/K)
+// used to get a 3-question variant but it was gameable by guessing
+// (~16% pass-by-chance per attempt vs ~0.7% here). The `style` argument
+// is kept for API compatibility with older call sites.
 const QUESTIONS_PER_ATTEMPT_FULL = 5;
-const QUESTIONS_PER_ATTEMPT_EMERGENT = 3;
 const PASS_THRESHOLD_FULL = 4;
-const PASS_THRESHOLD_EMERGENT = 2;
 const MAX_ATTEMPTS_PER_DAY = 2;
 
-function questionsPerAttempt(style) {
-  return style === "emergent"
-    ? QUESTIONS_PER_ATTEMPT_EMERGENT
-    : QUESTIONS_PER_ATTEMPT_FULL;
-}
-function passThreshold(style) {
-  return style === "emergent"
-    ? PASS_THRESHOLD_EMERGENT
-    : PASS_THRESHOLD_FULL;
-}
+function questionsPerAttempt(_style) { return QUESTIONS_PER_ATTEMPT_FULL; }
+function passThreshold(_style)       { return PASS_THRESHOLD_FULL; }
 
 const quizState = {
   bookId: null,

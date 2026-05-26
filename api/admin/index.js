@@ -29,6 +29,9 @@ import {
   bulkSetWorkingGrades,
   setTrackOverrides,
   redis,
+  getCurrentlyReading,
+  getQuizFraudState,
+  getFirstOpenAt,
 } from "../../lib/store.js";
 import { sanitizeTrackOverrides, TRACK_ORDER } from "../../lib/tracks.js";
 import {
@@ -100,6 +103,70 @@ export default async function handler(req, res) {
       count: users.length,
       users,
     });
+  }
+
+  // ========================= user-diag ===========================
+  // Diagnostic timestamps for a single user — used to audit fraud-detection
+  // gaps (e.g., did a kid click "I'm reading" then immediately quiz?).
+  // GET /api/admin?action=user-diag&email=foo@x.com[&bookId=e02]
+  //
+  // Returns the three timestamps the fraud detector cares about:
+  //   - currentlyReading.startedAt — when the kid clicked "I'm reading this"
+  //   - fraudState.lastQuizAt      — when the kid last submitted a quiz
+  //   - firstOpenAt[bookId]        — when the kid first opened the modal
+  // plus computed gaps so you can see the click-to-quiz delta at a glance.
+  if (action === "user-diag" && req.method === "GET") {
+    const email = String(url.searchParams.get("email") || "").toLowerCase().trim();
+    const bookId = String(url.searchParams.get("bookId") || "").trim() || null;
+    if (!email) return json(res, 400, { error: "missing_email" });
+
+    const r = redis();
+    if (!r) return json(res, 503, { error: "no_redis" });
+
+    const now = Date.now();
+    const out = { email, bookId, now, nowISO: new Date(now).toISOString() };
+    try {
+      // Profile (grade, initialGrade, etc.)
+      const rawProf = await r.hget("users", email).catch(() => null);
+      out.profile = rawProf
+        ? typeof rawProf === "string" ? JSON.parse(rawProf) : rawProf
+        : null;
+
+      const [cr, fs] = await Promise.all([
+        getCurrentlyReading(email),
+        getQuizFraudState(email),
+      ]);
+      out.currentlyReading = cr;
+      out.fraudState = fs;
+
+      // ISO renderings so the timestamps are human-readable in the response.
+      if (cr?.startedAt) out.startedAtISO = new Date(cr.startedAt).toISOString();
+      if (fs?.lastQuizAt) out.lastQuizAtISO = new Date(fs.lastQuizAt).toISOString();
+
+      if (bookId) {
+        out.firstOpenAt = await getFirstOpenAt(email, bookId);
+        if (out.firstOpenAt) out.firstOpenAtISO = new Date(out.firstOpenAt).toISOString();
+      }
+
+      // Computed gaps — the real signal. If startedAt → lastQuizAt is small
+      // relative to expected reading time, the kid skipped reading.
+      if (cr?.startedAt) {
+        const startedAt = Number(cr.startedAt);
+        out.gapStartedToNowSec = Math.round((now - startedAt) / 1000);
+        if (fs?.lastQuizAt) {
+          const dt = Number(fs.lastQuizAt) - startedAt;
+          out.gapStartedToLastQuizSec = Math.round(dt / 1000);
+          out.gapStartedToLastQuizMin = +(dt / 60000).toFixed(2);
+        }
+      }
+      if (bookId && out.firstOpenAt && fs?.lastQuizAt) {
+        out.gapFirstOpenToLastQuizHr =
+          +((Number(fs.lastQuizAt) - out.firstOpenAt) / 3_600_000).toFixed(2);
+      }
+    } catch (err) {
+      out.error = String(err?.message || err);
+    }
+    return json(res, 200, out);
   }
 
   // ========================= tts-usage ===========================
