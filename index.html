@@ -1890,14 +1890,43 @@ function expectedXp(bookId, workingGrade) {
   const quizMin = emergent ? CLIENT_QUIZ_TIME_EMERGENT_MIN : CLIENT_QUIZ_TIME_FULL_MIN;
   return Math.max(1, Math.floor(wc / wcpm + quizMin));
 }
+// Usborne books inherit their parent CATEGORIES row id, but as a belt-and-
+// suspenders fallback we can derive grade from the u01..u09 range too.
+function _usborneRangeGrade(id) {
+  if (!id || !id.startsWith("u")) return "";
+  const n = Number(id.slice(1)) || 0;
+  if (n >= 1 && n <= 3) return "K";
+  if (n >= 4 && n <= 6) return "1";
+  if (n >= 7 && n <= 9) return "2";
+  return "";
+}
 function gradeOf(book) {
-  return GRADE_BY_CATEGORY[book?.categoryId] || "";
+  if (!book) return "";
+  // Primary path: categoryId set by ALL_BOOKS construction.
+  if (book.categoryId && GRADE_BY_CATEGORY[book.categoryId]) {
+    return GRADE_BY_CATEGORY[book.categoryId];
+  }
+  // Fallback: derive from book id prefix in case categoryId got dropped.
+  // (Happened once when genre-row books were re-rendered without going
+  // through ALL_BOOKS — defensively handle it here.)
+  if (book.id) {
+    if (book.id.startsWith("u")) return _usborneRangeGrade(book.id);
+    const prefix = book.id[0];
+    if (GRADE_BY_CATEGORY[prefix]) return GRADE_BY_CATEGORY[prefix];
+  }
+  return "";
 }
 // Badges/pills use "Grade K", "Grade 1" etc. for numeric grades, but the
 // emergent tier reads better as just "Beginning" without the "Grade " prefix.
 function gradeBadgeLabel(book) {
   const g = gradeOf(book);
-  if (!g) return "";
+  if (!g) {
+    // Surface this in the console so the next missing-pill report is
+    // diagnosable without a re-deploy. Should be impossible after the
+    // fallbacks above, but never hurts.
+    if (book?.id) console.warn("[gradeBadgeLabel] no grade for", book.id, book.categoryId);
+    return "";
+  }
   if (g === "Beginning") return "Beginning";
   return "Grade " + g;
 }
