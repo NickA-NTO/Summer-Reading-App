@@ -1745,7 +1745,10 @@
      (that's the server's 1-hour held-for-review rule). -->
 <div class="onb-overlay" id="tooSoonOverlay" role="dialog" aria-modal="true" aria-labelledby="tooSoonTitle">
   <div class="onb-card" style="max-width:480px">
-    <div class="onb-eyebrow" style="color:#fbbf24">⏰ Slow down a sec</div>
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:4px">
+      <div class="onb-eyebrow" style="color:#fbbf24">⏰ Slow down a sec</div>
+      <button class="tour-speak" id="tooSoonSpeak" type="button" title="Hear it read aloud">🔊 Read this</button>
+    </div>
     <h2 class="onb-title" id="tooSoonTitle">Have you finished the book?</h2>
     <p class="onb-sub" id="tooSoonBody">
       You just started reading this. You'll only earn XP if you've actually
@@ -3529,19 +3532,33 @@ function showTooSoonWarning(gapMs, onProceed) {
     `actually finished — quizzes taken too soon are held for review and ` +
     `won't count toward the leaderboard until then.`;
   overlay.classList.add("open");
-  // Speak it aloud if TTS is on so emergent readers hear it.
+  // Build a single TTS string for the title + body so the speak button
+  // and the auto-speak both pull from the same source.
+  const ttsText =
+    `Have you finished the book? You started reading this ${elapsed}. ` +
+    `You'll only earn XP if you've actually finished. Quizzes taken too ` +
+    `soon are held for review.`;
+  // Speak it aloud once on open if TTS is on so emergent readers hear it.
   if (typeof speak === "function") {
-    try { speak(`Have you finished the book? You started reading this ${elapsed}.`); } catch {}
+    try { speak(ttsText); } catch {}
   }
+  const speakBtn = document.getElementById("tooSoonSpeak");
+  const onSpeak = () => {
+    if (typeof speak === "function") {
+      try { speak(ttsText); } catch {}
+    }
+  };
   const cleanup = () => {
     overlay.classList.remove("open");
     document.getElementById("tooSoonCancel").removeEventListener("click", onCancel);
     document.getElementById("tooSoonProceed").removeEventListener("click", onYes);
+    if (speakBtn) speakBtn.removeEventListener("click", onSpeak);
   };
   const onCancel = () => cleanup();
   const onYes = () => { cleanup(); if (typeof onProceed === "function") onProceed(); };
   document.getElementById("tooSoonCancel").addEventListener("click", onCancel);
   document.getElementById("tooSoonProceed").addEventListener("click", onYes);
+  if (speakBtn) speakBtn.addEventListener("click", onSpeak);
 }
 document.getElementById("quizClose").addEventListener("click", closeQuiz);
 document.getElementById("quizOverlay").addEventListener("click", (e) => {
