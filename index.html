@@ -1032,6 +1032,143 @@
   }
   .lb-me-card strong { color: var(--ink); font-weight: 700; }
 
+  /* ============ Achievements (#24) ============ */
+  /* Steam-style trophy room. Locked badges are grayscale silhouettes;
+     unlocked ones light up with their original color. Hidden achievements
+     show "???" until earned. Tier badges show a small progress bar. */
+  .ach-modal { width: min(820px, 100%); }
+  .ach-header {
+    padding: 24px 28px 16px;
+    background:
+      radial-gradient(70% 100% at 90% 0%, rgba(245,158,11,.18), transparent 60%),
+      linear-gradient(180deg, var(--panel) 0%, var(--bg-2) 100%);
+    border-bottom: 1px solid var(--line);
+  }
+  .ach-header h2 {
+    margin: 0 0 4px; font-size: 22px; font-weight: 800;
+    letter-spacing: -0.02em;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .ach-header .ach-sub {
+    color: var(--muted); font-size: 13px; margin: 0;
+  }
+  .ach-summary {
+    margin-top: 14px; display: flex; gap: 18px; align-items: center;
+    font-size: 13px; color: var(--muted);
+  }
+  .ach-summary strong { color: var(--ink); font-weight: 700; font-size: 15px; }
+  .ach-progress-bar {
+    flex: 1; height: 6px; border-radius: 999px;
+    background: rgba(255,255,255,.08); overflow: hidden;
+    max-width: 200px;
+  }
+  .ach-progress-fill {
+    height: 100%; background: linear-gradient(90deg, #fbbf24, #f59e0b);
+    border-radius: 999px;
+    transition: width .4s ease;
+  }
+  .ach-grid {
+    padding: 22px 28px 28px;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 14px;
+  }
+  .ach-card {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 12px; padding: 16px 12px;
+    text-align: center;
+    transition: transform .15s ease, border-color .15s ease, background .15s ease;
+    cursor: default;
+    position: relative;
+  }
+  .ach-card.unlocked {
+    border-color: rgba(245,158,11,.45);
+    background: linear-gradient(180deg, rgba(245,158,11,.10), rgba(245,158,11,.04));
+    box-shadow: 0 4px 14px rgba(245,158,11,.10);
+  }
+  .ach-card.locked { opacity: .55; }
+  .ach-card.locked .ach-icon { filter: grayscale(1); }
+  .ach-card:hover { transform: translateY(-2px); border-color: rgba(245,158,11,.6); }
+  .ach-icon {
+    font-size: 44px; line-height: 1; margin-bottom: 8px;
+    display: block;
+  }
+  .ach-name {
+    font-weight: 700; font-size: 13px; color: var(--ink);
+    margin-bottom: 4px; line-height: 1.25;
+  }
+  .ach-desc {
+    font-size: 11px; color: var(--muted); line-height: 1.35;
+    min-height: 30px;
+  }
+  .ach-mini-bar {
+    margin-top: 8px; height: 4px; border-radius: 999px;
+    background: rgba(255,255,255,.08); overflow: hidden;
+  }
+  .ach-mini-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #60a5fa, #2563eb);
+    border-radius: 999px;
+  }
+  .ach-card.unlocked .ach-mini-fill {
+    background: linear-gradient(90deg, #fbbf24, #f59e0b);
+  }
+  .ach-mini-label {
+    font-size: 10px; color: var(--muted); margin-top: 4px;
+    font-variant-numeric: tabular-nums;
+  }
+  .ach-unlocked-date {
+    font-size: 10px; color: #fbbf24; margin-top: 6px;
+    font-weight: 600;
+  }
+
+  /* Achievement toast — Steam-style slide-in from bottom-right.
+     Appears for ~4s when a new badge unlocks. */
+  .ach-toast-stack {
+    position: fixed; right: 22px; bottom: 22px;
+    z-index: 200;
+    display: flex; flex-direction: column; gap: 10px;
+    pointer-events: none;
+  }
+  .ach-toast {
+    background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+    border: 1px solid rgba(245,158,11,.5);
+    border-radius: 12px;
+    padding: 14px 18px;
+    box-shadow: 0 18px 40px rgba(0,0,0,.5), 0 0 0 1px rgba(245,158,11,.15);
+    display: flex; align-items: center; gap: 14px;
+    min-width: 280px; max-width: 360px;
+    transform: translateX(120%);
+    transition: transform .4s cubic-bezier(.2,.9,.3,1.2);
+    pointer-events: auto;
+  }
+  .ach-toast.show { transform: translateX(0); }
+  .ach-toast .at-icon {
+    font-size: 36px; line-height: 1;
+    flex-shrink: 0;
+    filter: drop-shadow(0 0 8px rgba(245,158,11,.5));
+  }
+  .ach-toast .at-eyebrow {
+    font-size: 10px; font-weight: 700; color: #fbbf24;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    margin-bottom: 2px;
+  }
+  .ach-toast .at-name {
+    font-size: 15px; font-weight: 800; color: #fff;
+    line-height: 1.2; margin-bottom: 2px;
+  }
+  .ach-toast .at-desc {
+    font-size: 12px; color: #cbd5e1; line-height: 1.3;
+  }
+
+  /* Mobile tweaks — tighter grid, smaller icons */
+  @media (max-width: 640px) {
+    .ach-header { padding: 18px 18px 12px; }
+    .ach-grid { padding: 16px 14px 20px; gap: 10px;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+    .ach-icon { font-size: 36px; }
+    .ach-toast { min-width: 240px; max-width: calc(100vw - 44px); }
+  }
+
   /* ============ First-run onboarding (#17) ============ */
   /* Voice-picker modal. Visible only when .open. */
   .onb-overlay {
@@ -1421,6 +1558,7 @@
           <div class="e" id="whoEmail">—</div>
         </div>
         <button id="menuAdmin" style="display:none">⚙️ Admin · Users</button>
+        <button id="menuAchievements">🏆 Achievements</button>
         <button id="menuReplayTour">🎬 Replay intro tour</button>
         <button id="signout">Sign out</button>
       </div>
@@ -1616,6 +1754,27 @@
     </div>
   </div>
 </div>
+
+<!-- ============ Achievements modal (#24) ============ -->
+<!-- Steam-style trophy room. Opened from the avatar menu. Server populates
+     the catalog + unlocked map at login; client renders cards locally. -->
+<div class="modal-backdrop" id="achModal" role="dialog" aria-modal="true" aria-labelledby="achTitle">
+  <div class="modal ach-modal" role="document">
+    <button class="close" id="closeAchModal" aria-label="Close">✕</button>
+    <div class="ach-header">
+      <h2 id="achTitle">🏆 Achievements</h2>
+      <p class="ach-sub">Earn badges by reading books, building streaks, and exploring new topics.</p>
+      <div class="ach-summary">
+        <span><strong id="achUnlockedCount">0</strong> of <strong id="achTotalCount">0</strong> unlocked</span>
+        <div class="ach-progress-bar"><div class="ach-progress-fill" id="achProgressFill" style="width:0%"></div></div>
+      </div>
+    </div>
+    <div class="ach-grid" id="achGrid"></div>
+  </div>
+</div>
+
+<!-- Achievement toast stack — slide-in notifications when a new badge unlocks. -->
+<div class="ach-toast-stack" id="achToastStack" aria-live="polite" aria-atomic="true"></div>
 
 <!-- Spotlight tour layer — step 2 of the first-run flow. The cutout uses
      the box-shadow trick (a small div + a huge box-shadow that darkens
@@ -2510,6 +2669,31 @@ function renderChips() {
 }
 
 /* ---------- 7. Stats strip ---------- */
+// Standalone streak calculator — used by renderStats AND by the
+// achievement-eval payload we send to the server. Kept in one place
+// so the two never drift.
+function computeStreak() {
+  if (!state?.data) return 0;
+  const days = (state.data.streakDays || []).slice().sort();
+  if (days.length === 0) return 0;
+  const today = new Date().toISOString().slice(0, 10);
+  let streak = 0;
+  let cursor = new Date();
+  for (;;) {
+    const d = cursor.toISOString().slice(0, 10);
+    if (days.includes(d)) {
+      streak++;
+      cursor.setDate(cursor.getDate() - 1);
+    } else if (d === today) {
+      cursor.setDate(cursor.getDate() - 1);
+      if (!days.includes(cursor.toISOString().slice(0, 10))) break;
+    } else {
+      break;
+    }
+  }
+  return streak;
+}
+
 function renderStats() {
   const readCount = Object.keys(state.data.read).length;
   let commentCount = 0;
@@ -3093,7 +3277,14 @@ async function markBookAsRead(bookId, attemptNum) {
   // Server call — we need the full response to display points earned and
   // handle held-XP / retake messaging.
   try {
-    const body = { kind: "read", bookId, grade: state.session?.grade || "K" };
+    const body = {
+      kind: "read",
+      bookId,
+      grade: state.session?.grade || "K",
+      // Pass computed streak so the server-side achievement engine can
+      // evaluate "On a Roll" / "Week Warrior" / "Diamond Streak" / "Month Master".
+      streakDays: computeStreak(),
+    };
     if (attemptNum != null) body.attemptNum = attemptNum;
     const r = await fetch("/api/activity", {
       method: "POST",
@@ -3109,6 +3300,22 @@ async function markBookAsRead(bookId, attemptNum) {
     }
     // Refresh stats strip with new points + rank
     refreshMyRank();
+    // Achievements (#24) — server returns any newly unlocked badges from
+    // this recordRead. Fire a toast for each + remember them locally so
+    // the achievements modal shows the unlock timestamps without a refetch.
+    if (data?.newAchievements?.length > 0) {
+      if (state.session) {
+        state.session.unlockedAchievements = state.session.unlockedAchievements || {};
+        const now = Date.now();
+        for (const ach of data.newAchievements) {
+          state.session.unlockedAchievements[ach.id] = now;
+        }
+      }
+      // Stagger toasts so the kid sees each one (rather than overlapping).
+      data.newAchievements.forEach((ach, i) => {
+        setTimeout(() => showAchievementToast(ach), i * 1800);
+      });
+    }
     return data || { points: 0 };
   } catch {
     /* offline / network — local state still reflects the read */
@@ -3853,6 +4060,171 @@ document.getElementById("helpBtn").addEventListener("click", (e) => {
   e.stopPropagation();
   startOnboarding();
 });
+
+// ── Achievements modal wiring (#24) ──────────────────────────────────
+// Catalog + unlocked map are loaded into state.session by /api/auth/me
+// on page load. New unlocks pile in via markBookAsRead's response.
+document.getElementById("menuAchievements").addEventListener("click", (e) => {
+  e.stopPropagation();
+  document.getElementById("userMenu").classList.remove("open");
+  openAchievementsModal();
+});
+document.getElementById("closeAchModal").addEventListener("click", closeAchievementsModal);
+document.getElementById("achModal").addEventListener("click", (e) => {
+  if (e.target.id === "achModal") closeAchievementsModal();
+});
+
+function openAchievementsModal() {
+  renderAchievements();
+  document.getElementById("achModal").classList.add("open");
+  document.body.style.overflow = "hidden";
+}
+function closeAchievementsModal() {
+  document.getElementById("achModal").classList.remove("open");
+  document.body.style.overflow = "";
+}
+
+// Build the trophy grid. Cards render in catalog order; locked + hidden
+// ones show "???" until earned. Tier-style achievements (those that
+// expose `progress`) get a tiny progress bar so kids can see how close
+// they are to the next unlock.
+function renderAchievements() {
+  const catalog = state.session?.achievementCatalog || [];
+  const unlocked = state.session?.unlockedAchievements || {};
+  const grid = document.getElementById("achGrid");
+  if (!grid) return;
+  // The server returned a stripped catalog (no check/progress functions).
+  // Compute progress from local state for tier-style ones using the
+  // same shape the server uses, so the UI doesn't need a roundtrip.
+  const ctx = buildLocalAchCtx();
+  const unlockedCount = catalog.filter((a) => unlocked[a.id]).length;
+  document.getElementById("achUnlockedCount").textContent = unlockedCount;
+  document.getElementById("achTotalCount").textContent = catalog.length;
+  const pct = catalog.length ? Math.round((unlockedCount / catalog.length) * 100) : 0;
+  document.getElementById("achProgressFill").style.width = pct + "%";
+
+  grid.innerHTML = catalog.map((a) => {
+    const isUnlocked = !!unlocked[a.id];
+    const hideContent = a.hidden && !isUnlocked;
+    const icon = hideContent ? "🔒" : a.icon;
+    const name = hideContent ? "???" : a.name;
+    const desc = hideContent ? "Keep reading to unlock this secret badge." : a.desc;
+    const progress = !isUnlocked && !hideContent ? localProgressFor(a.id, ctx) : null;
+    const bar = progress
+      ? `<div class="ach-mini-bar"><div class="ach-mini-fill" style="width:${
+          Math.min(100, Math.round((progress.current / progress.target) * 100))
+        }%"></div></div>
+         <div class="ach-mini-label">${progress.current} / ${progress.target}</div>`
+      : "";
+    const date = isUnlocked
+      ? `<div class="ach-unlocked-date">Unlocked ${formatUnlockDate(unlocked[a.id])}</div>`
+      : "";
+    return `
+      <div class="ach-card ${isUnlocked ? "unlocked" : "locked"}" data-id="${a.id}">
+        <span class="ach-icon">${icon}</span>
+        <div class="ach-name">${escapeHTML(name)}</div>
+        <div class="ach-desc">${escapeHTML(desc)}</div>
+        ${bar}
+        ${date}
+      </div>
+    `;
+  }).join("");
+}
+
+// Lightweight local mirror of the server-side ctx so we can show
+// progress bars without a roundtrip. Server is still authoritative for
+// the actual unlocks (this is read-only "how close are you" UX).
+function buildLocalAchCtx() {
+  const read = state.data?.read || {};
+  const readBookIds = Object.keys(read).filter((k) => read[k]);
+  const booksReadCount = readBookIds.length;
+  const xpTotal = Number(state.data?.points || 0);
+  const streakDays = computeStreak();
+  // Genres-read uses the same tag map the catalog rows use.
+  const genresRead = new Set();
+  let maxWordCount = 0;
+  for (const id of readBookIds) {
+    const tags = (typeof BOOK_TAGS !== "undefined" ? BOOK_TAGS[id] : null) || [];
+    for (const t of tags) genresRead.add(t);
+    const wc = (typeof WORD_COUNTS !== "undefined" ? WORD_COUNTS[id] : 0) || 0;
+    if (wc > maxWordCount) maxWordCount = wc;
+  }
+  return { booksReadCount, xpTotal, streakDays, genresRead, maxWordCount };
+}
+
+// Mirrors the targets baked into lib/achievements.js. Kept in sync
+// manually — if you add a new tier on the server, add it here too.
+const ACH_PROGRESS_TARGETS = {
+  first_read:    { stat: "booksReadCount", target: 1 },
+  bookworm_5:    { stat: "booksReadCount", target: 5 },
+  caterpillar:   { stat: "booksReadCount", target: 10 },
+  wise_owl:      { stat: "booksReadCount", target: 25 },
+  library_champ: { stat: "booksReadCount", target: 50 },
+  xp_100:        { stat: "xpTotal", target: 100 },
+  xp_500:        { stat: "xpTotal", target: 500 },
+  xp_1k:         { stat: "xpTotal", target: 1000 },
+  xp_summer:     { stat: "xpTotal", target: 1200 },
+  xp_2500:       { stat: "xpTotal", target: 2500 },
+  xp_5k:         { stat: "xpTotal", target: 5000 },
+  streak_3:      { stat: "streakDays", target: 3 },
+  streak_7:      { stat: "streakDays", target: 7 },
+  streak_14:     { stat: "streakDays", target: 14 },
+  streak_30:     { stat: "streakDays", target: 30 },
+  explorer_3:    { stat: "genresReadSize", target: 3 },
+  curious_reader:{ stat: "genresReadSize", target: 5 },
+};
+function localProgressFor(id, ctx) {
+  const spec = ACH_PROGRESS_TARGETS[id];
+  if (!spec) return null;
+  const cur = spec.stat === "genresReadSize"
+    ? (ctx.genresRead?.size || 0)
+    : Number(ctx[spec.stat] || 0);
+  return { current: Math.min(cur, spec.target), target: spec.target };
+}
+
+function formatUnlockDate(ts) {
+  if (!ts) return "";
+  try {
+    const d = new Date(Number(ts));
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  } catch { return ""; }
+}
+
+function escapeHTML(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  }[c]));
+}
+
+// Toast notification — slides in from the bottom-right when a new
+// achievement unlocks. Auto-dismisses after 4 seconds. Stacks if
+// multiple unlock at once (markBookAsRead spaces them out 1.8s apart).
+function showAchievementToast(ach) {
+  if (!ach) return;
+  const stack = document.getElementById("achToastStack");
+  if (!stack) return;
+  const el = document.createElement("div");
+  el.className = "ach-toast";
+  el.innerHTML = `
+    <div class="at-icon">${ach.icon || "🏆"}</div>
+    <div>
+      <div class="at-eyebrow">Achievement Unlocked</div>
+      <div class="at-name">${escapeHTML(ach.name || "Badge")}</div>
+      <div class="at-desc">${escapeHTML(ach.desc || "")}</div>
+    </div>
+  `;
+  stack.appendChild(el);
+  // Trigger the slide-in on next frame so the transition actually runs.
+  requestAnimationFrame(() => el.classList.add("show"));
+  // Speak it aloud (if TTS is on) so emergent readers hear it too.
+  if (typeof speak === "function") {
+    try { speak(`Achievement unlocked! ${ach.name}`); } catch {}
+  }
+  setTimeout(() => {
+    el.classList.remove("show");
+    setTimeout(() => el.remove(), 450);
+  }, 4000);
+}
 document.getElementById("adminClose").addEventListener("click", closeAdmin);
 document.getElementById("adminOverlay").addEventListener("click", (e) => {
   if (e.target.id === "adminOverlay") closeAdmin();
@@ -4844,15 +5216,28 @@ function endTour() {
 
 async function finishOnboarding(skipped) {
   if (state.session) state.session.tourCompleted = true;
-  // Persist (fire-and-forget). Don't care about skipped — the kid saw the
-  // flow and we don't want to show it again either way.
+  // Persist (fire-and-forget-ish — we await so we can pick up the
+  // "Tour Guide" achievement unlock from the response, but failures
+  // are silent so the tour exit doesn't get blocked on the network).
   try {
-    await fetch("/api/activity", {
+    const r = await fetch("/api/activity", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "same-origin",
       body: JSON.stringify({ kind: "profile", tourCompleted: true }),
     });
+    const data = r.ok ? await r.json() : null;
+    if (data?.newAchievements?.length > 0 && state.session) {
+      state.session.unlockedAchievements = state.session.unlockedAchievements || {};
+      const now = Date.now();
+      for (const ach of data.newAchievements) {
+        state.session.unlockedAchievements[ach.id] = now;
+      }
+      // Small delay so the toast lands after the spotlight tears down.
+      data.newAchievements.forEach((ach, i) => {
+        setTimeout(() => showAchievementToast(ach), 600 + i * 1800);
+      });
+    }
   } catch {}
 }
 
@@ -4883,6 +5268,13 @@ async function finishOnboarding(skipped) {
       currentlyReading: me.currentlyReading || null,
       preferredVoiceId: me.preferredVoiceId || null,
       tourCompleted: !!me.tourCompleted,
+      // Achievements (#24) — server returns the full badge catalog plus
+      // the user's unlocked-id → timestamp map. Client uses these to
+      // render the trophy modal and gate progress bars.
+      achievementCatalog: Array.isArray(me.achievementCatalog) ? me.achievementCatalog : [],
+      unlockedAchievements: me.unlockedAchievements && typeof me.unlockedAchievements === "object"
+        ? me.unlockedAchievements
+        : {},
     });
 
     // First-run onboarding: voice picker → spotlight tour. Only shows

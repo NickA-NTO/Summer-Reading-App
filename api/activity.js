@@ -26,6 +26,8 @@ import {
   getCurrentlyReading,
   clearCurrentlyReading,
   updateUserOnboarding,
+  evaluateAchievementsForUser,
+  redis,
   FRAUD_RATIO_HOLD,
   FRAUD_RATIO_SOFT,
   FRAUD_FRESHNESS_WINDOW_MS,
@@ -122,6 +124,21 @@ export default async function handler(req, res) {
       preferredVoiceId: body.preferredVoiceId,
       tourCompleted: body.tourCompleted,
     });
+    // If the tour just completed, re-evaluate achievements so the
+    // hidden "Tour Guide" badge fires.
+    if (result.ok && body.tourCompleted === true) {
+      try {
+        const r = redis();
+        let profile = null;
+        if (r) {
+          const raw = await r.hget("users", String(session.email).toLowerCase());
+          profile = raw ? (typeof raw === "string" ? JSON.parse(raw) : raw) : null;
+        }
+        result.newAchievements = await evaluateAchievementsForUser(
+          session.email, profile, { streakDays: Number(body.streakDays) || 0 }
+        );
+      } catch {}
+    }
     res.statusCode = result.ok ? 200 : 400;
     return res.end(JSON.stringify(result));
   }
@@ -345,6 +362,32 @@ export default async function handler(req, res) {
   if (fraudStatus === "clean" && attemptNum === 2 && result.recorded) {
     response.isRetake = true;
     response.basePoints = basePoints;
+  }
+
+  // -----------------------------------------------------------------------
+  // Evaluate achievements (#24). Skipped on held submissions because the
+  // XP hasn't actually moved yet — we'd want to re-evaluate once admin
+  // approves. Held re-evaluation happens in the admin approval path.
+  // -----------------------------------------------------------------------
+  if (result.recorded && fraudStatus !== "held") {
+    try {
+      // Pull user profile so achievements can read tourCompleted + grade.
+      const r = redis();
+      let profile = null;
+      if (r) {
+        try {
+          const raw = await r.hget("users", String(session.email).toLowerCase());
+          profile = raw ? (typeof raw === "string" ? JSON.parse(raw) : raw) : null;
+        } catch {}
+      }
+      const newAch = await evaluateAchievementsForUser(session.email, profile, {
+        streakDays: Number(body.streakDays) || 0,
+        justRead: { bookId },
+      });
+      if (newAch.length > 0) response.newAchievements = newAch;
+    } catch (err) {
+      console.warn("[achievements] eval failed", String(err?.message || err));
+    }
   }
 
   // -----------------------------------------------------------------------

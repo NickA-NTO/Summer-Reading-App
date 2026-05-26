@@ -6,10 +6,12 @@ import {
   guessGradeFromEmail,
   redis,
   getCurrentlyReading,
+  getAchievements,
 } from "../../lib/store.js";
 import { normalizeGrade, stallAlarmDays, estimatedMinutes } from "../../lib/xp.js";
 import { resolveVisibleTracks, TRACK_ORDER } from "../../lib/tracks.js";
 import { getBook } from "../../lib/books.js";
+import { ACHIEVEMENTS } from "../../lib/achievements.js";
 
 // Load the user's profile row from Redis (returns null on miss or error).
 async function loadProfile(email) {
@@ -63,6 +65,17 @@ export default async function handler(req, res) {
     ? [...TRACK_ORDER]
     : resolveVisibleTracks(grade, trackOverrides);
   let currentlyReading = await getCurrentlyReading(session.email);
+  const unlockedAchievements = await getAchievements(session.email);
+  // Send the full catalog of achievement definitions + the user's unlocked
+  // timestamps. Lets the client render the achievements modal without a
+  // second round-trip.
+  const achievementCatalog = ACHIEVEMENTS.map((a) => ({
+    id: a.id,
+    name: a.name,
+    icon: a.icon,
+    desc: a.desc,
+    hidden: !!a.hidden,
+  }));
   // Enrich with the alarm threshold + expected minutes so the client can
   // render the stall warning without needing the book wordCount on the
   // client side. Server is the single source of truth for these numbers.
@@ -95,6 +108,9 @@ export default async function handler(req, res) {
       // suppresses it forever (admin can reset via the admin endpoint).
       preferredVoiceId: profile?.preferredVoiceId || null,
       tourCompleted: !!profile?.tourCompleted,
+      // Achievements (#24) — full catalog + the user's unlock map.
+      achievementCatalog,
+      unlockedAchievements,
     })
   );
 }
