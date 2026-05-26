@@ -149,6 +149,19 @@ export default async function handler(req, res) {
         if (out.firstOpenAt) out.firstOpenAtISO = new Date(out.firstOpenAt).toISOString();
       }
 
+      // Books the user has finished + their current XP totals. The set of
+      // bookIds lives at `user:{email}:books`; the all-time score lives in
+      // the `lb:points:all` zset.
+      try {
+        const [books, pointsAll] = await Promise.all([
+          r.smembers(`user:${email}:books`).catch(() => []),
+          r.zscore("lb:points:all", email).catch(() => null),
+        ]);
+        out.booksRead = Array.isArray(books) ? books : [];
+        out.booksReadCount = out.booksRead.length;
+        out.pointsAll = pointsAll != null ? Number(pointsAll) : null;
+      } catch {}
+
       // Computed gaps — the real signal. If startedAt → lastQuizAt is small
       // relative to expected reading time, the kid skipped reading.
       if (cr?.startedAt) {
