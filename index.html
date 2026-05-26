@@ -4140,17 +4140,18 @@ function buildLocalAchCtx() {
   const readBookIds = Object.keys(read).filter((k) => read[k]);
   const booksReadCount = readBookIds.length;
   const xpTotal = Number(state.data?.points || 0);
-  const streakDays = computeStreak();
   // Genres-read uses the same tag map the catalog rows use.
   const genresRead = new Set();
   let maxWordCount = 0;
+  let totalWordsRead = 0;
   for (const id of readBookIds) {
     const tags = (typeof BOOK_TAGS !== "undefined" ? BOOK_TAGS[id] : null) || [];
     for (const t of tags) genresRead.add(t);
     const wc = (typeof WORD_COUNTS !== "undefined" ? WORD_COUNTS[id] : 0) || 0;
     if (wc > maxWordCount) maxWordCount = wc;
+    totalWordsRead += wc;
   }
-  return { booksReadCount, xpTotal, streakDays, genresRead, maxWordCount };
+  return { booksReadCount, xpTotal, genresRead, maxWordCount, totalWordsRead };
 }
 
 // Mirrors the targets baked into lib/achievements.js. Kept in sync
@@ -4167,10 +4168,10 @@ const ACH_PROGRESS_TARGETS = {
   xp_summer:     { stat: "xpTotal", target: 1200 },
   xp_2500:       { stat: "xpTotal", target: 2500 },
   xp_5k:         { stat: "xpTotal", target: 5000 },
-  streak_3:      { stat: "streakDays", target: 3 },
-  streak_7:      { stat: "streakDays", target: 7 },
-  streak_14:     { stat: "streakDays", target: 14 },
-  streak_30:     { stat: "streakDays", target: 30 },
+  words_500:     { stat: "totalWordsRead", target: 500 },
+  words_2k:      { stat: "totalWordsRead", target: 2000 },
+  words_5k:      { stat: "totalWordsRead", target: 5000 },
+  words_15k:     { stat: "totalWordsRead", target: 15000 },
   explorer_3:    { stat: "genresReadSize", target: 3 },
   curious_reader:{ stat: "genresReadSize", target: 5 },
 };
