@@ -564,12 +564,31 @@
   }
   .badge.read { background: rgba(70,211,105,.95); box-shadow: 0 4px 12px rgba(70,211,105,.35); }
   .badge.hot  { background: var(--warm); box-shadow: 0 4px 12px rgba(245,158,11,.35); }
-  /* XP variant — purple-ish, matches the modal pill + stats-strip XP chip.
-     Per-card and per-student (XP varies by working grade), so kids see at
-     a glance how much each book is worth them. */
-  .badge.xp {
+  /* Right-aligned pill stack: grade + XP. Always shown (independent of
+     the status badge in the top-left). Stacked vertically with a 4px gap
+     so both fit even on the narrowest card sizes. */
+  .card-pills {
+    position: absolute; top: 8px; right: 8px; z-index: 2;
+    display: flex; flex-direction: column; gap: 4px;
+    align-items: flex-end;
+    pointer-events: none;
+  }
+  .card-pill {
+    font-size: 10px; font-weight: 700;
+    letter-spacing: 0.06em;
+    padding: 3px 7px; border-radius: 999px;
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,.35);
+    white-space: nowrap;
+  }
+  .card-pill.grade {
+    background: rgba(15,22,35,.85);
+    border: 1px solid rgba(255,255,255,.12);
+    color: #c9d8ff;
+  }
+  .card-pill.xp {
     background: linear-gradient(180deg, #8b5cf6, #6d28d9);
-    box-shadow: 0 4px 12px rgba(139,92,246,.4);
+    box-shadow: 0 4px 10px rgba(139,92,246,.4);
   }
   .card-info {
     position: absolute; left: 0; right: 0; bottom: 0;
@@ -2645,18 +2664,20 @@ function buildCard(book, isHot) {
   card.setAttribute("tabindex", "0");
   card.setAttribute("data-book-id", book.id);
   card.setAttribute("aria-label", `${book.title} by ${book.author}`);
-  // Corner badge precedence: Read > Top pick > XP value. Grade is already
-  // visible in the row title above the cards, so the badge prioritizes
-  // information that varies per-book: progress, editorial pick, or the
-  // kid-specific XP this book is worth at their working grade.
+  // Top-left status badge: Read > Top pick > (none).
+  // Top-right pill stack: grade + XP, always shown so kids see both the
+  // level signal and the kid-specific XP this book is worth.
   const xp = expectedXp(book.id, state.session?.grade || "K");
-  const badge = wasRead
+  const gradeLabel = gradeBadgeLabel(book);
+  const statusBadge = wasRead
     ? `<div class="badge read">✓ Read</div>`
-    : (isHot
-        ? `<div class="badge hot">★ Top pick</div>`
-        : (xp > 0
-            ? `<div class="badge xp">✨ ${xp} XP</div>`
-            : ""));
+    : (isHot ? `<div class="badge hot">★ Top pick</div>` : "");
+  const cornerPills =
+    `<div class="card-pills">` +
+      (gradeLabel ? `<span class="card-pill grade">${escapeHtml(gradeLabel)}</span>` : "") +
+      (xp > 0 ? `<span class="card-pill xp">✨ ${xp} XP</span>` : "") +
+    `</div>`;
+  const badge = statusBadge + cornerPills;
   card.innerHTML = `
     ${badge}
     <img class="card-img" alt="${escapeAttr(book.title)} cover" src="${coverUrl(book)}"
