@@ -2214,12 +2214,22 @@ async function speak(text, opts = {}) {
     audio.addEventListener("ended", () => {
       if (currentTtsAudio === audio) currentTtsAudio = null;
     });
-    audio.addEventListener("error", () => {
+    audio.addEventListener("error", (ev) => {
+      console.warn("[tts] audio element error — falling back to browser", ev);
       if (currentTtsAudio === audio) currentTtsAudio = null;
       speakBrowser(t);
     });
-    await audio.play().catch(() => speakBrowser(t));
-  } catch {
+    try {
+      await audio.play();
+    } catch (err) {
+      // Most common: NotAllowedError when the user-gesture window expired
+      // during the async fetch above. Browser TTS still works in that case.
+      console.warn(`[tts] audio.play() rejected (${err?.name || "error"}) — falling back to browser`);
+      if (currentTtsAudio === audio) currentTtsAudio = null;
+      speakBrowser(t);
+    }
+  } catch (err) {
+    console.warn("[tts] outer failure — falling back to browser:", err);
     speakBrowser(t);
   }
 }
@@ -2935,14 +2945,64 @@ function postComment() {
   renderStats();
 }
 
-document.getElementById("speakTitle").addEventListener("click", () => {
+// Wraps speak() with a visible button state — kids (and us, when
+// debugging) can tell whether audio is loading, playing, or failed.
+// Long-running Polly fetches can blow past the browser's user-gesture
+// window and silently reject audio.play(); the fallback to browser TTS
+// almost always succeeds, but without feedback the user can't tell.
+async function speakWithFeedback(button, text, opts = {}) {
+  if (!button) return speak(text, opts);
+  const original = button.textContent;
+  let restored = false;
+  const restore = () => {
+    if (restored) return;
+    restored = true;
+    button.textContent = original;
+    button.disabled = false;
+  };
+  button.disabled = true;
+  button.textContent = "🔊 Loading…";
+  // Hard timeout: if speak() never returns, restore the button after 8s
+  // (covers worst-case Polly cold synth + network hiccup).
+  const fallbackTimer = setTimeout(restore, 8000);
+  try {
+    await speak(text, opts);
+    button.textContent = "🔊 Playing…";
+    // Restore shortly after playback completes — currentTtsAudio is
+    // either an HTMLAudioElement or null. Poll briefly for ended state.
+    const start = Date.now();
+    const poll = () => {
+      const a = currentTtsAudio;
+      const synthSpeaking = !!(window.speechSynthesis && speechSynthesis.speaking);
+      if ((!a || a.ended || a.paused) && !synthSpeaking) {
+        clearTimeout(fallbackTimer);
+        restore();
+        return;
+      }
+      if (Date.now() - start > 30_000) {
+        clearTimeout(fallbackTimer);
+        restore();
+        return;
+      }
+      setTimeout(poll, 300);
+    };
+    poll();
+  } catch (err) {
+    clearTimeout(fallbackTimer);
+    console.warn("[speak] failed:", err);
+    button.textContent = "🔊 No sound — check volume";
+    setTimeout(restore, 2500);
+  }
+}
+
+document.getElementById("speakTitle").addEventListener("click", (e) => {
   if (!activeBookId) return;
-  speak(BOOK_BY_ID[activeBookId].title, { force: true });
+  speakWithFeedback(e.currentTarget, BOOK_BY_ID[activeBookId].title, { force: true });
 });
-document.getElementById("speakBlurb").addEventListener("click", () => {
+document.getElementById("speakBlurb").addEventListener("click", (e) => {
   if (!activeBookId) return;
   const b = BOOK_BY_ID[activeBookId];
-  speak(`${b.title}. ${b.blurb}`, { force: true });
+  speakWithFeedback(e.currentTarget, `${b.title}. ${b.blurb}`, { force: true });
 });
 
 /* ---------- 12. Header scroll + user menu ---------- */
