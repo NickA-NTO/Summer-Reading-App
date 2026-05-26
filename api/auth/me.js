@@ -7,6 +7,7 @@ import {
   redis,
   getCurrentlyReading,
   getAchievements,
+  evaluateAchievementsForUser,
 } from "../../lib/store.js";
 import { normalizeGrade, stallAlarmDays, estimatedMinutes } from "../../lib/xp.js";
 import { resolveVisibleTracks, TRACK_ORDER } from "../../lib/tracks.js";
@@ -65,6 +66,13 @@ export default async function handler(req, res) {
     ? [...TRACK_ORDER]
     : resolveVisibleTracks(grade, trackOverrides);
   let currentlyReading = await getCurrentlyReading(session.email);
+  // Backfill any achievements the user has earned but never had recorded —
+  // covers two cases: users who read books before the achievement system
+  // shipped, and tier targets that move (e.g., dropping the threshold).
+  // The evaluator is idempotent: it only writes for badges not already in
+  // the hash, and per-event ones (Beginner's Mind, Reaching Higher) are
+  // skipped here since we don't pass justRead.
+  try { await evaluateAchievementsForUser(session.email, profile, {}); } catch {}
   const unlockedAchievements = await getAchievements(session.email);
   // Send the full catalog of achievement definitions + the user's unlocked
   // timestamps. Lets the client render the achievements modal without a
