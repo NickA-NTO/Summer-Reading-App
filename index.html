@@ -1681,9 +1681,6 @@ const CATEGORIES = [
       { id: "e11", isbn: "9780746077207", title: "Goose on the Loose", author: "Phil Roxbee Cox (Usborne)", age: "Beginning",
         palette: ["#fbbf24","#3b82f6"],
         blurb: "A goose is on the loose! Will the boy with the broom be able to catch her in time? A short rhyming chase through the farm." },
-      { id: "e12", isbn: "", title: "The Mouse's Houses", author: "Phil Roxbee Cox (Usborne)", age: "Beginning",
-        palette: ["#a78bfa","#fde68a"],
-        blurb: "A little mouse moves from one house to another, looking for the perfect place. A shoe? A teapot? A flowerpot? Where will she settle?" },
     ],
   },
   {
@@ -1795,18 +1792,12 @@ const CATEGORIES = [
       { id: "b07", isbn: "9780142410349", title: "Fantastic Mr. Fox", author: "Roald Dahl", age: "Ages 7–10",
         palette: ["#ea580c","#1c1917"],
         blurb: "Three nasty farmers are out to catch Mr. Fox. But Mr. Fox is faster, smarter, and has a brilliant plan. A short, thrilling Roald Dahl classic." },
-      { id: "b08", isbn: "", title: "Geeger the Robot Goes to School", author: "Jarrett Lerner", age: "Ages 6–8",
-        palette: ["#94a3b8","#06b6d4"],
-        blurb: "Geeger the robot eats banana peels for breakfast and is about to start his very first day of school. What if the other kids don't like robots?" },
       { id: "b09", isbn: "9780749707590", title: "The Magic Faraway Tree", author: "Enid Blyton", age: "Ages 7–10",
         palette: ["#15803d","#a855f7"],
         blurb: "At the top of a magical tree, a different fantastic land arrives every day. The kids climb up to find Birthday Land, the Land of Topsy-Turvy, the Land of Sweets…" },
       { id: "u07", isbn: "9786052952740", title: "The Wizard of Oz", author: "L. Frank Baum (Usborne)", age: "Ages 6–9",
         palette: ["#fbbf24","#059669"],
         blurb: "A tornado whisks Dorothy and her dog Toto to the magical land of Oz. To get home she must follow the Yellow Brick Road — and meet a scarecrow, a tin man, and a very cowardly lion." },
-      { id: "u08", isbn: "", title: "Aladdin", author: "Traditional (Usborne)", age: "Ages 6–9",
-        palette: ["#1e40af","#f59e0b"],
-        blurb: "A poor boy, a magic lamp, and a genie who can grant any wish. But a wicked sorcerer wants that lamp — and he'll do anything to get it." },
       { id: "u09", isbn: "9780851790985", title: "Pinocchio", author: "Carlo Collodi (Usborne)", age: "Ages 6–9",
         palette: ["#2563eb","#dc2626"],
         blurb: "Geppetto carves a wooden puppet who can talk and walk by himself. Pinocchio wants to be a real boy — but first he has to learn what it means to be good." },
@@ -1864,7 +1855,7 @@ const CLIENT_QUIZ_TIME_EMERGENT_MIN = 2;
 const WORD_COUNTS = {
   // Beginning Readers (emergent quiz style — uses 2-min quiz allowance)
   e01: 220, e02: 200, e03: 240, e04: 250, e05: 220,
-  e06: 348, e07: 619, e08: 240, e09: 800, e10: 1700, e11: 100, e12: 150,
+  e06: 348, e07: 619, e08: 240, e09: 800, e10: 1700, e11: 100,
   // Grade K
   k01: 225, k02: 1629, k03: 225, k04: 600, k05: 2000, k06: 750, k07: 290, k08: 750,
   u01: 350, u02: 350, u03: 400,
@@ -1874,8 +1865,8 @@ const WORD_COUNTS = {
   u04: 700, u05: 500, u06: 650,
   // Grade 2
   b01: 700, b02: 825, b03: 2800, b04: 5000, b05: 6300, b06: 1800,
-  b07: 10500, b08: 3500, b09: 46000,
-  u07: 7000, u08: 6000, u09: 5500,
+  b07: 10500, b09: 46000,
+  u07: 7000, u09: 5500,
   // Grade 3
   c01: 6000, c02: 6500, c03: 6500, c04: 25000, c05: 32000, c06: 19000, c07: 28000, c08: 7500,
 };
@@ -1989,7 +1980,6 @@ const BOOK_TAGS = {
   b05: ["funny", "adventures"],
   b06: ["funny", "animals"],
   b07: ["adventures", "animals"],
-  b08: ["feelings"],
   b09: ["adventures"],
   // Beginning Readers (Track B)
   e01: ["funny", "animals"],
@@ -2003,7 +1993,6 @@ const BOOK_TAGS = {
   e09: ["animals", "classics", "feelings"],
   e10: ["animals", "classics", "feelings"],
   e11: ["funny", "animals", "classics"],
-  e12: ["animals", "classics"],
   // Usborne Grade K
   u01: ["animals", "classics"],
   u02: ["funny", "classics", "adventures"],
@@ -2014,7 +2003,6 @@ const BOOK_TAGS = {
   u06: ["classics", "feelings"],
   // Usborne Grade 2
   u07: ["adventures", "classics"],
-  u08: ["adventures", "classics"],
   u09: ["adventures", "classics", "feelings"],
   // Grade 3 — chapter books
   c01: ["adventures", "animals"],
@@ -2114,7 +2102,7 @@ function defaultData() {
       // Grade 2
       b01: { up: 198, down: 6 }, b02: { up: 121, down: 1 }, b03: { up: 162, down: 2 },
       b04: { up: 84,  down: 1 }, b05: { up: 145, down: 1 }, b06: { up: 174, down: 2 },
-      b07: { up: 263, down: 4 }, b08: { up: 91,  down: 4 }, b09: { up: 153, down: 6 },
+      b07: { up: 263, down: 4 }, b09: { up: 153, down: 6 },
     },
   };
 }

@@ -131,14 +131,6 @@ const QUIZ_BOOKS = {
     summary:
       "A short rhyming Usborne Very First Reading book. A goose escapes from its pen on a farm and runs everywhere. A boy chases the goose with a broom. The goose runs past the pig, the cow, the sheep, and the duck. The animals all watch. The goose is too fast. Finally the boy gets clever and uses some food (corn) to lead the goose calmly back to its pen. The boy is happy and the goose is happy too.",
   },
-  e12: {
-    title: "The Mouse's Houses",
-    author: "Phil Roxbee Cox (Usborne)",
-    grade: "PK",
-    quizStyle: "emergent",
-    summary:
-      "A short rhyming Usborne Very First Reading book. A little mouse is looking for a place to live. First she tries living in an old shoe — but it is too smelly. Then she tries a teapot — but it is too cold. Then she tries a flowerpot — but it is too small. She keeps looking. Finally she finds a perfect little hole in a wall — just the right size, warm, and safe. She moves in and is very happy in her new home.",
-  },
 
   /* ---------- Grade K ---------- */
   k01: {
@@ -325,13 +317,6 @@ const QUIZ_BOOKS = {
     summary:
       "Mr. Fox lives with his wife and four small fox children in a cozy hole under a tree on a hill. Every night he sneaks down to one of three farms — owned by three nasty farmers named Boggis (fat, eats three boiled chickens with dumplings every day), Bunce (short, eats doughnuts with goose-liver paste), and Bean (skinny, drinks gallons of cider) — and steals food. The farmers get fed up and decide to stake out his hole with shotguns. They shoot off the end of his tail, but he escapes underground. The farmers try to dig him out with shovels, then with bulldozers and excavators, destroying the entire hill. The Fox family starves underground for days. Then Mr. Fox has a brilliant plan: instead of digging up, dig sideways. He and his children tunnel into Boggis's chicken house, Bunce's storehouse of geese and ducks, and Bean's secret cider cellar. They steal a feast. Mr. Fox invites the other underground animals (Badger, Mole, Rabbit, and Weasel) and their families to a grand banquet underground. The three farmers are left waiting outside the hole in the rain forever, never realizing the foxes are now living comfortably below them.",
   },
-  b08: {
-    title: "Geeger the Robot Goes to School",
-    author: "Jarrett Lerner",
-    grade: "2",
-    summary:
-      "Geeger is a small friendly robot who eats food scraps — especially banana peels, his favorite. He lives with the Mendez family. Today is his very first day of school. Geeger is nervous — what if the other kids don't like him because he's a robot? He gets ready, eats his breakfast (some peels), and rides the bus. At school he meets his new teacher Ms. Bork and is shown his desk. The other kids stare at his shiny metal body, and he feels uncomfortable. At lunch, Geeger sits alone — until a girl named Tillie comes over with a banana, peels it, eats the fruit, and offers him the peel. They become friends. The book is the first in an early-reader series about Geeger's school adventures.",
-  },
   b09: {
     title: "The Magic Faraway Tree",
     author: "Enid Blyton",
@@ -393,13 +378,6 @@ const QUIZ_BOOKS = {
     grade: "2",
     summary:
       "Dorothy lives on a farm in Kansas with her Auntie Em, Uncle Henry, and her little dog Toto. A great tornado picks up their farmhouse and drops it in the magical land of Oz, crushing and killing the Wicked Witch of the East and freeing the Munchkins who lived under her power. The Good Witch of the North gives Dorothy the dead witch's silver slippers and tells her to follow the Yellow Brick Road to the Emerald City, where the great Wizard might help her get home. Along the Yellow Brick Road Dorothy meets a Scarecrow who wants a brain, a Tin Woodman who wants a heart, and a Cowardly Lion who wants courage. They travel together through dangers: a field of enchanted poppies that put Dorothy and the Lion to sleep, flying monkeys controlled by the Wicked Witch of the West, and a terrifying dark castle. The Wicked Witch of the West, who wants the silver slippers, captures Dorothy. Dorothy throws a bucket of water on her to put out the fire and accidentally melts the witch. When they reach the Wizard they discover he is an ordinary man hiding behind a curtain who can do no real magic. He sends them away with words: he gives the Scarecrow a diploma, the Tin Man a heart-shaped clock, the Lion a medal for courage. Dorothy learns she can use the silver slippers to go home by clicking her heels three times and saying 'There's no place like home.' She wakes up in Kansas, safe with her family.",
-  },
-  u08: {
-    title: "Aladdin",
-    author: "Traditional (Usborne)",
-    grade: "2",
-    summary:
-      "Aladdin is a poor, lazy boy living with his widowed mother in a city in China. A wicked sorcerer from Africa arrives, pretending to be Aladdin's long-lost uncle. He tricks Aladdin into climbing down into a magical underground cave to retrieve an old oil lamp, giving Aladdin a magic ring for protection. When Aladdin won't hand over the lamp before being helped out of the cave, the sorcerer seals him underground. Aladdin accidentally rubs the ring and summons a genie who takes him home. His mother discovers that rubbing the lamp releases an even more powerful Genie of the Lamp who can grant any wish. Aladdin uses the lamp's genie to become rich and to win the hand of the Sultan's beautiful daughter Princess Badr al-Budur in marriage. They live happily in a palace the genie builds for them. But the sorcerer returns. He tricks the princess into trading the old lamp for a shiny new one. Using the lamp, he moves the whole palace — and the princess — to Africa. Aladdin uses the ring genie to travel to Africa and find the princess. Together they drug the sorcerer's wine, steal back the lamp, and command the genie to carry the palace and everyone in it back home. Aladdin and the princess live happily ever after.",
   },
   u09: {
     title: "Pinocchio",
