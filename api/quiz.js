@@ -17,7 +17,7 @@
 import { generateObject } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
-import { verifySession, parseCookies } from "../lib/session.js";
+import { verifySession, parseCookies, isAdmin } from "../lib/session.js";
 import {
   getCachedQuiz,
   setCachedQuiz,
@@ -830,9 +830,10 @@ export default async function handler(req, res) {
   // Track-visibility enforcement (#14). If admin has locked this book's
   // track for this student (or default rule hides it), refuse to serve the
   // quiz. Prevents bypassing the UI filter with a direct bookId fetch.
+  // Admins bypass — they need QA access to every book regardless of grade.
   const bookTrack = trackForBook(book);
   const visible = resolveVisibleTracks(studentGrade, trackOverrides);
-  if (bookTrack && !visible.includes(bookTrack)) {
+  if (!isAdmin(session.email) && bookTrack && !visible.includes(bookTrack)) {
     res.statusCode = 403;
     return res.end(
       JSON.stringify({

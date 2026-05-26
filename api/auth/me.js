@@ -8,7 +8,7 @@ import {
   getCurrentlyReading,
 } from "../../lib/store.js";
 import { normalizeGrade, stallAlarmDays, estimatedMinutes } from "../../lib/xp.js";
-import { resolveVisibleTracks } from "../../lib/tracks.js";
+import { resolveVisibleTracks, TRACK_ORDER } from "../../lib/tracks.js";
 import { getBook } from "../../lib/books.js";
 
 // Load the user's profile row from Redis (returns null on miss or error).
@@ -55,7 +55,13 @@ export default async function handler(req, res) {
   const profile = await loadProfile(session.email);
   const grade = resolveGrade(profile, session.email);
   const trackOverrides = profile?.trackOverrides || {};
-  const visibleTracks = resolveVisibleTracks(grade, trackOverrides);
+  // Admins see every catalog tier regardless of working grade — they need
+  // the full view for QA and for managing student-side track-locking.
+  // Students get the normal at-or-below-working-grade rule (+ overrides).
+  const isAdminUser = isAdmin(session.email);
+  const visibleTracks = isAdminUser
+    ? [...TRACK_ORDER]
+    : resolveVisibleTracks(grade, trackOverrides);
   let currentlyReading = await getCurrentlyReading(session.email);
   // Enrich with the alarm threshold + expected minutes so the client can
   // render the stall warning without needing the book wordCount on the
@@ -80,7 +86,7 @@ export default async function handler(req, res) {
       email: session.email,
       name: session.name,
       picture: session.picture || null,
-      isAdmin: isAdmin(session.email),
+      isAdmin: isAdminUser,
       grade,
       visibleTracks,
       currentlyReading,
