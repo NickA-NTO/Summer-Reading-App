@@ -2144,6 +2144,13 @@ voicePicker.addEventListener("change", () => {
   // Always audition — picking a voice IS opting in to hear it,
   // regardless of whether the global TTS toggle is on.
   speak("Hi! Pick a book to start reading.", { force: true });
+  // If a book modal is open, pre-warm the new voice's cache for that
+  // book too — otherwise the next "Read blurb aloud" click hits a
+  // cold synth and risks the autoplay block.
+  if (activeBookId) {
+    const book = BOOK_BY_ID[activeBookId];
+    if (book) prewarmTtsForBook(book);
+  }
 });
 
 /* Track the currently-playing audio so we can cancel on toggle-off */
@@ -2231,6 +2238,37 @@ async function speak(text, opts = {}) {
   } catch (err) {
     console.warn("[tts] outer failure — falling back to browser:", err);
     speakBrowser(t);
+  }
+}
+
+// Pre-warm the Polly cache for a book the moment its modal opens. By the
+// time the kid taps "🔊 Read blurb aloud", the /api/tts endpoint hits the
+// Redis index → Blob URL path (~50 ms) instead of the cold Polly synth
+// (~1 second). That keeps the click → audio.play() round-trip inside the
+// browser's user-gesture window so playback isn't silently blocked by
+// the autoplay policy.
+//
+// Fire-and-forget: failures (Polly unconfigured, budget, network) are
+// harmless — the actual play path retries and falls back to browser TTS.
+// Re-opens of the same modal hit the cache and cost zero. Pre-warming is
+// also effectively free at scale: first kid pays Polly, every other kid
+// reading that same book + voice pair hits the shared Blob cache.
+let _ttsPrewarmInFlight = new Set();
+function prewarmTtsForBook(book) {
+  if (!book) return;
+  const voice = chosenPollyVoice || "Ivy";
+  const texts = [book.title, `${book.title}. ${book.blurb || ""}`];
+  for (const text of texts) {
+    if (!text || !text.trim()) continue;
+    const key = `${voice}|${text}`;
+    if (_ttsPrewarmInFlight.has(key)) continue;
+    _ttsPrewarmInFlight.add(key);
+    fetch(
+      `/api/tts?voice=${encodeURIComponent(voice)}&text=${encodeURIComponent(text)}`,
+      { credentials: "same-origin" }
+    )
+      .catch(() => {})
+      .finally(() => _ttsPrewarmInFlight.delete(key));
   }
 }
 
@@ -2633,6 +2671,10 @@ function openBook(id) {
   modal.classList.add("open");
   document.body.style.overflow = "hidden";
   // No autoplay: kids can tap "🔊 Title" or "🔊 Read blurb aloud" to hear it.
+  // BUT — pre-warm the Polly cache in the background so the speak buttons
+  // hit Redis instead of doing a 1-sec cold synth on click. Eliminates the
+  // user-gesture autoplay block that was silently killing first-click audio.
+  prewarmTtsForBook(book);
 }
 
 // Show the below-level warning in the book detail modal if the book's
