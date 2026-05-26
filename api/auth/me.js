@@ -8,6 +8,7 @@ import {
   getCurrentlyReading,
   getAchievements,
   evaluateAchievementsForUser,
+  setInitialGradeIfMissing,
 } from "../../lib/store.js";
 import { normalizeGrade, stallAlarmDays, estimatedMinutes } from "../../lib/xp.js";
 import { resolveVisibleTracks, TRACK_ORDER } from "../../lib/tracks.js";
@@ -57,6 +58,15 @@ export default async function handler(req, res) {
 
   const profile = await loadProfile(session.email);
   const grade = resolveGrade(profile, session.email);
+  // Lock the kid's initial grade the first time we see them. This is the
+  // anchor for the stretch-ladder achievements: growth makes badges easier
+  // to keep earning, never harder. Idempotent — no-ops once set.
+  if (!profile?.initialGrade) {
+    try {
+      const locked = await setInitialGradeIfMissing(session.email, grade);
+      if (locked && profile) profile.initialGrade = locked;
+    } catch {}
+  }
   const trackOverrides = profile?.trackOverrides || {};
   // Admins see every catalog tier regardless of working grade — they need
   // the full view for QA and for managing student-side track-locking.
