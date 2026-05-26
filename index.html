@@ -281,6 +281,13 @@
     scrollbar-width: none;
   }
   .stats-inner::-webkit-scrollbar { display: none; }
+  /* Stats group — separately targetable from the chip row (#20 follow-up
+     will turn the chips into dropdowns; this wrapper is what tour step 2
+     spotlights so the chips aren't lumped in). */
+  .stats-row {
+    display: flex; align-items: center; gap: 22px;
+    flex-shrink: 0;
+  }
   .stat {
     display: flex; align-items: center; gap: 8px;
     font-size: 13px; color: var(--muted);
@@ -1353,24 +1360,30 @@
 <!-- ============ Stats / category strip (differentiator) ============ -->
 <div class="stats-strip">
   <div class="stats-inner">
-    <div class="stat" id="statPointsWrap" style="display:none">
-      <div class="ic" style="background:rgba(139,92,246,.16);color:#a78bfa">✨</div>
-      <span class="v" id="statPoints">0</span><span>XP</span>
-    </div>
-    <div class="stat"><div class="ic">📚</div><span class="v" id="statRead">0</span><span>books read</span></div>
-    <div class="stat"><div class="ic">💬</div><span class="v" id="statComments">0</span><span>reviews</span></div>
-    <div class="stat"><div class="ic">🔥</div><span class="v" id="statStreak">0</span><span>day streak</span></div>
-    <div class="stat" id="statRankWrap" style="display:none">
-      <div class="ic" style="background:rgba(245,158,11,.16);color:#fbbf24">🏆</div>
-      <span class="v" id="statRank">—</span><span id="statRankLabel">rank</span>
-    </div>
-    <div class="stat" id="statReadingWrap" style="display:none;cursor:pointer" title="Open this book">
-      <div class="ic" style="background:rgba(20,184,166,.16);color:#5eead4">📖</div>
-      <div style="display:flex;flex-direction:column;line-height:1.15">
-        <span class="v" id="statReadingTitle" style="font-size:13px">—</span>
-        <span id="statReadingMeta" style="font-size:11px;color:var(--muted)">—</span>
+    <!-- Stats group — independent target for tour step 2. Holds only
+         the XP/books/reviews/streak/rank/reading chips. -->
+    <div class="stats-row" id="statsRow">
+      <div class="stat" id="statPointsWrap" style="display:none">
+        <div class="ic" style="background:rgba(139,92,246,.16);color:#a78bfa">✨</div>
+        <span class="v" id="statPoints">0</span><span>XP</span>
+      </div>
+      <div class="stat"><div class="ic">📚</div><span class="v" id="statRead">0</span><span>books read</span></div>
+      <div class="stat"><div class="ic">💬</div><span class="v" id="statComments">0</span><span>reviews</span></div>
+      <div class="stat"><div class="ic">🔥</div><span class="v" id="statStreak">0</span><span>day streak</span></div>
+      <div class="stat" id="statRankWrap" style="display:none">
+        <div class="ic" style="background:rgba(245,158,11,.16);color:#fbbf24">🏆</div>
+        <span class="v" id="statRank">—</span><span id="statRankLabel">rank</span>
+      </div>
+      <div class="stat" id="statReadingWrap" style="display:none;cursor:pointer" title="Open this book">
+        <div class="ic" style="background:rgba(20,184,166,.16);color:#5eead4">📖</div>
+        <div style="display:flex;flex-direction:column;line-height:1.15">
+          <span class="v" id="statReadingTitle" style="font-size:13px">—</span>
+          <span id="statReadingMeta" style="font-size:11px;color:var(--muted)">—</span>
+        </div>
       </div>
     </div>
+    <!-- Filter chips — independent target for tour step 3. Genre +
+         grade selection. (TODO: convert to right-aligned dropdowns.) -->
     <div class="chip-row" id="chipRow"></div>
   </div>
 </div>
@@ -4209,9 +4222,14 @@ const TOUR_STEPS = [
     body: "We feature a different book here every few hours. Tap any cover to see more.",
   },
   {
-    selector: ".stats-strip",
+    selector: "#statsRow",
     title: "Your stats",
-    body: "Your XP and the books you've read live up here. Hit about 1,200 XP over summer to keep your reading on track.",
+    body: "Your XP, books read, and streak live up here. Hit about 1,200 XP over summer to keep your reading on track.",
+  },
+  {
+    selector: "#chipRow",
+    title: "Jump to a grade or genre",
+    body: "Tap any chip to scroll straight to that section of the catalog — animals, adventures, your current grade, whatever you're in the mood for.",
   },
   {
     selector: "#navLeaderboard",
@@ -4373,8 +4391,8 @@ function renderTourStep() {
   // Fire onExit of the previously entered step (if any) before swapping in.
   runTourExitHook();
   const step = TOUR_STEPS[_tourIdx];
-  // onEnter can mutate the DOM (e.g. open a modal); wait two frames before
-  // resolving the target so the new elements exist.
+  // onEnter can mutate the DOM (e.g. open a modal); we settle below
+  // before measuring the target.
   if (typeof step.onEnter === "function") {
     try { step.onEnter(); } catch (err) {
       console.warn("[tour] onEnter failed", err);
@@ -4392,13 +4410,18 @@ function renderTourStep() {
       }
       return endTour();
     }
-    target.scrollIntoView({ behavior: "smooth", block: "center" });
-    requestAnimationFrame(() => requestAnimationFrame(() => positionTour(target, step)));
+    // Instant scroll (not smooth) so the rect read on the next frame is
+    // correct. The tour overlay dims everything anyway — the kid doesn't
+    // see the scroll animation, so smooth scroll just causes positioning
+    // races where the bubble lands at the old rect.
+    target.scrollIntoView({ behavior: "auto", block: "center" });
+    // One frame for layout to apply after the scroll.
+    requestAnimationFrame(() => positionTour(target, step));
   };
-  // Two frames for the onEnter side-effects (modal open animation, etc.)
-  // to settle before measuring the target.
+  // Wait for onEnter side-effects (modal open animation, scroll, etc.)
+  // before measuring. 180ms covers the modal CSS transitions we have.
   if (typeof step.onEnter === "function") {
-    setTimeout(settle, 120);
+    setTimeout(settle, 180);
   } else {
     settle();
   }
@@ -4417,6 +4440,8 @@ function positionTour(target, step) {
     height: `${rect.height + pad * 2}px`,
   });
 
+  // Update bubble text FIRST so its height measurement after reflow is
+  // accurate for the new content (not the previous step's leftover size).
   document.getElementById("tourStep").textContent =
     `Step ${_tourIdx + 1} of ${TOUR_STEPS.length}`;
   document.getElementById("tourTitle").textContent = step.title;
@@ -4425,17 +4450,55 @@ function positionTour(target, step) {
   document.getElementById("tourNext").textContent =
     _tourIdx === TOUR_STEPS.length - 1 ? "Finish ✓" : "Next →";
 
-  // Position bubble below the target if there's room, else above.
+  // Force a reflow before measuring — otherwise offsetHeight reflects the
+  // PREVIOUS step's content (height changes per step because body text
+  // varies in length).
+  bubble.style.visibility = "hidden";
+  // eslint-disable-next-line no-unused-expressions
+  void bubble.offsetHeight; // sync layout flush
   const bubbleH = bubble.offsetHeight || 160;
   const bubbleW = bubble.offsetWidth || 320;
   const viewH = window.innerHeight;
   const viewW = window.innerWidth;
-  let top = rect.bottom + 16;
-  if (top + bubbleH > viewH - 16) top = Math.max(16, rect.top - bubbleH - 16);
-  let left = rect.left + rect.width / 2 - bubbleW / 2;
-  left = Math.max(16, Math.min(viewW - bubbleW - 16, left));
+  const gap = 16;
+
+  // Try below → above → right → left, picking the first that fits without
+  // overlapping the spotlight rect.
+  let top, left, placement = "below";
+  const fitsBelow = rect.bottom + gap + bubbleH <= viewH - gap;
+  const fitsAbove = rect.top - gap - bubbleH >= gap;
+  const fitsRight = rect.right + gap + bubbleW <= viewW - gap;
+  const fitsLeft  = rect.left - gap - bubbleW >= gap;
+
+  if (fitsBelow) {
+    top = rect.bottom + gap;
+    left = rect.left + rect.width / 2 - bubbleW / 2;
+    placement = "below";
+  } else if (fitsAbove) {
+    top = rect.top - bubbleH - gap;
+    left = rect.left + rect.width / 2 - bubbleW / 2;
+    placement = "above";
+  } else if (fitsRight) {
+    top = rect.top + rect.height / 2 - bubbleH / 2;
+    left = rect.right + gap;
+    placement = "right";
+  } else if (fitsLeft) {
+    top = rect.top + rect.height / 2 - bubbleH / 2;
+    left = rect.left - bubbleW - gap;
+    placement = "left";
+  } else {
+    // Last resort — pin bottom-right, on top of nothing important.
+    top = viewH - bubbleH - gap;
+    left = viewW - bubbleW - gap;
+    placement = "corner";
+  }
+  // Clamp within viewport with a 16px breathing margin.
+  top = Math.max(gap, Math.min(viewH - bubbleH - gap, top));
+  left = Math.max(gap, Math.min(viewW - bubbleW - gap, left));
   bubble.style.top = `${top}px`;
   bubble.style.left = `${left}px`;
+  bubble.dataset.placement = placement;
+  bubble.style.visibility = "";
 }
 
 function repositionTour() {
