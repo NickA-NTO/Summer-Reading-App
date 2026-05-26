@@ -306,7 +306,41 @@
   }
   .chip-row {
     margin-left: auto;
-    display: flex; gap: 6px; flex-wrap: nowrap;
+    display: flex; gap: 8px; flex-wrap: nowrap;
+    align-items: center;
+  }
+  /* Filter dropdowns — replaced the long chip list (#20). Each is a
+     label-wrapped <select> styled like the old chips so the visual
+     vocabulary stays consistent. */
+  .filter-select-wrap {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(255,255,255,.05);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 3px 6px 3px 12px;
+    font-size: 12px; color: var(--muted);
+    cursor: pointer;
+    transition: border-color .15s, color .15s;
+  }
+  .filter-select-wrap:hover {
+    border-color: var(--line-2); color: var(--ink);
+  }
+  .filter-select-label {
+    font-weight: 600; user-select: none;
+  }
+  .filter-select {
+    background: transparent;
+    color: var(--ink);
+    border: none;
+    font-size: 12px; font-weight: 500;
+    padding: 5px 8px 5px 4px;
+    cursor: pointer; outline: none;
+    font-family: inherit;
+    /* Keep the native arrow on the right side — feels familiar to kids
+       who've seen any other select on the web. */
+  }
+  .filter-select option {
+    background: var(--panel); color: var(--ink);
   }
   .chip {
     background: rgba(255,255,255,.05);
@@ -1382,9 +1416,22 @@
         </div>
       </div>
     </div>
-    <!-- Filter chips — independent target for tour step 3. Genre +
-         grade selection. (TODO: convert to right-aligned dropdowns.) -->
-    <div class="chip-row" id="chipRow"></div>
+    <!-- Compact right-aligned filter dropdowns (#20). Tour step 3
+         targets #chipRow which now contains the two select menus. -->
+    <div class="chip-row" id="chipRow">
+      <label class="filter-select-wrap" title="Jump to a grade">
+        <span class="filter-select-label">📚 Grade</span>
+        <select class="filter-select" id="filterGrade" aria-label="Filter by grade">
+          <option value="">— Pick a grade —</option>
+        </select>
+      </label>
+      <label class="filter-select-wrap" title="Jump to a genre">
+        <span class="filter-select-label">🎭 Genre</span>
+        <select class="filter-select" id="filterGenre" aria-label="Filter by genre">
+          <option value="">— Pick a topic —</option>
+        </select>
+      </label>
+    </div>
   </div>
 </div>
 
@@ -2248,35 +2295,51 @@ function startApp(session) {
   refreshMyRank();
 }
 
-/* ---------- 6. Category quick-nav chips ---------- */
+/* ---------- 6. Category quick-nav dropdowns (#20) ---------- */
+//
+// Two compact <select> menus replaced the old chip strip — one for Grade,
+// one for Genre. Honors the user's visibleTracks (the Grade options only
+// list tracks the student is actually allowed to see). Selecting an option
+// scrolls to the matching #section-{id}.
 function renderChips() {
-  const row = document.getElementById("chipRow");
-  row.innerHTML = "";
-  // Grade chips first (the primary organizing dimension)
-  CATEGORIES.forEach(c => {
-    const chip = document.createElement("button");
-    chip.className = "chip";
-    chip.textContent = `${c.icon}  ${c.title}`;
-    chip.addEventListener("click", () => {
-      const el = document.getElementById(`section-${c.id}`);
-      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
-    row.appendChild(chip);
+  const gradeSel = document.getElementById("filterGrade");
+  const genreSel = document.getElementById("filterGenre");
+  if (!gradeSel || !genreSel) return;
+
+  // ── Grade dropdown ────────────────────────────────────────────────
+  const visible = state.session?.visibleTracks;
+  const allowed = Array.isArray(visible) ? new Set(visible) : null;
+  gradeSel.innerHTML = '<option value="">— Pick a grade —</option>';
+  CATEGORIES.forEach((c) => {
+    if (allowed && !allowed.has(c.id)) return;
+    const opt = document.createElement("option");
+    opt.value = c.id;
+    opt.textContent = `${c.icon}  ${c.title}`;
+    gradeSel.appendChild(opt);
   });
-  // Small divider then genre chips (browse by topic)
-  const sep = document.createElement("span");
-  sep.style.cssText = "width:1px;height:18px;background:var(--line);margin:0 4px;align-self:center";
-  row.appendChild(sep);
-  GENRES.forEach(g => {
-    const chip = document.createElement("button");
-    chip.className = "chip";
-    chip.textContent = `${g.icon}  ${g.title}`;
-    chip.addEventListener("click", () => {
-      const el = document.getElementById(`section-${g.id}`);
-      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
-    row.appendChild(chip);
+
+  // ── Genre dropdown ────────────────────────────────────────────────
+  genreSel.innerHTML = '<option value="">— Pick a topic —</option>';
+  GENRES.forEach((g) => {
+    const opt = document.createElement("option");
+    opt.value = g.id;
+    opt.textContent = `${g.icon}  ${g.title}`;
+    genreSel.appendChild(opt);
   });
+
+  // ── Selection → scroll. Reset to "—" so the kid can re-pick the same
+  // option later (otherwise change events don't fire for the same value).
+  const handleJump = (selectEl) => {
+    const id = selectEl.value;
+    if (!id) return;
+    const el = document.getElementById(`section-${id}`);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    selectEl.value = "";
+  };
+  // .onchange = assignment (not addEventListener) so re-rendering doesn't
+  // stack handlers if renderChips runs again.
+  gradeSel.onchange = () => handleJump(gradeSel);
+  genreSel.onchange = () => handleJump(genreSel);
 }
 
 /* ---------- 7. Stats strip ---------- */
@@ -4228,8 +4291,8 @@ const TOUR_STEPS = [
   },
   {
     selector: "#chipRow",
-    title: "Jump to a grade or genre",
-    body: "Tap any chip to scroll straight to that section of the catalog — animals, adventures, your current grade, whatever you're in the mood for.",
+    title: "Jump to a grade or topic",
+    body: "Use these dropdowns to leap straight to a section — pick a grade or a topic like Animals or Adventures and the catalog scrolls to it.",
   },
   {
     selector: "#navLeaderboard",
