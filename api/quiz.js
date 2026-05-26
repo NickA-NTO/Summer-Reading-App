@@ -131,6 +131,14 @@ const QUIZ_BOOKS = {
     summary:
       "A short rhyming Usborne Very First Reading book. A goose escapes from its pen on a farm and runs everywhere. A boy chases the goose with a broom. The goose runs past the pig, the cow, the sheep, and the duck. The animals all watch. The goose is too fast. Finally the boy gets clever and uses some food (corn) to lead the goose calmly back to its pen. The boy is happy and the goose is happy too.",
   },
+  e12: {
+    title: "Pirate Pat",
+    author: "Mairi Mackinnon (Usborne)",
+    grade: "PK",
+    quizStyle: "emergent",
+    summary:
+      "A short rhyming Usborne Very First Reading book. Pirate Pat is a small pirate who sails his little wooden boat across the sea. He has a green parrot that sits on his shoulder. Pat is looking for treasure. He sees fish jumping in the water. He sees a big whale spout water into the sky. He sees a giant sea monster but is not scared. Pat sails to a small island with palm trees. He digs in the sand and finds a treasure chest full of gold coins and jewels. Pat is very happy. He sails home with his treasure.",
+  },
 
   /* ---------- Grade K ---------- */
   k01: {
@@ -317,6 +325,13 @@ const QUIZ_BOOKS = {
     summary:
       "Mr. Fox lives with his wife and four small fox children in a cozy hole under a tree on a hill. Every night he sneaks down to one of three farms — owned by three nasty farmers named Boggis (fat, eats three boiled chickens with dumplings every day), Bunce (short, eats doughnuts with goose-liver paste), and Bean (skinny, drinks gallons of cider) — and steals food. The farmers get fed up and decide to stake out his hole with shotguns. They shoot off the end of his tail, but he escapes underground. The farmers try to dig him out with shovels, then with bulldozers and excavators, destroying the entire hill. The Fox family starves underground for days. Then Mr. Fox has a brilliant plan: instead of digging up, dig sideways. He and his children tunnel into Boggis's chicken house, Bunce's storehouse of geese and ducks, and Bean's secret cider cellar. They steal a feast. Mr. Fox invites the other underground animals (Badger, Mole, Rabbit, and Weasel) and their families to a grand banquet underground. The three farmers are left waiting outside the hole in the rain forever, never realizing the foxes are now living comfortably below them.",
   },
+  b08: {
+    title: "Stellaluna",
+    author: "Janell Cannon",
+    grade: "2",
+    summary:
+      "Stellaluna is a baby fruit bat. One night as her mother Mother Bat flies through the forest carrying her, a great owl swoops out of the darkness and attacks them. Stellaluna falls from her mother's grasp and tumbles down through the leaves into a bird's nest. The mother bird who lives in the nest already has three baby birds named Pip, Flitter, and Flap. She raises Stellaluna alongside them, but on bird rules: Stellaluna must sleep at night and stay awake in the day, eat bugs instead of fruit, and stop hanging upside down. Stellaluna tries to be a good bird but it feels wrong — she misses her mother and wants to hang by her feet. One day Stellaluna and her bird siblings get separated. Stellaluna meets other bats hanging from a tree branch. They recognize that she's a bat too. Stellaluna is reunited with her real mother Mother Bat and learns she's been raised by birds. She brings her bird friends to meet the bats. The birds and bats discover they see the world very differently — but they remain friends, learning to appreciate their differences and the strangeness of being so different yet so alike.",
+  },
   b09: {
     title: "The Magic Faraway Tree",
     author: "Enid Blyton",
@@ -378,6 +393,13 @@ const QUIZ_BOOKS = {
     grade: "2",
     summary:
       "Dorothy lives on a farm in Kansas with her Auntie Em, Uncle Henry, and her little dog Toto. A great tornado picks up their farmhouse and drops it in the magical land of Oz, crushing and killing the Wicked Witch of the East and freeing the Munchkins who lived under her power. The Good Witch of the North gives Dorothy the dead witch's silver slippers and tells her to follow the Yellow Brick Road to the Emerald City, where the great Wizard might help her get home. Along the Yellow Brick Road Dorothy meets a Scarecrow who wants a brain, a Tin Woodman who wants a heart, and a Cowardly Lion who wants courage. They travel together through dangers: a field of enchanted poppies that put Dorothy and the Lion to sleep, flying monkeys controlled by the Wicked Witch of the West, and a terrifying dark castle. The Wicked Witch of the West, who wants the silver slippers, captures Dorothy. Dorothy throws a bucket of water on her to put out the fire and accidentally melts the witch. When they reach the Wizard they discover he is an ordinary man hiding behind a curtain who can do no real magic. He sends them away with words: he gives the Scarecrow a diploma, the Tin Man a heart-shaped clock, the Lion a medal for courage. Dorothy learns she can use the silver slippers to go home by clicking her heels three times and saying 'There's no place like home.' She wakes up in Kansas, safe with her family.",
+  },
+  u08: {
+    title: "Rapunzel",
+    author: "Susanna Davidson (Usborne)",
+    grade: "2",
+    summary:
+      "A poor husband and wife long for a child of their own. Behind their cottage they can see a beautiful walled garden full of vegetables and herbs — but it belongs to a wicked witch. The wife sees rampion (rapunzel) lettuce growing there and craves it so much she will die without it. Her husband sneaks over the wall to steal some, but the witch catches him. She agrees to let him live only if they promise her their baby when it is born. The baby girl is born with golden hair, and the witch takes her away and names her Rapunzel. The witch locks Rapunzel in a tall stone tower deep in the forest. The tower has no door and only one window high at the top. Rapunzel's hair grows very long. When the witch wants to enter she calls 'Rapunzel, Rapunzel, let down your hair' and climbs up using Rapunzel's golden hair as a ladder. One day a young prince riding through the forest hears Rapunzel singing. He hides and watches the witch call up and climb. After the witch leaves the prince calls the same words. Rapunzel lets down her hair and the prince climbs up. They fall in love and plan to escape together. But the witch discovers them. She angrily cuts off Rapunzel's golden hair and banishes her to a desert. She tricks the prince: when he climbs the cut-off hair, the witch is at the top instead. The prince falls from the tower into thorn bushes that scratch out his eyes, blinding him. He wanders blind through the forest for years. Eventually he reaches the desert and hears Rapunzel singing. When they reunite, her tears of joy fall on his eyes and restore his sight. They return to his kingdom and live happily ever after.",
   },
   u09: {
     title: "Pinocchio",
