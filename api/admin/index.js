@@ -32,6 +32,7 @@ import {
   getCurrentlyReading,
   getQuizFraudState,
   getFirstOpenAt,
+  unawardAndHold,
 } from "../../lib/store.js";
 import { sanitizeTrackOverrides, TRACK_ORDER } from "../../lib/tracks.js";
 import {
@@ -167,6 +168,36 @@ export default async function handler(req, res) {
       out.error = String(err?.message || err);
     }
     return json(res, 200, out);
+  }
+
+  // ====================== hold-existing-read ======================
+  // Retroactively move an already-awarded read into the held-XP queue.
+  // Used to scrub leaderboard scores from quizzes that slipped past the
+  // fraud detector before the detector was tightened.
+  //
+  // POST /api/admin?action=hold-existing-read
+  // Body: { email, bookId, points, grade?, bookTitle?, reason? }
+  // - Deducts `points` from all-time / weekly / grade leaderboards
+  // - Adds a held-XP entry to the admin queue so review can approve/reject
+  // - Does NOT remove the book from the kid's read set (they did pass the quiz)
+  if (action === "hold-existing-read" && req.method === "POST") {
+    const body = await readBody(req);
+    if (body === null) return json(res, 400, { error: "invalid_json" });
+    const email = String(body.email || "").toLowerCase().trim();
+    const bookId = String(body.bookId || "").trim();
+    const points = Math.round(Number(body.points || 0));
+    const grade = body.grade ? normalizeGrade(body.grade) : null;
+    const bookTitle = body.bookTitle ? String(body.bookTitle) : null;
+    const reason = body.reason ? String(body.reason) : "retroactive_review";
+    if (!email || !bookId || !(points > 0)) {
+      return json(res, 400, { error: "invalid_request",
+        message: "Need email, bookId, points (>0)." });
+    }
+    const result = await unawardAndHold({
+      email, name: email.split("@")[0],
+      grade, bookId, bookTitle, points, reason,
+    });
+    return json(res, result.ok ? 200 : 500, result);
   }
 
   // ========================= tts-usage ===========================

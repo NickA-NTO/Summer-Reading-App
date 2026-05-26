@@ -32,6 +32,7 @@ import {
   FRAUD_RATIO_SOFT,
   FRAUD_FRESHNESS_WINDOW_MS,
   FIRST_OPEN_SUSPICION_HOURS,
+  STARTED_RECENTLY_HOLD_MS,
 } from "../lib/store.js";
 import { getBook } from "../lib/books.js";
 import { pointsForBook, normalizeGrade, WCPM_BY_GRADE } from "../lib/xp.js";
@@ -265,19 +266,50 @@ export default async function handler(req, res) {
       }
     }
 
-    // 2c. Combine the two signals using a fair soft matrix:
+    // 2d. "I'm reading this" → quiz gap (hard floor).
+    //     The strongest direct signal: how long between clicking "I'm
+    //     reading this" and submitting this quiz. Anything under 1 hour
+    //     is auto-held for admin review — no kid can read a book and
+    //     comprehend it well enough for a 5-question quiz in that window,
+    //     even an emergent picture book. False positives go to manual
+    //     review, not a leaderboard penalty.
+    let recentStartStatus = "clean"; // "clean" | "hold"
+    let recentStartDebug = null;
+    try {
+      const active = await getCurrentlyReading(session.email);
+      if (active?.bookId === bookId && active?.startedAt) {
+        const startedAt = Number(active.startedAt);
+        const gap = now - startedAt;
+        recentStartDebug = {
+          startedAt,
+          gapSec: Math.round(gap / 1000),
+          gapMin: +(gap / 60000).toFixed(2),
+        };
+        if (gap >= 0 && gap < STARTED_RECENTLY_HOLD_MS) {
+          recentStartStatus = "hold";
+        }
+      }
+    } catch {
+      /* missing currentlyReading data → don't synthesize a hold from absence */
+    }
+
+    // 2c. Combine the signals using a fair soft matrix:
     //       WCPM clean   + open clean         → clean
     //       WCPM clean   + open suspicious    → soft_flag (only 1 signal)
     //       WCPM soft    + open clean         → soft_flag (existing behavior)
     //       WCPM soft    + open suspicious    → held (both signals agree)
     //       WCPM hold    + (any)              → held (WCPM hold is strong)
+    //       recent-start hold  (any other)    → held (1-hour floor, hard rule)
     //
     //     Net effect: a kid who already had the book at home is mostly
     //     protected — the WCPM check sees a reasonable gap because they
     //     read at a normal pace, and the first-open check by itself
-    //     downgrades only to a soft flag, never an outright hold.
+    //     downgrades only to a soft flag, never an outright hold. The
+    //     recent-start rule is the catch-all for the Andy case.
     let combined = "clean";
-    if (wcpmStatus === "hold") {
+    if (recentStartStatus === "hold") {
+      combined = "hold";
+    } else if (wcpmStatus === "hold") {
       combined = "hold";
     } else if (wcpmStatus === "soft" && openStatus === "suspicious") {
       combined = "hold";
@@ -299,15 +331,20 @@ export default async function handler(req, res) {
         elapsedMins: wcpmDebug?.elapsedMins ?? null,
         minExpectedMins: wcpmDebug?.minExpectedMins ?? null,
         hoursSinceOpen: openDebug?.hoursSinceOpen ?? null,
+        gapStartedToQuizSec: recentStartDebug?.gapSec ?? null,
         reason:
-          wcpmStatus === "hold"
-            ? "speed"
-            : openStatus === "suspicious" && wcpmStatus === "soft"
-              ? "speed_plus_recent_open"
-              : "speed",
+          recentStartStatus === "hold"
+            ? "started_recently"  // <1 hour between "I'm reading" and quiz
+            : wcpmStatus === "hold"
+              ? "speed"
+              : openStatus === "suspicious" && wcpmStatus === "soft"
+                ? "speed_plus_recent_open"
+                : "speed",
       });
       heldInfo = {
-        reason: "speed",
+        // Surface the actual signal so the client can phrase the message
+        // appropriately (and so the admin queue shows the right reason).
+        reason: recentStartStatus === "hold" ? "started_recently" : "speed",
         cooldownUntil: flagResult.cooldownUntil,
         flagCount: flagResult.flagCount,
         heldId: heldResult.id || null,

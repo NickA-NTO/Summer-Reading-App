@@ -3833,16 +3833,17 @@ async function finishQuiz() {
 
     let pointsLine;
     if (serverResp && serverResp.held) {
-      // XP held for admin review (speed-flagged). Show non-accusatory message.
-      const timeStr = serverResp.heldInfo?.cooldownUntil
-        ? ` until ${new Date(serverResp.heldInfo.cooldownUntil).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
-        : "";
+      // XP held for admin review. Always positive, never accusatory — the
+      // kid passed the quiz and should feel that. The review step is
+      // framed as a normal "we double-check XP" beat, not a punishment.
       pointsLine = `
-        <p style="font-size:14px;color:var(--muted);margin:14px 0 6px">
-          ⏰ <strong>Heads up:</strong> Your XP is being reviewed.
-          Try spending more time reading before your next quiz. Quizzes paused${timeStr}.
+        <p style="font-size:16px;color:var(--ink);margin:14px 0 8px">
+          🎯 <strong>Great job on the quiz!</strong>
         </p>
-        <p style="font-size:13px;color:var(--muted-2);margin:0 0 18px">Book marked as read.</p>`;
+        <p style="font-size:14px;color:var(--muted);margin:0 0 18px">
+          Your XP is being reviewed and should be awarded shortly.
+          Book marked as read.
+        </p>`;
     } else if (earnedPoints > 0) {
       pointsLine = `
         <p style="font-size:18px;color:var(--ink);margin:14px 0 6px">
