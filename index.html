@@ -3894,7 +3894,10 @@ async function finishQuiz() {
   saveAttemptRecord(quizState.bookId, rec);
 
   if (passed) {
-    // Show interim success while we wait for the server-awarded points
+    // Show interim success while we wait for the server-awarded points.
+    // No speak button here — this view is replaced in <1s once the server
+    // call settles, so any TTS would either get cut off or play after
+    // the screen had already changed.
     document.getElementById("quizContent").innerHTML = `
       <div class="quiz-result">
         <div class="emoji">🎉</div>
@@ -3920,7 +3923,7 @@ async function finishQuiz() {
       }
     }
 
-    let pointsLine;
+    let pointsLine, pointsTts;
     if (serverResp && serverResp.held) {
       // XP held for admin review. Always positive, never accusatory — the
       // kid passed the quiz and should feel that. The review step is
@@ -3933,18 +3936,27 @@ async function finishQuiz() {
           Your XP is being reviewed and should be awarded shortly.
           Book marked as read.
         </p>`;
+      pointsTts =
+        "Great job on the quiz! Your XP is being reviewed and should be " +
+        "awarded shortly. Book marked as read.";
     } else if (earnedPoints > 0) {
       pointsLine = `
         <p style="font-size:18px;color:var(--ink);margin:14px 0 6px">
           You earned <strong style="color:#a78bfa">✨ ${earnedPoints} XP</strong>!
         </p>
         <p style="font-size:13px;color:var(--muted);margin:0 0 18px">Book marked as read. You can now leave a review.</p>`;
+      pointsTts =
+        `You earned ${earnedPoints} XP! Book marked as read. You can now leave a review.`;
     } else {
       pointsLine = `<p>Book marked as read. You can now leave a review.</p>`;
+      pointsTts = "Book marked as read. You can now leave a review.";
     }
 
+    const passTts =
+      `Great reading! You got ${score} out of ${total} right. ${pointsTts}`;
     document.getElementById("quizContent").innerHTML = `
-      <div class="quiz-result">
+      <div class="quiz-result" style="position:relative">
+        ${quizResultSpeakBtn("quizResultSpeak")}
         <div class="emoji">🎉</div>
         <h3>Great reading!</h3>
         <div class="score">You got ${score} / ${total} right</div>
@@ -3954,6 +3966,7 @@ async function finishQuiz() {
         </div>
       </div>`;
     document.getElementById("quizDone").addEventListener("click", closeQuiz);
+    wireQuizResultTTS("quizResultSpeak", passTts);
     return;
   }
 
@@ -3966,9 +3979,13 @@ async function finishQuiz() {
   const message = canRetry
     ? `You need ${passThreshold(quizState.style)} out of ${total}. Re-read the book and try once more — you've got ${attemptsLeft} attempt${attemptsLeft === 1 ? "" : "s"} left today.`
     : `You've used both attempts today. Come back tomorrow and try again.`;
+  const failTts =
+    `${canRetry ? "Almost there!" : "Out of attempts."} ` +
+    `You got ${score} out of ${total} right. ${message}`;
 
   document.getElementById("quizContent").innerHTML = `
-    <div class="quiz-result">
+    <div class="quiz-result" style="position:relative">
+      ${quizResultSpeakBtn("quizResultSpeak")}
       <div class="emoji">${canRetry ? "📖" : "⏰"}</div>
       <h3>${canRetry ? "Almost there!" : "Out of attempts"}</h3>
       <div class="score">You got ${score} / ${total} right</div>
@@ -3987,6 +4004,29 @@ async function finishQuiz() {
     });
   }
   document.getElementById("quizLater").addEventListener("click", closeQuiz);
+  wireQuizResultTTS("quizResultSpeak", failTts);
+}
+
+// Helpers for the quiz-result screens (#21 TTS support). The speak button
+// is positioned absolutely in the upper-right of the result panel; auto-
+// speaks once on render and replays when the kid taps it.
+function quizResultSpeakBtn(id) {
+  return `<button class="tour-speak" id="${id}" type="button"
+    style="position:absolute;top:0;right:0;z-index:2"
+    title="Hear it read aloud">🔊 Read this</button>`;
+}
+function wireQuizResultTTS(btnId, text) {
+  if (typeof speak === "function") {
+    try { speak(text); } catch {}
+  }
+  const btn = document.getElementById(btnId);
+  if (btn) {
+    btn.addEventListener("click", () => {
+      if (typeof speak === "function") {
+        try { speak(text); } catch {}
+      }
+    });
+  }
 }
 
 /* ---------- 14. Leaderboard ---------- */
