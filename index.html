@@ -632,6 +632,15 @@
     color: var(--muted);
   }
   .pill.cat { color: var(--accent-2); border-color: rgba(37,99,235,.3); background: rgba(37,99,235,.1); }
+  /* XP pill — purple-flavored to match the stats-strip XP chip + the
+     quiz success "✨ N XP" callout. Tells kids what a book is worth
+     before they open the quiz. */
+  .pill.xp {
+    color: #a78bfa;
+    border-color: rgba(139,92,246,.35);
+    background: rgba(139,92,246,.12);
+    font-weight: 700;
+  }
   .modal-body { padding: 22px 40px 28px; }
 
   /* Below-level warning banner inside the book detail modal */
@@ -1472,6 +1481,7 @@
         <div class="modal-row1">
           <span class="pill" id="modalGrade">—</span>
           <span class="pill cat" id="modalCat">—</span>
+          <span class="pill xp" id="modalXp" title="Estimated XP you'll earn for passing the quiz on the first try. Retakes earn less.">— XP</span>
           <span class="pill" id="modalRating">—</span>
         </div>
       </div>
@@ -1806,6 +1816,45 @@ const BOOK_BY_ID = Object.fromEntries(ALL_BOOKS.map(b => [b.id, b]));
 // Alpha kids commonly read above age-grade, so this is the ONLY grade signal
 // we surface (age ranges are intentionally suppressed everywhere).
 const GRADE_BY_CATEGORY = { e: "Beginning", k: "K", a: "1", b: "2", c: "3" };
+
+// Client-side mirror of lib/xp.js — needed so the modal can show "~N XP"
+// before the kid even opens the quiz. KEEP IN SYNC with lib/xp.js and
+// lib/books.js (Hasbrouck-Tindal WCPM + per-book word counts).
+const CLIENT_WCPM = {
+  PK: 15, K: 30, "1": 60, "2": 100, "3": 110, "4": 130, "5": 140,
+  "6": 150, "7": 150, "8": 150, "9": 155, "10": 155, "11": 160, "12": 160,
+};
+const CLIENT_QUIZ_TIME_FULL_MIN = 3;
+const CLIENT_QUIZ_TIME_EMERGENT_MIN = 2;
+const WORD_COUNTS = {
+  // Beginning Readers (emergent quiz style — uses 2-min quiz allowance)
+  e01: 220, e02: 200, e03: 240, e04: 250, e05: 220,
+  e06: 348, e07: 619, e08: 240, e09: 800, e10: 1700, e11: 100, e12: 150,
+  // Grade K
+  k01: 225, k02: 1629, k03: 225, k04: 600, k05: 2000, k06: 750, k07: 290, k08: 750,
+  u01: 350, u02: 350, u03: 400,
+  // Grade 1
+  a01: 900, a02: 1800, a03: 1900, a04: 1200, a05: 1500, a06: 600,
+  a07: 340, a08: 1000, a09: 750, a10: 290, a11: 1500,
+  u04: 700, u05: 500, u06: 650,
+  // Grade 2
+  b01: 700, b02: 825, b03: 2800, b04: 5000, b05: 6300, b06: 1800,
+  b07: 10500, b08: 3500, b09: 46000,
+  u07: 7000, u08: 6000, u09: 5500,
+  // Grade 3
+  c01: 6000, c02: 6500, c03: 6500, c04: 25000, c05: 32000, c06: 19000, c07: 28000, c08: 7500,
+};
+function expectedXp(bookId, workingGrade) {
+  const wc = WORD_COUNTS[bookId] || 0;
+  if (wc < 1) return 0;
+  const grade = String(workingGrade || "K").toUpperCase();
+  const wcpm = CLIENT_WCPM[grade] || CLIENT_WCPM.K;
+  // Emergent quiz style for the Beginning Readers tier (bookId starts with "e").
+  // Matches the `quizStyle: "emergent"` flag on lib/books.js entries.
+  const emergent = String(bookId || "").startsWith("e");
+  const quizMin = emergent ? CLIENT_QUIZ_TIME_EMERGENT_MIN : CLIENT_QUIZ_TIME_FULL_MIN;
+  return Math.max(1, Math.floor(wc / wcpm + quizMin));
+}
 function gradeOf(book) {
   return GRADE_BY_CATEGORY[book?.categoryId] || "";
 }
@@ -2657,6 +2706,17 @@ function openBook(id) {
   document.getElementById("modalGrade").textContent = badgeText || "—";
   document.getElementById("modalCat").textContent = book.category;
   document.getElementById("modalBlurb").textContent = book.blurb;
+  // Expected XP — based on the kid's working grade. Helps them decide
+  // whether a book is worth their summer time. ✨ matches the stats-strip
+  // and quiz-success XP styling.
+  const xp = expectedXp(book.id, state.session?.grade || "K");
+  const xpEl = document.getElementById("modalXp");
+  if (xp > 0) {
+    xpEl.textContent = `✨ ~${xp} XP`;
+    xpEl.style.display = "";
+  } else {
+    xpEl.style.display = "none";
+  }
 
   // Below-level warning: if the book's grade is lower than the student's
   // working grade, let them know they may earn fewer points. Doesn't block —
