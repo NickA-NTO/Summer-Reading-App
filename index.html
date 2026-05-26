@@ -1536,6 +1536,7 @@
     <nav class="nav-links">
       <a href="#" class="active">Home</a>
       <a href="#" id="navLeaderboard">🏆 Leaderboard</a>
+      <a href="#" id="navAchievements">🎖️ Achievements</a>
     </nav>
     <div class="spacer"></div>
     <div class="tts-wrap" title="Read text aloud">
@@ -1558,7 +1559,6 @@
           <div class="e" id="whoEmail">—</div>
         </div>
         <button id="menuAdmin" style="display:none">⚙️ Admin · Users</button>
-        <button id="menuAchievements">🏆 Achievements</button>
         <button id="menuReplayTour">🎬 Replay intro tour</button>
         <button id="signout">Sign out</button>
       </div>
@@ -4064,9 +4064,10 @@ document.getElementById("helpBtn").addEventListener("click", (e) => {
 // ── Achievements modal wiring (#24) ──────────────────────────────────
 // Catalog + unlocked map are loaded into state.session by /api/auth/me
 // on page load. New unlocks pile in via markBookAsRead's response.
-document.getElementById("menuAchievements").addEventListener("click", (e) => {
-  e.stopPropagation();
-  document.getElementById("userMenu").classList.remove("open");
+// Lives in the top nav next to the leaderboard so it's a first-class
+// destination (Steam-style) instead of buried in the avatar dropdown.
+document.getElementById("navAchievements").addEventListener("click", (e) => {
+  e.preventDefault();
   openAchievementsModal();
 });
 document.getElementById("closeAchModal").addEventListener("click", closeAchievementsModal);
