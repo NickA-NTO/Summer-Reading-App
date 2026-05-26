@@ -4950,18 +4950,22 @@ const TOUR_STEPS = [
     body: "Tap any cover to open the book. Try this one!",
   },
   {
-    // The "I'm reading this" button only exists when a book modal is open.
-    // We open a sample book on enter, highlight #startReading, then close
-    // it on exit so the tour ends with a clean catalog view.
+    // The "I'm reading this" button only exists when a book modal is open
+    // AND the kid hasn't already read that book. Earlier versions opened
+    // the first card in the catalog, but if that book was already finished
+    // #startReading is hidden (display:none), getBoundingClientRect returns
+    // zeros, and the spotlight lands at (0,0). We now pick the first card
+    // pointing to an UNREAD book so the button is guaranteed visible.
     onEnter: () => {
-      const card = document.querySelector(".row .scroller .card[data-book-id]");
-      const id = card?.getAttribute("data-book-id");
-      // Fall back to the hero featured book if cards somehow aren't rendered.
-      const target =
-        id ||
+      const readMap = (typeof state !== "undefined" && state?.data?.read) || {};
+      const cards = Array.from(document.querySelectorAll(".row .scroller .card[data-book-id]"));
+      const firstUnread = cards.find((c) => !readMap[c.getAttribute("data-book-id")]);
+      const id =
+        firstUnread?.getAttribute("data-book-id") ||
+        cards[0]?.getAttribute("data-book-id") ||
         (typeof featuredBook !== "undefined" && featuredBook?.id) ||
         null;
-      if (target && typeof openBook === "function") openBook(target);
+      if (id && typeof openBook === "function") openBook(id);
     },
     onExit: () => {
       // Close the demo modal as the tour leaves this step.
@@ -4970,9 +4974,27 @@ const TOUR_STEPS = [
         closeModal();
       }
     },
-    selectorFn: () => document.getElementById("startReading"),
+    // Resolve to whichever action button is actually visible in the modal
+    // — #startReading is the canonical target, but for books the kid has
+    // already read or marked as currently-reading it gets hidden. Falling
+    // back to #quizBtn / #readToggle keeps the spotlight on something
+    // meaningful instead of collapsing to (0,0).
+    selectorFn: () => {
+      const isVisible = (el) =>
+        el && el.offsetParent !== null && el.getBoundingClientRect().width > 0;
+      return (
+        (isVisible(document.getElementById("startReading")) && document.getElementById("startReading")) ||
+        (isVisible(document.getElementById("quizBtn"))      && document.getElementById("quizBtn")) ||
+        (isVisible(document.getElementById("readToggle"))   && document.getElementById("readToggle")) ||
+        null
+      );
+    },
     title: "Tap \"I'm reading this\"",
     body: "After you open a book, tap the green \"I'm reading this\" button to start it. The Take the Quiz button only unlocks once you've marked a book as your current read. Pass the quiz to earn XP!",
+    // Modal opens with an async cover-image load that can shift layout;
+    // bump the per-step settle so the button rect is stable before we
+    // measure for the spotlight.
+    settleMs: 320,
   },
 ];
 let _tourIdx = 0;
@@ -5124,9 +5146,12 @@ function renderTourStep() {
     requestAnimationFrame(() => positionTour(target, step));
   };
   // Wait for onEnter side-effects (modal open animation, scroll, etc.)
-  // before measuring. 180ms covers the modal CSS transitions we have.
+  // before measuring. 180ms covers the modal CSS transitions we have;
+  // steps that open complex panels can opt in to a longer settle via
+  // step.settleMs (e.g., book modal with async cover image).
   if (typeof step.onEnter === "function") {
-    setTimeout(settle, 180);
+    const delay = typeof step.settleMs === "number" ? step.settleMs : 180;
+    setTimeout(settle, delay);
   } else {
     settle();
   }
