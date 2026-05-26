@@ -4730,11 +4730,37 @@ function renderHeldXp(entries) {
       </div>`;
   }
   const cards = entries.map((e) => {
-    const pct = e.suspicionRatio != null
-      ? Math.round(e.suspicionRatio * 100)
-      : "?";
-    const minE = e.minExpectedMins != null ? e.minExpectedMins : "?";
-    const minA = e.elapsedMins != null ? e.elapsedMins : "?";
+    // Different held reasons surface different signals. Render the line
+    // that matches THIS entry's reason instead of a one-size template.
+    let signalLine;
+    if (e.reason === "started_recently" && e.gapStartedToQuizSec != null) {
+      // 1-hour floor: quiz submitted shortly after "I'm reading this"
+      const s = Number(e.gapStartedToQuizSec);
+      const human = s < 60
+        ? `${s} second${s === 1 ? "" : "s"}`
+        : `${Math.round(s / 60)} min`;
+      signalLine =
+        `· <strong style="color:var(--bad)">Quiz started ${human} after marking as reading</strong>`;
+    } else if (e.reason === "speed" || e.reason === "speed_plus_recent_open") {
+      // WCPM-based: how the original speed flag rendered
+      const pct = e.suspicionRatio != null
+        ? Math.round(e.suspicionRatio * 100)
+        : "?";
+      const minE = e.minExpectedMins != null ? e.minExpectedMins : "?";
+      const minA = e.elapsedMins != null ? e.elapsedMins : "?";
+      let line =
+        `· <strong style="color:var(--bad)">${pct}% of expected reading time</strong>` +
+        ` · elapsed ${minA} min vs. ${minE} min expected`;
+      if (e.reason === "speed_plus_recent_open" && e.hoursSinceOpen != null) {
+        line += ` · first opened ${Number(e.hoursSinceOpen).toFixed(1)}h ago`;
+      }
+      signalLine = line;
+    } else {
+      // Manual / retroactive / unknown — show the reason verbatim so admin
+      // knows why it was queued. Falls back to "Manual review" if missing.
+      const tag = e.reason ? e.reason.replace(/_/g, " ") : "Manual review";
+      signalLine = `· <strong style="color:#fbbf24">${escapeHtml(tag)}</strong>`;
+    }
     return `
       <div class="held-xp-card" data-held-id="${escapeAttr(e.id)}">
         <div class="hx-head">
@@ -4743,8 +4769,7 @@ function renderHeldXp(entries) {
             <div class="hx-meta">
               📕 <strong>${escapeHtml(e.bookTitle || e.bookId)}</strong>
               · Grade ${escapeHtml(e.grade || "?")}
-              · <strong style="color:var(--bad)">${pct}% of expected reading time</strong>
-              · elapsed ${minA} min vs. ${minE} min expected
+              ${signalLine}
               · ${friendlyDate(e.ts)}
             </div>
           </div>
