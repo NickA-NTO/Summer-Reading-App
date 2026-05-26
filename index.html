@@ -564,6 +564,13 @@
   }
   .badge.read { background: rgba(70,211,105,.95); box-shadow: 0 4px 12px rgba(70,211,105,.35); }
   .badge.hot  { background: var(--warm); box-shadow: 0 4px 12px rgba(245,158,11,.35); }
+  /* XP variant — purple-ish, matches the modal pill + stats-strip XP chip.
+     Per-card and per-student (XP varies by working grade), so kids see at
+     a glance how much each book is worth them. */
+  .badge.xp {
+    background: linear-gradient(180deg, #8b5cf6, #6d28d9);
+    box-shadow: 0 4px 12px rgba(139,92,246,.4);
+  }
   .card-info {
     position: absolute; left: 0; right: 0; bottom: 0;
     background: linear-gradient(180deg, transparent, rgba(0,0,0,.95) 60%);
@@ -655,7 +662,15 @@
   .level-warning .lw-icon { font-size: 22px; line-height: 1.1; }
   .level-warning .lw-title { color: #fbbf24; font-weight: 700; font-size: 14px; margin-bottom: 2px; }
   .level-warning .lw-msg { color: #e8d49a; font-size: 13px; line-height: 1.45; }
-  .blurb { font-size: 16px; line-height: 1.6; color: #d5dbe8; margin: 0 0 22px; max-width: 720px; }
+  .blurb { font-size: 16px; line-height: 1.6; color: #d5dbe8; margin: 0 0 14px; max-width: 720px; }
+  /* Small caption under the blurb that explains what the ✨ XP pill means.
+     Hidden when xp is 0 (e.g., books without a known wordCount). */
+  .xp-explain {
+    font-size: 12px; color: var(--muted);
+    margin: 0 0 18px; max-width: 720px;
+    line-height: 1.5;
+  }
+  .xp-explain strong { color: #a78bfa; font-weight: 700; }
 
   .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
   .icon-btn {
@@ -1495,6 +1510,7 @@
         </div>
       </div>
       <p class="blurb" id="modalBlurb"></p>
+      <p class="xp-explain" id="modalXpExplain"></p>
       <div class="actions">
         <button class="icon-btn reading" id="startReading" style="display:none">📖 I'm reading this</button>
         <button class="icon-btn read" id="readToggle">＋ I read this</button>
@@ -2629,12 +2645,18 @@ function buildCard(book, isHot) {
   card.setAttribute("tabindex", "0");
   card.setAttribute("data-book-id", book.id);
   card.setAttribute("aria-label", `${book.title} by ${book.author}`);
-  const badgeText = gradeBadgeLabel(book);
+  // Corner badge precedence: Read > Top pick > XP value. Grade is already
+  // visible in the row title above the cards, so the badge prioritizes
+  // information that varies per-book: progress, editorial pick, or the
+  // kid-specific XP this book is worth at their working grade.
+  const xp = expectedXp(book.id, state.session?.grade || "K");
   const badge = wasRead
     ? `<div class="badge read">✓ Read</div>`
     : (isHot
         ? `<div class="badge hot">★ Top pick</div>`
-        : `<div class="badge">${escapeHtml(badgeText)}</div>`);
+        : (xp > 0
+            ? `<div class="badge xp">✨ ${xp} XP</div>`
+            : ""));
   card.innerHTML = `
     ${badge}
     <img class="card-img" alt="${escapeAttr(book.title)} cover" src="${coverUrl(book)}"
@@ -2708,14 +2730,22 @@ function openBook(id) {
   document.getElementById("modalBlurb").textContent = book.blurb;
   // Expected XP — based on the kid's working grade. Helps them decide
   // whether a book is worth their summer time. ✨ matches the stats-strip
-  // and quiz-success XP styling.
+  // and quiz-success XP styling. The caption under the blurb explains
+  // what the pill represents in plain language (tooltips on the pill
+  // get missed on mobile).
   const xp = expectedXp(book.id, state.session?.grade || "K");
   const xpEl = document.getElementById("modalXp");
+  const xpExplainEl = document.getElementById("modalXpExplain");
   if (xp > 0) {
     xpEl.textContent = `✨ ~${xp} XP`;
     xpEl.style.display = "";
+    xpExplainEl.innerHTML =
+      `<strong>✨ ~${xp} XP estimated</strong> — that's what you'll earn ` +
+      `by passing the quiz on your first try at your grade. Retakes earn less.`;
+    xpExplainEl.style.display = "";
   } else {
     xpEl.style.display = "none";
+    xpExplainEl.style.display = "none";
   }
 
   // Below-level warning: if the book's grade is lower than the student's
