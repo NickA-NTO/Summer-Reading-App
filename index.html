@@ -1739,6 +1739,26 @@
   </div>
 </div>
 
+<!-- ============ "Are you sure you finished?" confirm (#21) ============ -->
+<!-- Fires when a kid clicks Take the Quiz within 1 hour of marking the
+     book as "I'm reading this". Pure dissuasion — no XP enforcement here
+     (that's the server's 1-hour held-for-review rule). -->
+<div class="onb-overlay" id="tooSoonOverlay" role="dialog" aria-modal="true" aria-labelledby="tooSoonTitle">
+  <div class="onb-card" style="max-width:480px">
+    <div class="onb-eyebrow" style="color:#fbbf24">⏰ Slow down a sec</div>
+    <h2 class="onb-title" id="tooSoonTitle">Have you finished the book?</h2>
+    <p class="onb-sub" id="tooSoonBody">
+      You just started reading this. You'll only earn XP if you've actually
+      finished — quizzes taken too soon are held for review and won't count
+      toward the leaderboard until then.
+    </p>
+    <div class="onb-actions">
+      <button class="onb-skip" id="tooSoonCancel" type="button">📖 Keep reading</button>
+      <button class="onb-next" id="tooSoonProceed" type="button">Yes, I finished it</button>
+    </div>
+  </div>
+</div>
+
 <!-- ============ First-run onboarding (#17) ============ -->
 <!-- Voice picker modal — step 1 of the first-run flow. Hidden by default;
      shown only when /api/auth/me returns tourCompleted: false. -->
@@ -3469,8 +3489,60 @@ document.getElementById("quizBtn").addEventListener("click", () => {
     if (startBtn) startBtn.focus();
     return;
   }
+  // #21 — Pre-quiz warning. If the kid clicked "I'm reading this" less
+  // than 1 hour ago, give them a chance to back out before the server
+  // holds the XP for review. The threshold mirrors STARTED_RECENTLY_HOLD_MS
+  // on the backend (lib/store.js) — kept in sync manually.
+  const STARTED_RECENTLY_WARN_MS = 60 * 60 * 1000;
+  const gap = active?.startedAt ? Date.now() - Number(active.startedAt) : Infinity;
+  if (gap >= 0 && gap < STARTED_RECENTLY_WARN_MS) {
+    showTooSoonWarning(gap, () => openQuiz(activeBookId));
+    return;
+  }
   openQuiz(activeBookId);
 });
+
+// Pre-quiz "did you actually finish?" gate (#21). Shows a friendly
+// confirm with a dynamic "you started X minutes/seconds ago" line.
+// Pure dissuasion — if the kid pushes through, the server still holds
+// the XP for admin review (api/activity.js STARTED_RECENTLY_HOLD_MS).
+function showTooSoonWarning(gapMs, onProceed) {
+  const overlay = document.getElementById("tooSoonOverlay");
+  const body = document.getElementById("tooSoonBody");
+  if (!overlay || !body) {
+    // Defensive fallback — if the markup is missing for any reason,
+    // don't block the kid from quizzing entirely.
+    if (typeof onProceed === "function") onProceed();
+    return;
+  }
+  // Human-friendly elapsed phrasing: seconds under 60, minutes otherwise.
+  let elapsed;
+  if (gapMs < 60_000) {
+    const s = Math.max(1, Math.round(gapMs / 1000));
+    elapsed = `${s} second${s === 1 ? "" : "s"} ago`;
+  } else {
+    const m = Math.max(1, Math.round(gapMs / 60_000));
+    elapsed = `${m} minute${m === 1 ? "" : "s"} ago`;
+  }
+  body.textContent =
+    `You started reading this ${elapsed}. You'll only earn XP if you've ` +
+    `actually finished — quizzes taken too soon are held for review and ` +
+    `won't count toward the leaderboard until then.`;
+  overlay.classList.add("open");
+  // Speak it aloud if TTS is on so emergent readers hear it.
+  if (typeof speak === "function") {
+    try { speak(`Have you finished the book? You started reading this ${elapsed}.`); } catch {}
+  }
+  const cleanup = () => {
+    overlay.classList.remove("open");
+    document.getElementById("tooSoonCancel").removeEventListener("click", onCancel);
+    document.getElementById("tooSoonProceed").removeEventListener("click", onYes);
+  };
+  const onCancel = () => cleanup();
+  const onYes = () => { cleanup(); if (typeof onProceed === "function") onProceed(); };
+  document.getElementById("tooSoonCancel").addEventListener("click", onCancel);
+  document.getElementById("tooSoonProceed").addEventListener("click", onYes);
+}
 document.getElementById("quizClose").addEventListener("click", closeQuiz);
 document.getElementById("quizOverlay").addEventListener("click", (e) => {
   if (e.target.id === "quizOverlay") closeQuiz();
