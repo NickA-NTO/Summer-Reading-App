@@ -5477,17 +5477,116 @@ async function finishOnboarding(skipped) {
 }
 
 /* ---------- 16. Boot ---------- */
+//
+// Pre-login welcome screen — replaces the bootLoader when /api/auth/me
+// returns unauthenticated. Designed so a K student with no adult help
+// can navigate it: huge tap targets, read-aloud (browser TTS, no auth
+// required), and any `?auth_error=...` query param surfaced as a
+// friendly message instead of a silent OAuth loop.
+function renderWelcomeScreen() {
+  const boot = document.getElementById("bootLoader");
+  if (!boot) return;
+  // Parse ?auth_error=... from the URL so a kid bounced by the callback
+  // sees WHY (e.g., domain not allowed) instead of an invisible loop.
+  const params = new URLSearchParams(location.search);
+  const authError = params.get("auth_error");
+  const got = params.get("got") || "";
+  let errorBanner = "";
+  let errorTts = "";
+  if (authError === "domain") {
+    errorBanner = `
+      <div style="background:rgba(232,124,124,.14);border:1px solid rgba(232,124,124,.45);
+                  border-radius:12px;padding:14px 16px;margin:0 0 20px;color:#f5b3b3;
+                  font-size:14px;line-height:1.5;text-align:left">
+        <strong style="color:#fff;display:block;margin-bottom:4px">Sign-in didn't work</strong>
+        Your email${got ? ` <code style="background:rgba(0,0,0,.3);padding:1px 5px;border-radius:4px">${got}</code>` : ""}
+        isn't on the list yet. Ask your guide to add your school to the allowed list.
+      </div>`;
+    errorTts = "We couldn't sign you in. Your email isn't on the list yet. Ask your guide for help. ";
+  } else if (authError === "email_unverified") {
+    errorBanner = `
+      <div style="background:rgba(245,158,11,.14);border:1px solid rgba(245,158,11,.45);
+                  border-radius:12px;padding:14px 16px;margin:0 0 20px;color:#fbd38d;
+                  font-size:14px;text-align:left">
+        <strong style="color:#fff;display:block;margin-bottom:4px">Email not verified</strong>
+        Verify your Google email and try again.
+      </div>`;
+    errorTts = "Your email isn't verified yet. ";
+  }
+  const welcomeTts =
+    errorTts +
+    "Hi! Welcome to Alpha Summer Reading. Tap the big blue Sign In button to start reading books.";
+  boot.innerHTML = `
+    <div style="text-align:center;max-width:480px;padding:0 24px">
+      <div style="width:88px;height:88px;margin:0 auto 24px;border-radius:22px;
+                  background:linear-gradient(135deg,#2563eb,#1d4ed8);display:grid;
+                  place-items:center;color:#fff;font-weight:900;font-size:48px;
+                  box-shadow:0 18px 48px rgba(37,99,235,.5)">α</div>
+      <h1 style="color:#f5f7fb;font-size:32px;font-weight:800;margin:0 0 8px;
+                 letter-spacing:-0.02em;line-height:1.1">
+        Alpha Summer Reading
+      </h1>
+      <p style="color:#93a0b8;font-size:16px;margin:0 0 28px">
+        Read books. Earn XP. Win badges.
+      </p>
+      ${errorBanner}
+      <button id="welcomeSignIn" style="
+        width:100%;background:#2563eb;color:#fff;border:none;
+        padding:18px 22px;border-radius:14px;font-weight:700;font-size:18px;
+        cursor:pointer;display:flex;align-items:center;justify-content:center;
+        gap:10px;box-shadow:0 8px 24px rgba(37,99,235,.45);
+        font-family:inherit">
+        <span>Sign in with Google</span>
+        <span style="font-size:22px">→</span>
+      </button>
+      <button id="welcomeSpeak" style="
+        margin-top:14px;background:rgba(20,184,166,.14);color:#5eead4;
+        border:1px solid rgba(20,184,166,.4);border-radius:999px;
+        padding:10px 18px;font-size:14px;font-weight:600;cursor:pointer;
+        font-family:inherit">
+        🔊 Read this aloud
+      </button>
+      <p style="color:#586577;font-size:12px;margin:28px 0 0;line-height:1.5">
+        For students at Alpha School, Trilogy, SuperBuilders, and 2 Hour Learning.
+      </p>
+    </div>`;
+  // Wire up the Sign In and Read Aloud buttons.
+  const speak = () => {
+    if (!("speechSynthesis" in window)) return;
+    try {
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(welcomeTts);
+      u.rate = 0.95;
+      u.pitch = 1.05;
+      window.speechSynthesis.speak(u);
+    } catch {}
+  };
+  document.getElementById("welcomeSignIn").addEventListener("click", () => {
+    if ("speechSynthesis" in window) {
+      try { window.speechSynthesis.cancel(); } catch {}
+    }
+    location.href = "/api/auth/login";
+  });
+  document.getElementById("welcomeSpeak").addEventListener("click", speak);
+  // Auto-speak on first render so a K student hears what to do without
+  // having to find and tap the speaker button first. Browsers may block
+  // auto-speak before user gesture — if blocked, the manual button works.
+  setTimeout(speak, 350);
+}
+
 (async function boot() {
   try {
     const r = await fetch("/api/auth/me", { credentials: "same-origin" });
     if (!r.ok) {
-      // Middleware should have caught this, but just in case
-      location.href = "/api/auth/login";
+      // 401 / 5xx from the auth check — show the welcome screen instead
+      // of redirecting straight to Google. K students need a beat to hear
+      // what's happening before being shoved into the account picker.
+      renderWelcomeScreen();
       return;
     }
     const me = await r.json();
     if (!me.authenticated) {
-      location.href = "/api/auth/login";
+      renderWelcomeScreen();
       return;
     }
     if (me.isAdmin) {
