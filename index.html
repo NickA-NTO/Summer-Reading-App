@@ -1677,10 +1677,13 @@
     <div class="modal-body">
       <div class="level-warning" id="levelWarning" style="display:none">
         <span class="lw-icon">⚠️</span>
-        <div>
-          <div class="lw-title" id="levelWarningTitle">This book is below your reading level</div>
+        <div style="flex:1">
+          <div class="lw-title" id="levelWarningTitle">Easy book</div>
           <div class="lw-msg" id="levelWarningMsg"></div>
         </div>
+        <button class="tour-speak" id="levelWarningSpeak" type="button"
+          title="Read this aloud" aria-label="Read this warning aloud"
+          style="margin-left:8px;flex-shrink:0">🔊</button>
       </div>
       <p class="blurb" id="modalBlurb"></p>
       <p class="xp-explain" id="modalXpExplain"></p>
@@ -3124,11 +3127,22 @@ function showLevelWarningIfNeeded(book) {
   // Friendlier, K-decodable copy. G1+ readers see this; the language
   // stays simple enough for a Grade 1 reader to parse (kid taps a
   // below-level book most often at G1/G2 — those are the readers who
-  // actually need the nudge).
-  document.getElementById("levelWarningTitle").textContent =
-    "This book is easy for you";
-  document.getElementById("levelWarningMsg").textContent =
-    "You can still read it! But you will earn fewer points than for a harder book.";
+  // actually need the nudge). Sight words only — no "earn", "level",
+  // "challenge" — and a 🔊 button to hear it.
+  const title = "Easy book";
+  const msg = "Read it for fun! You will get fewer points.";
+  document.getElementById("levelWarningTitle").textContent = title;
+  document.getElementById("levelWarningMsg").textContent = msg;
+  // Wire the speaker — uses .onclick (not addEventListener) so this
+  // doesn't stack handlers if the user opens multiple books in a session.
+  const speakBtn = document.getElementById("levelWarningSpeak");
+  if (speakBtn) {
+    speakBtn.onclick = () => {
+      if (typeof speak === "function") {
+        try { speak(`${title}. ${msg}`, { force: true }); } catch {}
+      }
+    };
+  }
   banner.style.display = "flex";
 }
 
