@@ -3124,13 +3124,12 @@ function showLevelWarningIfNeeded(book) {
     return;
   }
 
-  // Friendlier, K-decodable copy. G1+ readers see this; the language
-  // stays simple enough for a Grade 1 reader to parse (kid taps a
-  // below-level book most often at G1/G2 — those are the readers who
-  // actually need the nudge). Sight words only — no "earn", "level",
-  // "challenge" — and a 🔊 button to hear it.
-  const title = "Easy book";
-  const msg = "Read it for fun! You will get fewer XP.";
+  // G1+ readers see this. Language stays simple enough for a Grade 1
+  // reader to parse — short sentences, sight-word vocab — but warmer
+  // and more complete than the earlier "Easy book / fewer XP" stub.
+  // The 🔊 button speaks it for emergent readers who can't decode.
+  const title = "This book is easy for you";
+  const msg = "You can still read it! But you will earn fewer XP than for a harder book.";
   document.getElementById("levelWarningTitle").textContent = title;
   document.getElementById("levelWarningMsg").textContent = msg;
   // Wire the speaker — uses .onclick (not addEventListener) so this
