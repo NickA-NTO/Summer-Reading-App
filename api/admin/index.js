@@ -26,6 +26,7 @@ import {
   resolveHeldXp,
   resetFraudFlags,
   setUserWorkingGrade,
+  setUserAgeGrade,
   bulkSetWorkingGrades,
   setTrackOverrides,
   redis,
@@ -424,6 +425,39 @@ export default async function handler(req, res) {
       return json(res, 500, { error: result.reason || "save_failed" });
     }
     return json(res, 200, { ok: true, email, grade });
+  }
+
+  // ========================= set-age-grade =======================
+  // Body: { email, ageGrade }
+  // Sets ONLY the maturity-calibration grade. Working grade (catalog
+  // visibility + XP math) stays untouched. Use when a student needs
+  // age-appropriate question framing that differs from their working
+  // level (e.g., a G2-age kid reading at G3 working level should get
+  // G2 maturity in question tone). Same allowed-grades set as set-grade.
+  if (action === "set-age-grade" && req.method === "POST") {
+    const body = await readBody(req);
+    if (body === null) return json(res, 400, { error: "invalid_json" });
+
+    const email = String(body.email || "").trim().toLowerCase();
+    let ageGrade = String(body.ageGrade || "").trim().toUpperCase();
+    if (ageGrade === "PK" || ageGrade === "-1") {
+      ageGrade = "PK";
+    } else {
+      ageGrade = normalizeGrade(ageGrade);
+    }
+
+    if (!email || !ALLOWED_GRADES.has(ageGrade)) {
+      return json(res, 400, {
+        error: "invalid_request",
+        allowed: [...ALLOWED_GRADES],
+      });
+    }
+
+    const result = await setUserAgeGrade(email, ageGrade, "admin");
+    if (!result.ok) {
+      return json(res, 500, { error: result.reason || "save_failed" });
+    }
+    return json(res, 200, { ok: true, email, ageGrade });
   }
 
   // ========================== reset-tour =========================
