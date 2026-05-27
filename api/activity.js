@@ -46,6 +46,8 @@ import { sendCaliperEnvelopeAsync } from "../lib/timeback.js";
 // attack (`kind:"read"` with no attemptNum bypassed all fraud checks).
 import { QUIZ_BOOKS, QUIZ_SCHEMA_VERSION, getCachedQuizPool } from "./quiz.js";
 import { trackError, trackEvent } from "../lib/observability.js";
+import { classifyComment } from "../lib/moderation.js";
+import { holdComment } from "../lib/store.js";
 
 // Load the user's profile from Redis. Returns null if missing or on error.
 async function loadProfile(email) {
@@ -193,6 +195,69 @@ export default async function handler(req, res) {
     }
     res.statusCode = result.ok ? 200 : 400;
     return res.end(JSON.stringify(result));
+  }
+
+  // ============================================================
+  // kind === "comment" — three-tier moderation pipeline (task #31).
+  // Body: { kind: "comment", bookId, text }
+  // Returns one of:
+  //   { ok: true,  verdict: "allow" }            ← client publishes
+  //   { ok: true,  verdict: "review", message }  ← client saves with
+  //                                                pending badge; admin
+  //                                                reviews via the held
+  //                                                comments queue
+  //   { ok: false, verdict: "block",  message }  ← client shows message,
+  //                                                doesn't save
+  //
+  // The comment storage itself stays client-local for now (no socialized
+  // comment feed yet). When that ships, route "allow" verdicts into
+  // comments:approved:{bookId} so other kids can see them.
+  // ============================================================
+  if (kind === "comment") {
+    const text = String(body.text || "").trim();
+    if (!bookId || !text) {
+      return res.end(JSON.stringify({
+        ok: false, verdict: "block",
+        reason: "invalid_request",
+        message: "Missing book or text.",
+      }));
+    }
+    const verdict = classifyComment(text);
+    trackEvent("comment_classified", { verdict: verdict.verdict, reason: verdict.reason });
+    if (verdict.verdict === "block") {
+      res.statusCode = 200;
+      return res.end(JSON.stringify({
+        ok: false,
+        verdict: "block",
+        reason: verdict.reason,
+        message: verdict.message,
+      }));
+    }
+    if (verdict.verdict === "review") {
+      // Queue for admin review. Failure to queue is non-fatal — the
+      // client still sees the friendly message and saves with pending.
+      try {
+        await holdComment({
+          email: session.email,
+          name: session.name || session.email.split("@")[0],
+          bookId,
+          text,
+          reason: verdict.reason,
+        });
+      } catch (err) {
+        await trackError("comment_hold_failed", err, { bookId });
+      }
+      res.statusCode = 200;
+      return res.end(JSON.stringify({
+        ok: true,
+        verdict: "review",
+        reason: verdict.reason,
+        message: verdict.message,
+      }));
+    }
+    // allow — publish (client-side for now)
+    res.statusCode = 200;
+    return res.end(JSON.stringify({ ok: true, verdict: "allow" }));
   }
 
   if (kind === "start") {

@@ -3211,13 +3211,21 @@ function renderComments() {
   const list = document.getElementById("commentList");
   const items = (state.data.comments[activeBookId] || []).slice().reverse();
   list.innerHTML = items.length
-    ? items.map(c => `
-        <li class="comment">
-          <div class="who-c">
-            <span>${escapeHtml(c.name)}</span><span class="dot"></span><span>${timeAgo(c.ts)}</span>
-          </div>
-          <div>${escapeHtml(c.text)}</div>
-        </li>`).join("")
+    ? items.map(c => {
+        // Pending = "review" verdict from the server's three-tier
+        // moderation. Display only to the author + render with a small
+        // amber badge so it's clear it hasn't been approved yet.
+        const pendingBadge = c.pending
+          ? ` <span style="background:rgba(245,158,11,.18);color:#fbbf24;border:1px solid rgba(245,158,11,.4);border-radius:999px;padding:1px 7px;font-size:10px;font-weight:600;margin-left:6px;vertical-align:middle">Pending check</span>`
+          : "";
+        return `
+          <li class="comment">
+            <div class="who-c">
+              <span>${escapeHtml(c.name)}</span><span class="dot"></span><span>${timeAgo(c.ts)}</span>${pendingBadge}
+            </div>
+            <div>${escapeHtml(c.text)}</div>
+          </li>`;
+      }).join("")
     : `<li class="empty">No reviews yet — be the first.</li>`;
 }
 function timeAgo(ts) {
@@ -3624,30 +3632,71 @@ document.getElementById("commentInput").addEventListener("keydown", e => {
 document.getElementById("commentInput").addEventListener("input", () => {
   hideCommentModError();
 });
-function postComment() {
+async function postComment() {
   if (!activeBookId) return;
   if (!state.data.read[activeBookId]) return;
   const input = document.getElementById("commentInput");
   const text = input.value.trim();
   if (!text) return;
-  // Moderation gate — friendly inline rejection on profanity / PII /
-  // length issues. Comments are localStorage-only today, so this is
-  // primarily about modeling expectations; when comments go social
-  // mirror the same logic server-side.
-  const verdict = moderateComment(text);
-  if (!verdict.ok) {
-    showCommentModError(verdict.message);
+  // Client-side fast path — catch the obviously bad before a server
+  // round trip. Server runs the SAME logic + the three-tier classifier;
+  // it has the final say.
+  const fastVerdict = moderateComment(text);
+  if (!fastVerdict.ok) {
+    showCommentModError(fastVerdict.message);
     return;
   }
   hideCommentModError();
+
+  // Three-tier server classification (task #31). Server returns:
+  //   allow  → publish locally
+  //   review → save locally with pending badge; admin reviews
+  //   block  → show message, don't save
+  let serverVerdict = { verdict: "allow" };
+  try {
+    const r = await fetch("/api/activity", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ kind: "comment", bookId: activeBookId, text }),
+    });
+    if (r.ok) serverVerdict = await r.json();
+  } catch {
+    // Offline / network blip — fall back to client-only allow so the
+    // kid still feels heard. Comments are local-only today; the
+    // server's verdict is for queue-building, not display gating.
+    serverVerdict = { verdict: "allow", offline: true };
+  }
+
+  if (serverVerdict.verdict === "block") {
+    showCommentModError(serverVerdict.message || "Couldn't post that. Try again.");
+    return;
+  }
+
+  // Save locally (verdict is allow OR review — both publish to the
+  // kid's own view). On review, tag with pending so we can render a
+  // "Pending check" badge and a future admin-approve cycle can confirm.
   state.data.comments[activeBookId] = state.data.comments[activeBookId] || [];
   state.data.comments[activeBookId].push({
-    name: state.session.name, text, ts: Date.now(),
+    name: state.session.name,
+    text,
+    ts: Date.now(),
+    pending: serverVerdict.verdict === "review",
   });
   saveData(state.session.email, state.data);
   input.value = "";
   renderComments();
   renderStats();
+
+  if (serverVerdict.verdict === "review" && serverVerdict.message) {
+    // Tell the kid their comment is being checked. Non-modal banner;
+    // they keep seeing the comment in their own list with a "Pending"
+    // badge until admin approves (display-side approval handled when
+    // social comments ship).
+    showCommentModError(serverVerdict.message);
+    // Auto-clear after a moment so they're not nagged forever.
+    setTimeout(hideCommentModError, 5000);
+  }
 }
 
 // Wraps speak() with a visible button state — kids (and us, when

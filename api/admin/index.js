@@ -37,6 +37,7 @@ import {
 import { sanitizeTrackOverrides, TRACK_ORDER } from "../../lib/tracks.js";
 import { getStats as getObsStats } from "../../lib/observability.js";
 import { syncWorkingGradesFromTimeBack, TIMEBACK_SYNC_ENDPOINT } from "../../lib/timeback-sync.js";
+import { listPendingComments, resolvePendingComment } from "../../lib/store.js";
 import {
   APP_CAP_CHARS,
   APP_CAP_USD,
@@ -146,6 +147,25 @@ export default async function handler(req, res) {
       endpoint: TIMEBACK_SYNC_ENDPOINT,
       triggeredBy: isCronCall ? "cron" : "admin",
     });
+  }
+
+  // ====================== comments-pending =======================
+  // Held-comment admin queue (task #31). GET returns the list; POST
+  // takes { id, action: "approve" | "reject" } to resolve one entry.
+  if (action === "comments-pending" && req.method === "GET") {
+    const result = await listPendingComments({ limit: 200 });
+    return json(res, 200, result);
+  }
+  if (action === "comments-pending" && req.method === "POST") {
+    const body = await readBody(req);
+    if (body === null) return json(res, 400, { error: "invalid_json" });
+    const id = String(body.id || "");
+    const a = String(body.action || "").toLowerCase();
+    if (!id || !["approve", "reject"].includes(a)) {
+      return json(res, 400, { error: "invalid_request" });
+    }
+    const result = await resolvePendingComment(id, a);
+    return json(res, result.ok ? 200 : 404, result);
   }
 
   // ========================= obs-stats ===========================
