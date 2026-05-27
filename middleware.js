@@ -1,13 +1,18 @@
-// Gates every page request. If the visitor isn't authenticated, redirects to
-// /api/auth/login. Lets /api/auth/* through untouched so the OAuth flow can run.
+// Page-request gate. Used to redirect EVERY unauthenticated request
+// straight to /api/auth/login, which prevented the welcome screen (#26)
+// from ever rendering — a K student would land on Google's account
+// picker without any kid-friendly read-aloud preamble. Now the root
+// path (`/`) is allowed through unauthenticated so the SPA can render
+// the welcome screen itself (it calls /api/auth/me and falls into
+// renderWelcomeScreen() when it sees 401). Any other path still
+// redirects, preserving deep-link auth behavior for future routes.
 
 import { verifySession, parseCookies } from "./lib/session.js";
 
 export const config = {
   // Run on every path EXCEPT /api/* (each endpoint does its own auth check
   // and returns 401 JSON rather than redirecting), Vercel internals, and
-  // favicon. This lets the static HTML stay gated while keeping API
-  // responses machine-friendly.
+  // favicon.
   matcher: "/((?!api/|_vercel|favicon\\.ico).*)",
 };
 
@@ -24,11 +29,15 @@ export default async function middleware(request) {
   const session = await verifySession(cookies.rs_session, secret);
   if (session) return; // authenticated — let it through
 
-  // Unauthenticated — redirect to the login starter, preserving the requested path
+  // Unauthenticated. Root path → let the SPA serve the welcome screen
+  // (it'll detect the missing session via /api/auth/me and render
+  // renderWelcomeScreen). Any other path still redirects to login so
+  // a deep link from an email or share doesn't accidentally render
+  // the SPA shell without auth.
   const reqUrl = new URL(request.url);
+  if (reqUrl.pathname === "/" || reqUrl.pathname === "") return;
+
   const login = new URL("/api/auth/login", request.url);
-  if (reqUrl.pathname && reqUrl.pathname !== "/") {
-    login.searchParams.set("next", reqUrl.pathname + reqUrl.search);
-  }
+  login.searchParams.set("next", reqUrl.pathname + reqUrl.search);
   return Response.redirect(login, 302);
 }
