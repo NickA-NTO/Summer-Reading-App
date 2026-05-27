@@ -18,6 +18,7 @@ import { generateObject } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
 import { verifySession, parseCookies, isAdmin } from "../lib/session.js";
+import { moderateQuizQuestions } from "../lib/moderation.js";
 import {
   getCachedQuiz,
   setCachedQuiz,
@@ -994,12 +995,50 @@ export default async function handler(req, res) {
       );
     }
 
+    // ---------- Safety moderation pass (deterministic) ----------
+    // QC reviews accuracy; this filters content. Drops any question
+    // whose text or options trips the profanity / PII filter — same
+    // list the student-comment moderator uses, lifted to lib/moderation.js.
+    // Opus 4.5 is well-aligned so this rarely fires, but Agent 6 flagged
+    // "Opus QCs itself with no independent moderation" as catastrophic.
+    // Deterministic filter = the cheap first line; an LLM safety pass
+    // (more nuanced) is a separate follow-up task.
+    const safe = moderateQuizQuestions(reviewedPool.questions);
+    if (safe.dropped.length > 0) {
+      console.warn(
+        `[quiz_safety_dropped] ${bookId} grade=${studentGrade}: ` +
+          `${safe.dropped.length} question(s) dropped`,
+        safe.dropped.map((d) => `#${d.idx}:${d.reason}`).join(", ")
+      );
+    }
+    if (safe.kept.length < minUsable) {
+      console.error(
+        "[quiz_safety_too_strict]",
+        bookId,
+        studentGrade,
+        "survivors:",
+        safe.kept.length,
+        "of",
+        reviewedPool.questions.length
+      );
+      res.statusCode = 500;
+      return res.end(
+        JSON.stringify({
+          error: "safety_no_viable_questions",
+          message:
+            "The quiz needs to be regenerated — please try again in a moment.",
+        })
+      );
+    }
+
     const payload = {
-      questions: reviewedPool.questions,
+      questions: safe.kept,
       qc: {
         generated: consensus.questions.length,
         kept: reviewedPool.questions.length,
+        afterSafety: safe.kept.length,
         dropped: reviewedPool.dropped,
+        droppedForSafety: safe.dropped,
       },
       multiPass: multiPassStats,
     };
