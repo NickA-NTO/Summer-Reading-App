@@ -1743,8 +1743,13 @@
       <h2>🏆 Top Readers</h2>
       <p class="lb-sub">Ranked by XP earned across Alpha School — read harder books to climb faster.</p>
       <div class="lb-tabs">
-        <button class="lb-tab active" data-window="week">This Week</button>
-        <button class="lb-tab" data-window="all">All Time</button>
+        <button class="lb-tab active" data-window="week" data-grade="">This Week</button>
+        <button class="lb-tab" data-window="all" data-grade="">All Time</button>
+        <!-- "My Grade" tab is populated dynamically once we know the
+             student's working grade — see openLeaderboard. Hidden by
+             default so a session that doesn't resolve a grade doesn't
+             show a meaningless "My Grade · undefined" tab. -->
+        <button class="lb-tab" id="lbTabMyGrade" data-grade="auto" style="display:none">My Grade</button>
       </div>
     </div>
     <div class="lb-body" id="lbBody">
@@ -4333,38 +4338,79 @@ function wireQuizResultTTS(btnId, text) {
 
 /* ---------- 14. Leaderboard ---------- */
 
-let lbState = { window: "week" };
+let lbState = { window: "week", grade: null };
 
 document.getElementById("navLeaderboard").addEventListener("click", (e) => {
   e.preventDefault();
-  openLeaderboard("week");
+  openLeaderboard({ window: "week" });
 });
 document.getElementById("lbClose").addEventListener("click", closeLeaderboard);
 document.getElementById("lbOverlay").addEventListener("click", (e) => {
   if (e.target.id === "lbOverlay") closeLeaderboard();
 });
 document.querySelectorAll(".lb-tab").forEach((tab) => {
-  tab.addEventListener("click", () => openLeaderboard(tab.dataset.window));
+  tab.addEventListener("click", () => {
+    // Tab encodes either a window (week/all) or a grade ("auto" → my grade).
+    const g = tab.dataset.grade;
+    if (g === "auto") {
+      openLeaderboard({ grade: state.session?.grade || "K" });
+    } else {
+      openLeaderboard({ window: tab.dataset.window });
+    }
+  });
 });
 
-async function openLeaderboard(window) {
-  lbState.window = window;
+async function openLeaderboard(opts) {
+  // opts: { window?: "week"|"all", grade?: "K"|"1"|"2"|... }
+  // grade wins over window (the per-grade index is all-time).
+  const grade = opts.grade || null;
+  const window = grade ? null : (opts.window || "week");
+  lbState = { window, grade };
   document.getElementById("lbOverlay").classList.add("open");
   document.body.style.overflow = "hidden";
+
+  // Populate the "My Grade" tab with the kid's actual grade once it's
+  // known, so they see "My Grade · 3" instead of a generic label. Show
+  // it only when state.session has a resolved grade.
+  const myGradeTab = document.getElementById("lbTabMyGrade");
+  if (myGradeTab) {
+    const myGrade = state.session?.grade;
+    if (myGrade) {
+      myGradeTab.style.display = "";
+      myGradeTab.textContent = `My Grade · ${formatGradeLabel(myGrade)}`;
+    } else {
+      myGradeTab.style.display = "none";
+    }
+  }
+
+  // Mark the active tab. Match by data-grade for "auto" + by data-window
+  // for week/all so the dual-attribute markup stays clean.
   document.querySelectorAll(".lb-tab").forEach((t) => {
-    t.classList.toggle("active", t.dataset.window === window);
+    const isMyGradeTab = t.dataset.grade === "auto";
+    const active = grade ? isMyGradeTab : (t.dataset.window === window && !isMyGradeTab);
+    t.classList.toggle("active", !!active);
   });
+
   document.getElementById("lbBody").innerHTML = `<div class="lb-empty">Loading…</div>`;
   try {
-    const r = await fetch(`/api/leaderboard?window=${encodeURIComponent(window)}&limit=25`, {
-      credentials: "same-origin",
-    });
+    const qs = grade
+      ? `grade=${encodeURIComponent(grade)}&limit=25`
+      : `window=${encodeURIComponent(window)}&limit=25`;
+    const r = await fetch(`/api/leaderboard?${qs}`, { credentials: "same-origin" });
     const data = await r.json();
     renderLeaderboard(data);
   } catch (e) {
     document.getElementById("lbBody").innerHTML =
       `<div class="lb-empty">Couldn't load the leaderboard. Try again later.</div>`;
   }
+}
+
+// Friendly grade label for the tab text. "K"/"PK" stay literal;
+// numeric grades get the leading "G" so it reads "My Grade · G3".
+function formatGradeLabel(g) {
+  const s = String(g).toUpperCase();
+  if (s === "K" || s === "PK") return s;
+  return /^[0-9]+$/.test(s) ? `G${s}` : s;
 }
 
 function closeLeaderboard() {
@@ -4384,12 +4430,13 @@ function renderLeaderboard(data) {
     return;
   }
   if (!data.entries.length) {
+    const scopeLabel = data.grade
+      ? `in Grade ${formatGradeLabel(data.grade)}`
+      : data.window === "week" ? "this week" : "";
     body.innerHTML = `
       <div class="lb-empty">
         <div style="font-size:36px;margin-bottom:10px">📖</div>
-        <div style="color:var(--ink);font-weight:600;margin-bottom:6px">No reads yet ${
-          data.window === "week" ? "this week" : ""
-        }</div>
+        <div style="color:var(--ink);font-weight:600;margin-bottom:6px">No reads yet ${scopeLabel}</div>
         <div>Be the first — mark a book as read to take the top spot.</div>
       </div>`;
     return;
