@@ -1692,6 +1692,13 @@
           <input id="commentInput" type="text" maxlength="200" placeholder="Share what you thought…" disabled />
           <button id="commentSend" disabled>Post</button>
         </div>
+        <!-- Moderation feedback — hidden until the moderator catches
+             something. Friendly tone, never accusatory. -->
+        <div id="commentModError" style="display:none;margin-top:10px;
+             background:rgba(245,158,11,.10);border:1px solid rgba(245,158,11,.4);
+             border-radius:10px;padding:10px 14px;font-size:13px;color:#fbd38d;">
+          <span id="commentModErrorText"></span>
+        </div>
       </div>
     </div>
   </div>
@@ -3382,9 +3389,133 @@ function castVote(kind) {
   speak(kind === "up" ? "Thumbs up. Thanks for sharing!" : "Thumbs down. Got it.");
 }
 
+// ── Comment moderation (#29) ────────────────────────────────────────
+//
+// Comments are localStorage-only today (never sent to the server, never
+// shown to other kids), so this is "model expectations + prepare
+// infrastructure" rather than safety enforcement. When comments go
+// social, mirror moderateComment() server-side as kind:"comment" in
+// api/activity.js — same logic, authoritative there.
+//
+// The blocked-word list is base64 encoded so slurs don't appear in
+// plaintext in source / `git grep`. Decoded once at module load.
+// To expand: decode in Node (`Buffer.from(b64,'base64').toString()`),
+// append words, re-encode (`Buffer.from(list).toString('base64')`),
+// replace the constant.
+const _MOD_BLOCKED_B64 =
+  "ZnVjayxmdWssZmNrLHNoaXQsc2h0LGFzc2hvbGUsYml0Y2gsYnRjaCxkYW1uLGJhc3RhcmQsZGljayxwdXNzeSxjb2NrLHBvcm4sc2V4LG5ha2VkLGJvb2JzLGtpbGwgeW91cnNlbGYsa3lzLHN1aWNpZGUscmV0YXJk";
+const _MOD_BLOCKED = new Set(
+  (typeof atob === "function" ? atob(_MOD_BLOCKED_B64) : "")
+    .split(",").map((s) => s.trim().toLowerCase()).filter(Boolean)
+);
+// Normalize text for matching — catches casual evasion like "sh1t",
+// "s h i t", "shiiiit". Two passes:
+//   normal:  lowercase → leet → strip non-letters → collapse runs to 2 letters
+//   compact: same + single-letter-token runs joined + ALL repeats to 1
+// We check the input against both forms (the COMPACT blocked-list
+// versions for the compact form), which catches:
+//   - leet substitution: "sh1t" → "shit" (normal)
+//   - spaced-out spelling: "s h i t this book" → "shit this bok" (compact)
+//   - long repeats: "shiiiit" → "shit" (compact)
+// False-positives are acceptable for K-8 — kid rephrases.
+function _modNormalize(text) {
+  return String(text || "")
+    .toLowerCase()
+    .replace(/[1!|]/g, "i")
+    .replace(/0/g, "o")
+    .replace(/3/g, "e")
+    .replace(/[4@]/g, "a")
+    .replace(/[5$]/g, "s")
+    .replace(/7/g, "t")
+    .replace(/[^a-z\s]/g, "")
+    .replace(/(.)\1{2,}/g, "$1$1")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+function _modCompact(normal) {
+  // Join runs of 2+ consecutive single-letter "words" into a single word
+  // ("s h i t this" → "shit this") — leaves multi-letter words alone so
+  // we don't smash "this hit" into "thishit". Then collapse ALL repeats.
+  return normal
+    .replace(/\b((?:[a-z]\s+){2,}[a-z])\b/g, (m) => m.replace(/\s+/g, ""))
+    .replace(/(.)\1+/g, "$1");
+}
+// Pre-compute compact forms of every blocked word once, at module load.
+const _MOD_BLOCKED_COMPACT = new Set(
+  Array.from(_MOD_BLOCKED)
+    .map((w) => w.replace(/\s+/g, "").replace(/(.)\1+/g, "$1"))
+    .filter((w) => w.length >= 3)
+);
+function _modContainsProfanity(text) {
+  const normal = _modNormalize(text);
+  const compact = _modCompact(normal);
+  // Whole-word match on the normal form (fast, low false-positive).
+  for (const w of normal.split(/\s+/)) if (_MOD_BLOCKED.has(w)) return true;
+  // Compact-form substring match — catches spaced-out, long-repeat,
+  // and embedded ("loserfuckhead") variants in one pass.
+  for (const blocked of _MOD_BLOCKED_COMPACT) {
+    if (compact.includes(blocked)) return true;
+  }
+  // Multi-word phrases on the normal form.
+  for (const blocked of _MOD_BLOCKED) {
+    if (blocked.includes(" ") && normal.includes(blocked)) return true;
+  }
+  return false;
+}
+const _MOD_PHONE_RE = /\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b/;
+const _MOD_EMAIL_RE = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/;
+const _MOD_URL_RE   = /\b(?:https?:\/\/|www\.)\S+/i;
+function _modContainsPII(text) {
+  const t = String(text || "");
+  return _MOD_PHONE_RE.test(t) || _MOD_EMAIL_RE.test(t) || _MOD_URL_RE.test(t);
+}
+// Entry point — returns { ok: true } on clean, or
+// { ok: false, reason, message } on a block. The message is shown
+// to the kid verbatim, so keep it friendly + non-accusatory.
+function moderateComment(text) {
+  const trimmed = String(text || "").trim();
+  if (trimmed.length < 3) {
+    return { ok: false, reason: "too_short",
+      message: "Try writing a bit more — what did you think of the book?" };
+  }
+  if (trimmed.length > 200) {
+    return { ok: false, reason: "too_long",
+      message: "Reviews are 200 characters max. Try shorter!" };
+  }
+  if (_modContainsProfanity(trimmed)) {
+    return { ok: false, reason: "profanity",
+      message: "Let's keep reviews school-appropriate. Try again!" };
+  }
+  if (_modContainsPII(trimmed)) {
+    return { ok: false, reason: "pii",
+      message: "No phone numbers, emails, or web links — keep your review about the book." };
+  }
+  return { ok: true };
+}
+function showCommentModError(message) {
+  const wrap = document.getElementById("commentModError");
+  const txt = document.getElementById("commentModErrorText");
+  if (!wrap || !txt) return;
+  txt.textContent = message;
+  wrap.style.display = "block";
+  // Speak it if TTS is on so emergent readers hear the why.
+  if (typeof speak === "function") {
+    try { speak(message); } catch {}
+  }
+}
+function hideCommentModError() {
+  const wrap = document.getElementById("commentModError");
+  if (wrap) wrap.style.display = "none";
+}
+
 document.getElementById("commentSend").addEventListener("click", postComment);
 document.getElementById("commentInput").addEventListener("keydown", e => {
   if (e.key === "Enter") postComment();
+});
+// Clear the moderation banner when the kid starts re-typing, so they
+// don't feel scolded forever.
+document.getElementById("commentInput").addEventListener("input", () => {
+  hideCommentModError();
 });
 function postComment() {
   if (!activeBookId) return;
@@ -3392,6 +3523,16 @@ function postComment() {
   const input = document.getElementById("commentInput");
   const text = input.value.trim();
   if (!text) return;
+  // Moderation gate — friendly inline rejection on profanity / PII /
+  // length issues. Comments are localStorage-only today, so this is
+  // primarily about modeling expectations; when comments go social
+  // mirror the same logic server-side.
+  const verdict = moderateComment(text);
+  if (!verdict.ok) {
+    showCommentModError(verdict.message);
+    return;
+  }
+  hideCommentModError();
   state.data.comments[activeBookId] = state.data.comments[activeBookId] || [];
   state.data.comments[activeBookId].push({
     name: state.session.name, text, ts: Date.now(),
