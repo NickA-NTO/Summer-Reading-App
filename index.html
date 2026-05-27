@@ -1907,7 +1907,7 @@ const CATEGORIES = [
     ],
   },
   {
-    id: "g1", title: "Grade 1", sub: "Easy readers and first chapter books", icon: "📖",
+    id: "a", title: "Grade 1", sub: "Easy readers and first chapter books", icon: "📖",
     books: [
       { id: "a01", isbn: "9780723247708", title: "The Tale of Peter Rabbit", author: "Beatrix Potter", age: "Ages 4–7",
         palette: ["#1e40af","#fde68a"],
@@ -1954,7 +1954,7 @@ const CATEGORIES = [
     ],
   },
   {
-    id: "g2", title: "Grade 2", sub: "Chapter books and beloved classics", icon: "📚",
+    id: "b", title: "Grade 2", sub: "Chapter books and beloved classics", icon: "📚",
     books: [
       { id: "b01", isbn: "9780140544510", title: "The True Story of the Three Little Pigs", author: "Jon Scieszka", age: "Ages 5–8",
         palette: ["#7c2d12","#f9a8d4"],
@@ -3052,12 +3052,13 @@ function showLevelWarningIfNeeded(book) {
   const banner = document.getElementById("levelWarning");
   const studentGrade = state?.session?.grade || "K";
   const studentLvl = gradeToNumber(studentGrade);
-  // book.categoryId is "k" / "g1" / "g2" — parse to a numeric level
+  // Map category ids → numeric grade level. Aligned with TRACK_ORDER in
+  // lib/tracks.js: e=PK, k=K, a=1, b=2, c=3. (Used to be "g1"/"g2" until
+  // the dropdown bug — those didn't match TRACK_ORDER so Grades 1+2 were
+  // silently filtered out of the visible-tracks list.)
+  const TRACK_LEVEL = { e: -1, k: 0, a: 1, b: 2, c: 3 };
   const bookLvlRaw = String(book.categoryId || "").toLowerCase();
-  const bookLvl =
-    bookLvlRaw === "k"
-      ? 0
-      : (bookLvlRaw.match(/[0-9]+/) ? Number(bookLvlRaw.match(/[0-9]+/)[0]) : null);
+  const bookLvl = TRACK_LEVEL[bookLvlRaw] != null ? TRACK_LEVEL[bookLvlRaw] : null;
 
   if (studentLvl == null || bookLvl == null || bookLvl >= studentLvl) {
     banner.style.display = "none";
