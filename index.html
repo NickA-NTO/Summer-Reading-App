@@ -1303,26 +1303,35 @@
     margin-bottom: 12px;
   }
   .tour-actions {
-    display: flex; gap: 8px; align-items: center;
+    display: flex; gap: 12px; align-items: center;
+    margin-top: 6px;
   }
+  /* Tap targets sized for 5-year-old fingers (~44×44 minimum is the
+     iOS HIG number; we use ~40 since the tour bubble is small).
+     Skip uses an X icon instead of text to clear up space + because
+     "Skip tour" is unreadable for K-2 anyway. */
   .tour-skip {
     background: transparent; color: var(--muted-2);
-    border: none; padding: 6px 10px; font-size: 12px;
+    border: 1px solid transparent; border-radius: 999px;
+    padding: 8px 12px; font-size: 16px; line-height: 1;
     cursor: pointer; font-family: inherit;
     margin-right: auto;
+    min-width: 36px; min-height: 36px;
   }
-  .tour-skip:hover { color: var(--ink); }
+  .tour-skip:hover { color: var(--ink); border-color: var(--line); }
   .tour-back, .tour-next {
     background: rgba(255,255,255,.06); color: var(--ink);
-    border: 1px solid var(--line); border-radius: 8px;
-    padding: 6px 12px; font-size: 13px; font-weight: 600;
+    border: 1px solid var(--line); border-radius: 10px;
+    padding: 10px 16px; font-size: 15px; font-weight: 700;
     cursor: pointer; font-family: inherit;
+    min-height: 40px;
   }
   .tour-back:hover, .tour-next:hover { border-color: var(--line-2); }
-  .tour-back:disabled { opacity: .4; cursor: not-allowed; }
+  .tour-back:disabled { opacity: .35; cursor: not-allowed; }
   .tour-next {
     background: linear-gradient(180deg, #3b82f6, #2563eb);
     color: #fff; border-color: transparent;
+    padding: 10px 20px;
   }
 
   /* ============ Admin user table ============ */
@@ -1831,8 +1840,8 @@
     <div class="tour-title" id="tourTitle">—</div>
     <div class="tour-body" id="tourBody">—</div>
     <div class="tour-actions">
-      <button class="tour-skip" id="tourSkip" type="button">Skip tour</button>
-      <button class="tour-back" id="tourBack" type="button">← Back</button>
+      <button class="tour-skip" id="tourSkip" type="button" aria-label="Skip the tour" title="Skip the tour">✕</button>
+      <button class="tour-back" id="tourBack" type="button" aria-label="Previous step">←</button>
       <button class="tour-next" id="tourNext" type="button">Next →</button>
     </div>
   </div>
@@ -2480,6 +2489,12 @@ let ttsBudgetReached = false;
 ttsSwitch.addEventListener("click", () => {
   ttsOn = !ttsOn;
   ttsSwitch.setAttribute("aria-checked", ttsOn ? "true" : "false");
+  // Remember that the kid manually toggled — once they've made a choice,
+  // we don't override it on next login with the grade-based default.
+  if (state?.data) {
+    state.data.ttsManualToggle = true;
+    saveData(state.session.email, state.data);
+  }
   if (!ttsOn) cancelSpeech();
 });
 
@@ -2648,6 +2663,19 @@ function startApp(session) {
     chosenPollyVoice = savedVoice;
     voicePicker.value = chosenPollyVoice;
     state.data.ttsVoice = savedVoice; // keep localStorage in sync
+  }
+
+  // Default TTS ON for emergent readers (#25). PK / K / Grade 1 students
+  // need the read-aloud to navigate the app at all — most can't decode
+  // the UI text. Older kids opt in via the header switch.
+  // Honors localStorage if the kid has explicitly toggled it before
+  // (state.data.ttsManualToggle persists their last action).
+  const grade = String(session.grade || "K").toUpperCase();
+  const isEmergent = grade === "PK" || grade === "K" || grade === "1";
+  if (isEmergent && !state.data.ttsManualToggle) {
+    ttsOn = true;
+    ttsSwitch.setAttribute("aria-checked", "true");
+    ttsSwitch.classList.add("on");
   }
   // Hide the boot loader once we have real data
   const boot = document.getElementById("bootLoader");
@@ -3036,9 +3064,10 @@ function openBook(id) {
   if (xp > 0) {
     xpEl.textContent = `✨ ~${xp} XP`;
     xpEl.style.display = "";
+    // K-decodable: short sentence, no jargon ("estimated", "retake").
+    // "Pass the quiz" + "get" are sight-word friendly.
     xpExplainEl.innerHTML =
-      `<strong>✨ ~${xp} XP estimated</strong> — that's what you'll earn ` +
-      `by passing the quiz on your first try at your grade. Retakes earn less.`;
+      `<strong>✨ ~${xp} XP</strong> — pass the quiz to get points!`;
     xpExplainEl.style.display = "";
   } else {
     xpEl.style.display = "none";
@@ -3067,31 +3096,39 @@ function openBook(id) {
 // Show the below-level warning in the book detail modal if the book's
 // recommended grade is lower than the student's working grade. Hides the
 // banner otherwise. Doesn't block — kids can still read whatever they want.
+//
+// Hidden entirely for K/PK readers (Agent 1) — they can't decode the
+// banner text AND they're not gaming for XP. The warning exists to
+// nudge G2+ kids away from grinding easy books for XP, which only
+// becomes a real risk once they can write coherent answers.
 function showLevelWarningIfNeeded(book) {
   const banner = document.getElementById("levelWarning");
   const studentGrade = state?.session?.grade || "K";
   const studentLvl = gradeToNumber(studentGrade);
+  // Hide for K and PK — see comment above.
+  if (studentLvl == null || studentLvl <= 0) {
+    banner.style.display = "none";
+    return;
+  }
   // Map category ids → numeric grade level. Aligned with TRACK_ORDER in
-  // lib/tracks.js: e=PK, k=K, a=1, b=2, c=3. (Used to be "g1"/"g2" until
-  // the dropdown bug — those didn't match TRACK_ORDER so Grades 1+2 were
-  // silently filtered out of the visible-tracks list.)
+  // lib/tracks.js: e=PK, k=K, a=1, b=2, c=3.
   const TRACK_LEVEL = { e: -1, k: 0, a: 1, b: 2, c: 3 };
   const bookLvlRaw = String(book.categoryId || "").toLowerCase();
   const bookLvl = TRACK_LEVEL[bookLvlRaw] != null ? TRACK_LEVEL[bookLvlRaw] : null;
 
-  if (studentLvl == null || bookLvl == null || bookLvl >= studentLvl) {
+  if (bookLvl == null || bookLvl >= studentLvl) {
     banner.style.display = "none";
     return;
   }
 
-  const yourGradeLabel = studentGrade === "K" ? "Grade K" : `Grade ${studentGrade}`;
+  // Friendlier, K-decodable copy. G1+ readers see this; the language
+  // stays simple enough for a Grade 1 reader to parse (kid taps a
+  // below-level book most often at G1/G2 — those are the readers who
+  // actually need the nudge).
   document.getElementById("levelWarningTitle").textContent =
-    `This book is below your reading level (${yourGradeLabel})`;
+    "This book is easy for you";
   document.getElementById("levelWarningMsg").textContent =
-    `You're welcome to read it for fun! Just so you know: quizzes for ` +
-    `easier books still match your grade, and you'll earn fewer XP ` +
-    `than for a book at your level. Save the big XP hauls for books ` +
-    `that challenge you.`;
+    "You can still read it! But you will earn fewer points than for a harder book.";
   banner.style.display = "flex";
 }
 
@@ -4112,10 +4149,10 @@ function renderQuizQuestion() {
     </div>
     <div class="quiz-report-row">
       <button class="quiz-report-btn" id="qReport" type="button">
-        🚩 Something doesn't look right
+        🚩 Tell us this is wrong
       </button>
       <span class="quiz-report-thanks" id="qReportThanks" style="display:none">
-        ✓ Thanks — we'll take a look at this question.
+        ✓ Thanks! We will check it.
       </span>
     </div>`;
   document.getElementById("qSpeak").addEventListener("click", () => {
@@ -4134,13 +4171,13 @@ function openReportDialog(q) {
   dialog.className = "report-dialog-backdrop";
   dialog.innerHTML = `
     <div class="report-dialog">
-      <h4>What's wrong with this question?</h4>
+      <h4>What is wrong?</h4>
       <p class="rd-q">"${escapeHtml(q.q)}"</p>
       <div class="rd-reasons">
-        <button data-reason="answer_wrong">The answer seems wrong</button>
-        <button data-reason="not_in_book">This isn't in the book</button>
-        <button data-reason="confusing">I don't understand it</button>
-        <button data-reason="other">Something else</button>
+        <button data-reason="answer_wrong">😕 Wrong answer</button>
+        <button data-reason="not_in_book">📕 Not in the book</button>
+        <button data-reason="confusing">🤔 Too hard</button>
+        <button data-reason="other">❓ Something else</button>
       </div>
       <button class="rd-cancel" id="rdCancel">Cancel</button>
     </div>`;
