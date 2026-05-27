@@ -11,7 +11,7 @@ import {
   setInitialGradeIfMissing,
 } from "../../lib/store.js";
 import { normalizeGrade, stallAlarmDays, estimatedMinutes } from "../../lib/xp.js";
-import { resolveVisibleTracks, TRACK_ORDER } from "../../lib/tracks.js";
+import { resolveVisibleTracks, TRACK_ORDER, trackForBook } from "../../lib/tracks.js";
 import { getBook } from "../../lib/books.js";
 import { ACHIEVEMENTS } from "../../lib/achievements.js";
 
@@ -97,16 +97,30 @@ export default async function handler(req, res) {
   // Enrich with the alarm threshold + expected minutes so the client can
   // render the stall warning without needing the book wordCount on the
   // client side. Server is the single source of truth for these numbers.
+  //
+  // Track-lock leak fix (Agent 7 #3): if the kid's currentlyReading
+  // points at a book whose track has been admin-locked AFTER they
+  // started reading, clear it from the response. Otherwise the home
+  // page shows "Now reading: X" but the Quiz button 403s — confusing
+  // dead-end with no recovery path for a K-2 reader. Admins keep
+  // seeing the book (they bypass track-locks).
   if (currentlyReading?.bookId) {
     const book = getBook(currentlyReading.bookId);
     if (book) {
-      const opts = {
-        includeQuizTime: true,
-        emergent: book.quizStyle === "emergent",
-      };
-      currentlyReading.alarmDays = stallAlarmDays(book.wordCount, grade, opts);
-      currentlyReading.expectedMinutes = estimatedMinutes(book.wordCount, grade);
-      currentlyReading.title = book.title;
+      const t = trackForBook(book);
+      const isHiddenForUser =
+        !isAdminUser && t && !visibleTracks.includes(t);
+      if (isHiddenForUser) {
+        currentlyReading = null;
+      } else {
+        const opts = {
+          includeQuizTime: true,
+          emergent: book.quizStyle === "emergent",
+        };
+        currentlyReading.alarmDays = stallAlarmDays(book.wordCount, grade, opts);
+        currentlyReading.expectedMinutes = estimatedMinutes(book.wordCount, grade);
+        currentlyReading.title = book.title;
+      }
     }
   }
 

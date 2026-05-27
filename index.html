@@ -3310,15 +3310,42 @@ document.getElementById("startReading").addEventListener("click", async () => {
 // server records the read directly via `kind:"read"`.
 //
 // Returns the full server response object (or a fallback with points: 0).
+//
+// Failure modes that matter (Agent 7 #2 — closed):
+//   - Server returns non-2xx OR fetch throws  → roll back the optimistic
+//     localStorage write so the kid doesn't get permanently stuck with
+//     a "read" bit but no XP on quiz-enabled books (which can't be
+//     un-marked once read=true).
+//   - Server returns passed:false (tamper / cache expired)  →  caller
+//     (finishQuiz) is responsible for the rollback in this case, since
+//     it needs to also reset attempt counters etc.
 async function markBookAsRead(bookId, attemptNum, submitAnswers) {
-  state.data.read[bookId] = true;
+  // Snapshot pre-write state so we can roll back cleanly.
+  const wasAlreadyRead = !!state.data.read[bookId];
   const today = new Date().toISOString().slice(0,10);
-  state.data.streakDays = Array.from(
-    new Set([...(state.data.streakDays || []), today])
-  );
+  const streakBefore = (state.data.streakDays || []).slice();
+
+  // Optimistic write — UX feels instant; we undo on failure.
+  state.data.read[bookId] = true;
+  state.data.streakDays = Array.from(new Set([...streakBefore, today]));
   saveData(state.session.email, state.data);
   refreshInteractiveBits();
   renderStats();
+
+  // Helper: roll back the optimistic write. Only undoes what THIS call
+  // wrote — if `wasAlreadyRead` is true we leave read=true alone
+  // (the original mark wasn't from us).
+  const rollback = () => {
+    if (!wasAlreadyRead) {
+      state.data.read[bookId] = false;
+      delete state.data.read[bookId];
+    }
+    state.data.streakDays = streakBefore;
+    saveData(state.session.email, state.data);
+    refreshInteractiveBits();
+    renderStats();
+  };
+
   // Server call — we need the full response to display points earned and
   // handle held-XP / retake messaging.
   try {
@@ -3346,7 +3373,18 @@ async function markBookAsRead(bookId, attemptNum, submitAnswers) {
       credentials: "same-origin",
       body: JSON.stringify(body),
     });
-    const data = r.ok ? await r.json() : null;
+    if (!r.ok) {
+      // Server rejected the read (4xx track_locked, 4xx quiz_required, 5xx,
+      // etc.). Roll back the optimistic write so the kid can retry. The
+      // server-validated quiz-pass case (passed:false in the body) is
+      // handled by the caller, which has more context to also reset the
+      // attempt counter.
+      rollback();
+      let errBody = null;
+      try { errBody = await r.json(); } catch {}
+      return { points: 0, error: errBody?.error || "server_error", status: r.status };
+    }
+    const data = await r.json();
     // If the server cleared currentlyReading because this quiz finished
     // the active book, sync local state so the UI updates.
     if (data?.clearedCurrentlyReading && state.session) {
@@ -3372,8 +3410,12 @@ async function markBookAsRead(bookId, attemptNum, submitAnswers) {
     }
     return data || { points: 0 };
   } catch {
-    /* offline / network — local state still reflects the read */
-    return { points: 0 };
+    // Network failure — roll back so a kid on flaky wifi can retry.
+    // Without this rollback, quiz-enabled books would lock permanently
+    // because state.data.read[bookId] = true blocks all future quiz
+    // attempts on that book.
+    rollback();
+    return { points: 0, error: "network_error" };
   }
 }
 
