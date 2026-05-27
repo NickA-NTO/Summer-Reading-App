@@ -840,6 +840,25 @@
     display: flex; align-items: flex-start; gap: 10px;
   }
   .quiz-question .speak-mini { flex-shrink: 0; margin-top: 4px; }
+  /* In-quiz "hear the question" button — sized for emergent readers.
+     The most important button on the quiz screen for a K/G1 student;
+     the previous .speak-mini variant was a 24×30px pill that vanished
+     next to the question text. Now full-width-ish below the question. */
+  .quiz-hear {
+    display: inline-flex; align-items: center; gap: 10px;
+    background: rgba(20,184,166,.14); color: #5eead4;
+    border: 1px solid rgba(20,184,166,.45);
+    border-radius: 14px;
+    padding: 12px 18px;
+    font-size: 16px; font-weight: 700;
+    font-family: inherit; cursor: pointer;
+    margin: 0 0 18px;
+    min-height: 44px;
+    transition: background .15s ease, border-color .15s ease;
+  }
+  .quiz-hear:hover { background: rgba(20,184,166,.22); border-color: rgba(20,184,166,.6); }
+  .quiz-hear .qh-icon { font-size: 22px; line-height: 1; }
+  .quiz-hear.playing { background: rgba(20,184,166,.28); }
   .quiz-options { display: grid; gap: 10px; }
   .quiz-option {
     background: var(--panel);
@@ -4148,11 +4167,18 @@ function renderQuizQuestion() {
   const q = quizState.questions[i];
   setQuizProgress(i);
   const letters = ["A", "B", "C", "D"];
+  // Single canonical text for the speak helper — used by both the
+  // manual button and the auto-speak below so they always read the
+  // same thing.
+  const speakText = `${q.q}. ${q.options.map((o, i) => `${letters[i]}. ${o}.`).join(" ")}`;
   document.getElementById("quizContent").innerHTML = `
     <h3 class="quiz-question">
       <span>${escapeHtml(q.q)}</span>
-      <button class="speak-mini" id="qSpeak">🔊</button>
     </h3>
+    <button class="quiz-hear" id="qSpeak" type="button" aria-label="Hear the question and answers read aloud">
+      <span class="qh-icon">🔊</span>
+      <span>Hear it</span>
+    </button>
     <div class="quiz-options" id="qOpts">
       ${q.options.map((opt, idx) => `
         <button class="quiz-option" data-i="${idx}">
@@ -4169,8 +4195,17 @@ function renderQuizQuestion() {
       </span>
     </div>`;
   document.getElementById("qSpeak").addEventListener("click", () => {
-    speak(`${q.q}. ${q.options.map((o,i) => `${letters[i]}. ${o}.`).join(" ")}`, { force: true });
+    speak(speakText, { force: true });
   });
+  // Auto-speak on render when TTS is on — emergent readers shouldn't
+  // have to find and tap the speaker before they can hear the
+  // question. Small delay so the screen settles + the per-tap "you
+  // chose this" transition out of the previous question finishes.
+  if (ttsOn) {
+    setTimeout(() => {
+      try { speak(speakText); } catch {}
+    }, 250);
+  }
   document.querySelectorAll("#qOpts .quiz-option").forEach((btn) => {
     btn.addEventListener("click", () => answerQuestion(Number(btn.dataset.i)));
   });
