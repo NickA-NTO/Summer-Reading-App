@@ -3070,7 +3070,7 @@ function openBook(id) {
     // K-decodable: short sentence, no jargon ("estimated", "retake").
     // "Pass the quiz" + "get" are sight-word friendly.
     xpExplainEl.innerHTML =
-      `<strong>✨ ~${xp} XP</strong> — pass the quiz to get points!`;
+      `<strong>✨ ~${xp} XP</strong> — pass the quiz to earn XP!`;
     xpExplainEl.style.display = "";
   } else {
     xpEl.style.display = "none";
@@ -3130,7 +3130,7 @@ function showLevelWarningIfNeeded(book) {
   // actually need the nudge). Sight words only — no "earn", "level",
   // "challenge" — and a 🔊 button to hear it.
   const title = "Easy book";
-  const msg = "Read it for fun! You will get fewer points.";
+  const msg = "Read it for fun! You will get fewer XP.";
   document.getElementById("levelWarningTitle").textContent = title;
   document.getElementById("levelWarningMsg").textContent = msg;
   // Wire the speaker — uses .onclick (not addEventListener) so this
@@ -5536,7 +5536,7 @@ const TOUR_STEPS = [
   {
     selector: "#statsRow",
     title: "Your stats",
-    body: "These are your points. Read books to get more.",
+    body: "This is your XP. Read books to get more.",
   },
   {
     selector: "#chipRow",
@@ -5602,7 +5602,7 @@ const TOUR_STEPS = [
       );
     },
     title: "Tap the green Start button",
-    body: "Tap the green Start button. Read the book. Then tap Quiz to get points!",
+    body: "Tap the green Start button. Read the book. Then tap Quiz to earn XP!",
     // Modal opens with an async cover-image load that can shift layout;
     // bump the per-step settle so the button rect is stable before we
     // measure for the spotlight.
