@@ -654,6 +654,20 @@ export default async function handler(req, res) {
     grade,
   };
 
+  // CRITICAL FIX (#36 — Agent 7 round 2 Blocker #1): when this read came
+  // via kind:"quiz_submit" → server-validated pass, the response MUST
+  // include passed/score/total/correct so the client renders the
+  // success screen. Without these the client falls into the "Almost
+  // there!" failure branch and rolls back the optimistic localStorage
+  // write — even though the server recorded the read and awarded XP.
+  // Every kid passing a quiz was silently broken until this landed.
+  if (body._serverValidatedQuizPass) {
+    response.passed = true;
+    response.score = body._serverValidatedQuizPass.score;
+    response.total = body._serverValidatedQuizPass.total;
+    response.correct = body._serverValidatedQuizPass.correct;
+  }
+
   if (fraudStatus === "held") {
     response.held = true;
     response.heldInfo = heldInfo;
