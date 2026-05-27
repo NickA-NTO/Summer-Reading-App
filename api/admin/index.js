@@ -36,6 +36,7 @@ import {
 } from "../../lib/store.js";
 import { sanitizeTrackOverrides, TRACK_ORDER } from "../../lib/tracks.js";
 import { getStats as getObsStats } from "../../lib/observability.js";
+import { syncWorkingGradesFromTimeBack, TIMEBACK_SYNC_ENDPOINT } from "../../lib/timeback-sync.js";
 import {
   APP_CAP_CHARS,
   APP_CAP_USD,
@@ -87,14 +88,35 @@ async function readBody(req) {
 
 export default async function handler(req, res) {
   // -------- Auth --------
-  const secret = process.env.AUTH_SECRET;
-  const cookies = parseCookies(req.headers.cookie);
-  const session = await verifySession(cookies.rs_session, secret);
-  if (!session) return json(res, 401, { error: "unauthenticated" });
-  if (!isAdmin(session.email)) return json(res, 403, { error: "forbidden" });
-
+  // Two paths in:
+  //   1. Admin user via web UI — session cookie + isAdmin check
+  //   2. Vercel cron (timeback-sync, future caliper-drain) — Authorization
+  //      header with CRON_SECRET. Cron requests have no session cookie.
+  //
+  // The cron path is gated to a fixed allowlist of actions so a leaked
+  // CRON_SECRET can't impersonate an admin for the destructive endpoints
+  // (set-grade, hold-existing-read, etc.).
   const url = new URL(req.url, `http://${req.headers.host}`);
   const action = String(url.searchParams.get("action") || "").toLowerCase();
+
+  const CRON_ALLOWED_ACTIONS = new Set([
+    "timeback-sync",
+    "caliper-drain-retry",
+  ]);
+  const cronHeader = String(req.headers.authorization || "");
+  const cronSecret = process.env.CRON_SECRET;
+  const isCronCall =
+    !!cronSecret &&
+    cronHeader === `Bearer ${cronSecret}` &&
+    CRON_ALLOWED_ACTIONS.has(action);
+
+  if (!isCronCall) {
+    const secret = process.env.AUTH_SECRET;
+    const cookies = parseCookies(req.headers.cookie);
+    const session = await verifySession(cookies.rs_session, secret);
+    if (!session) return json(res, 401, { error: "unauthenticated" });
+    if (!isAdmin(session.email)) return json(res, 403, { error: "forbidden" });
+  }
 
   // ============================ users ============================
   if (action === "users" && req.method === "GET") {
@@ -104,6 +126,25 @@ export default async function handler(req, res) {
       error: error || null,
       count: users.length,
       users,
+    });
+  }
+
+  // ========================= timeback-sync =======================
+  // Pull working grades from TimeBack reporting and bulk-apply to user
+  // profiles. Two callers:
+  //   1. Vercel cron job (vercel.json — runs daily at 06:00 UTC)
+  //   2. Admin panel "Sync now" button (POST from the UI)
+  //
+  // The cron-auth path is gated by Authorization: Bearer ${CRON_SECRET};
+  // admin auth uses the normal session cookie. Force-overwrite admin-set
+  // grades only when ?force=1 is passed (admin-only — cron never forces).
+  if (action === "timeback-sync") {
+    const force = url.searchParams.get("force") === "1" && !isCronCall;
+    const result = await syncWorkingGradesFromTimeBack({ force });
+    return json(res, result.ok ? 200 : 500, {
+      ...result,
+      endpoint: TIMEBACK_SYNC_ENDPOINT,
+      triggeredBy: isCronCall ? "cron" : "admin",
     });
   }
 
@@ -504,9 +545,12 @@ export default async function handler(req, res) {
   }
 
   // ==================== caliper-drain-retry ======================
-  if (action === "caliper-drain-retry" && req.method === "POST") {
+  // Both POST (admin button) and GET (Vercel cron every 15 min) work.
+  // Vercel cron jobs are GET-only by default, so we accept either verb
+  // here — the action is idempotent so verb-strictness adds nothing.
+  if (action === "caliper-drain-retry") {
     const result = await drainCaliperRetryQueue({ max: 100 });
-    return json(res, 200, result);
+    return json(res, 200, { ...result, triggeredBy: isCronCall ? "cron" : "admin" });
   }
 
   // ============================ 404 ==============================
