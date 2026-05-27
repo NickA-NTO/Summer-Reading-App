@@ -123,9 +123,9 @@ export default async function handler(req, res) {
       hasGoogleClientId: !!process.env.GOOGLE_CLIENT_ID,
       hasGoogleClientSecret: !!process.env.GOOGLE_CLIENT_SECRET,
       hasAuthSecret: !!process.env.AUTH_SECRET,
-      hasRedis: !!process.env.UPSTASH_REDIS_REST_URL,
+      hasRedis: !!(process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL),
       hasAnthropic: !!process.env.ANTHROPIC_API_KEY,
-      hasPolly: !!(process.env.POLLY_ACCESS_KEY_ID && process.env.POLLY_SECRET_ACCESS_KEY),
+      hasPolly: !!(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY),
     });
   }
 
