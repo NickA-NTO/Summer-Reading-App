@@ -106,6 +106,29 @@ export default async function handler(req, res) {
     });
   }
 
+  // ========================= env-check ===========================
+  // Diagnostic — surface the auth-relevant env-var values that production
+  // is actually reading. Admin-only; no secrets returned, only presence
+  // flags + the parsed domain whitelist (which isn't sensitive). Use to
+  // verify Vercel env-var changes actually landed in the running deploy.
+  if (action === "env-check" && req.method === "GET") {
+    const allowedRaw = process.env.ALLOWED_DOMAIN || "";
+    const allowedDomains = allowedRaw
+      .split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
+    return json(res, 200, {
+      allowedDomainRaw: allowedRaw,
+      allowedDomainParsed: allowedDomains,
+      domainCount: allowedDomains.length,
+      hdParam: allowedDomains.length === 1 ? allowedDomains[0] : "*",
+      hasGoogleClientId: !!process.env.GOOGLE_CLIENT_ID,
+      hasGoogleClientSecret: !!process.env.GOOGLE_CLIENT_SECRET,
+      hasAuthSecret: !!process.env.AUTH_SECRET,
+      hasRedis: !!process.env.UPSTASH_REDIS_REST_URL,
+      hasAnthropic: !!process.env.ANTHROPIC_API_KEY,
+      hasPolly: !!(process.env.POLLY_ACCESS_KEY_ID && process.env.POLLY_SECRET_ACCESS_KEY),
+    });
+  }
+
   // ========================= user-diag ===========================
   // Diagnostic timestamps for a single user — used to audit fraud-detection
   // gaps (e.g., did a kid click "I'm reading" then immediately quiz?).
