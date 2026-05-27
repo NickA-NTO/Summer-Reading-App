@@ -3403,42 +3403,79 @@ function castVote(kind) {
 // append words, re-encode (`Buffer.from(list).toString('base64')`),
 // replace the constant.
 const _MOD_BLOCKED_B64 =
-  "ZnVjayxmdWssZmNrLHNoaXQsc2h0LGFzc2hvbGUsYml0Y2gsYnRjaCxkYW1uLGJhc3RhcmQsZGljayxwdXNzeSxjb2NrLHBvcm4sc2V4LG5ha2VkLGJvb2JzLGtpbGwgeW91cnNlbGYsa3lzLHN1aWNpZGUscmV0YXJk";
+  "ZnVjayxmdWssZmNrLGZrLGZ1cSxzaGl0LHNodCxhc3Nob2xlLGJpdGNoLGJ0Y2gsZGFtbixiYXN0YXJkLGRpY2sscHVzc3ksY29jayxwb3JuLHBybixzZXgsbmFrZWQsYm9vYnMsa2lsbCB5b3Vyc2VsZixreXMsc3VpY2lkZSxyZXRhcmQ=";
 const _MOD_BLOCKED = new Set(
   (typeof atob === "function" ? atob(_MOD_BLOCKED_B64) : "")
     .split(",").map((s) => s.trim().toLowerCase()).filter(Boolean)
 );
-// Normalize text for matching — catches casual evasion like "sh1t",
-// "s h i t", "shiiiit". Two passes:
-//   normal:  lowercase → leet → strip non-letters → collapse runs to 2 letters
-//   compact: same + single-letter-token runs joined + ALL repeats to 1
-// We check the input against both forms (the COMPACT blocked-list
-// versions for the compact form), which catches:
-//   - leet substitution: "sh1t" → "shit" (normal)
-//   - spaced-out spelling: "s h i t this book" → "shit this bok" (compact)
-//   - long repeats: "shiiiit" → "shit" (compact)
-// False-positives are acceptable for K-8 — kid rephrases.
-function _modNormalize(text) {
+// Normalize text for matching. We produce MULTIPLE candidate forms and
+// match against any of them, because casual evasion uses a mix of:
+//   - leet substitution: "sh1t" / "$h!t" → "shit"
+//   - alt substitution: "ki11" → "kill" (1=l, not 1=i)
+//   - symbol-as-vowel: "f@ck" → "fck" (drop the symbol entirely)
+//   - asterisk masking: "f**k" → "fk"
+//   - paren-as-vowel: "p()rn" → "prn"
+//   - spaced-out spelling: "s h i t" → "shit"
+//   - long repeats: "shiiiit" → "shit"
+//
+// Each form gets a compact pass (single-letter-runs joined + repeats
+// fully collapsed) so substring matches work cleanly. We check the
+// COMPACT blocked-word set against ALL candidate compacts. False-
+// positives ("classic", "this hit") are explicitly tested below.
+function _modBaseNormalize(text) {
+  // Lowercase + collapse whitespace. No letter substitution yet.
   return String(text || "")
     .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+function _modLeetA(s) {
+  // Standard leet (digit → vowel/consonant by visual similarity).
+  return s
     .replace(/[1!|]/g, "i")
     .replace(/0/g, "o")
     .replace(/3/g, "e")
     .replace(/[4@]/g, "a")
     .replace(/[5$]/g, "s")
     .replace(/7/g, "t")
-    .replace(/[^a-z\s]/g, "")
-    .replace(/(.)\1{2,}/g, "$1$1")
-    .replace(/\s+/g, " ")
-    .trim();
+    .replace(/[+]/g, "t");
 }
-function _modCompact(normal) {
-  // Join runs of 2+ consecutive single-letter "words" into a single word
-  // ("s h i t this" → "shit this") — leaves multi-letter words alone so
-  // we don't smash "this hit" into "thishit". Then collapse ALL repeats.
-  return normal
+function _modLeetB(s) {
+  // Alternative leet — "1" as "l", "0" as "o". Catches "ki11" → "kill".
+  return s
+    .replace(/1/g, "l")
+    .replace(/!/g, "i")
+    .replace(/0/g, "o")
+    .replace(/3/g, "e")
+    .replace(/[4@]/g, "a")
+    .replace(/[5$]/g, "s")
+    .replace(/7/g, "t")
+    .replace(/[+]/g, "t");
+}
+function _modStripNonLetters(s) {
+  // Drop everything that isn't a letter or space (no substitution).
+  // Catches symbol-as-mask patterns: "f@ck" → "fck", "f**k" → "fk",
+  // "p()rn" → "prn".
+  return s.replace(/[^a-z\s]/g, "");
+}
+function _modToCompact(s) {
+  // Strip non-letters → join 2+ consecutive single-letter "words" →
+  // collapse ALL repeated letters to one. Preserves multi-letter word
+  // boundaries so "this hit" doesn't become "thishit".
+  return s
+    .replace(/[^a-z\s]/g, "")
+    .replace(/\s+/g, " ")
     .replace(/\b((?:[a-z]\s+){2,}[a-z])\b/g, (m) => m.replace(/\s+/g, ""))
     .replace(/(.)\1+/g, "$1");
+}
+function _modCandidateForms(text) {
+  const base = _modBaseNormalize(text);
+  // Three substitution paths, all run through the compact pipeline.
+  return [
+    _modToCompact(_modLeetA(base)),
+    _modToCompact(_modLeetB(base)),
+    _modToCompact(_modStripNonLetters(base)),
+  ];
 }
 // Pre-compute compact forms of every blocked word once, at module load.
 const _MOD_BLOCKED_COMPACT = new Set(
@@ -3446,19 +3483,40 @@ const _MOD_BLOCKED_COMPACT = new Set(
     .map((w) => w.replace(/\s+/g, "").replace(/(.)\1+/g, "$1"))
     .filter((w) => w.length >= 3)
 );
+function _modBuildNormalForm(base, substituter) {
+  // substituter runs BEFORE strip so symbols-as-letters become letters
+  // first (e.g. "shi+" → "shit"). After substitution, strip whatever
+  // non-letters remain and collapse double-letter runs.
+  return _modStripNonLetters(substituter(base))
+    .replace(/(.)\1{2,}/g, "$1$1")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 function _modContainsProfanity(text) {
-  const normal = _modNormalize(text);
-  const compact = _modCompact(normal);
-  // Whole-word match on the normal form (fast, low false-positive).
-  for (const w of normal.split(/\s+/)) if (_MOD_BLOCKED.has(w)) return true;
-  // Compact-form substring match — catches spaced-out, long-repeat,
-  // and embedded ("loserfuckhead") variants in one pass.
-  for (const blocked of _MOD_BLOCKED_COMPACT) {
-    if (compact.includes(blocked)) return true;
+  const base = _modBaseNormalize(text);
+  // Three independent substitution paths — check whole-words and phrases
+  // under EACH. This is the only way to catch the full evasion zoo:
+  //   A (standard leet):  "$h!t" / "shi+" → "shit", "f@ck" → "fack" (miss)
+  //   B (1=l alt):         "ki11" → "kill", "ki11 y0urse1f" → "kill yourself"
+  //   C (no substitution): "f@ck" → "fck", "p()rn" → "prn", "f**k" → "fk"
+  const forms = [
+    _modBuildNormalForm(base, _modLeetA),
+    _modBuildNormalForm(base, _modLeetB),
+    _modBuildNormalForm(base, (s) => s), // no substitution
+  ];
+  for (const form of forms) {
+    for (const w of form.split(/\s+/)) if (_MOD_BLOCKED.has(w)) return true;
+    for (const blocked of _MOD_BLOCKED) {
+      if (blocked.includes(" ") && form.includes(blocked)) return true;
+    }
   }
-  // Multi-word phrases on the normal form.
-  for (const blocked of _MOD_BLOCKED) {
-    if (blocked.includes(" ") && normal.includes(blocked)) return true;
+  // Compact-form substring match across all three candidate forms.
+  // Catches embedded ("loserfuckhead") and spaced-out ("s h i t") variants.
+  const compacts = _modCandidateForms(text);
+  for (const blocked of _MOD_BLOCKED_COMPACT) {
+    for (const c of compacts) {
+      if (c.includes(blocked)) return true;
+    }
   }
   return false;
 }
