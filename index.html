@@ -1676,15 +1676,15 @@
       <p class="blurb" id="modalBlurb"></p>
       <p class="xp-explain" id="modalXpExplain"></p>
       <div class="actions">
-        <button class="icon-btn reading" id="startReading" style="display:none">📖 I'm reading this</button>
-        <button class="icon-btn read" id="readToggle">＋ I read this</button>
+        <button class="icon-btn reading" id="startReading" style="display:none" title="Start reading this book">📖 Start</button>
+        <button class="icon-btn read" id="readToggle" title="Mark this book as read">＋ Done</button>
         <button class="icon-btn quiz" id="quizBtn" style="display:none">📝 Take the Quiz</button>
         <button class="icon-btn up"   id="voteUp" disabled>👍 <span id="upCount">0</span></button>
         <button class="icon-btn down" id="voteDown" disabled>👎 <span id="downCount">0</span></button>
         <button class="icon-btn" id="speakBlurb">🔊 Read blurb aloud</button>
         <a class="icon-btn amazon" id="amazonLink" target="_blank" rel="noopener noreferrer">🛒 Buy on Amazon</a>
       </div>
-      <div class="note" id="votedOnly">Tap "I read this" to leave a vote or comment.</div>
+      <div class="note" id="votedOnly">Tap "Done" to leave a vote or comment.</div>
       <div class="comments">
         <h3>What other readers said</h3>
         <ul class="comment-list" id="commentList"></ul>
@@ -3113,7 +3113,9 @@ function refreshInteractiveBits() {
   const quizBtn = document.getElementById("quizBtn");
   const startBtn = document.getElementById("startReading");
   readBtn.classList.toggle("active", wasRead);
-  readBtn.textContent = wasRead ? "✓ Marked as read" : "＋ I read this";
+  // ＋ Done (untapped) → ✅ Done (after marking) — the visual symbol
+  // shift gives K readers a clear state cue even without decoding text.
+  readBtn.textContent = wasRead ? "✅ Done" : "＋ Done";
   // Quiz button is GATED behind "I'm reading this" — the kid must declare
   // they're actively reading THIS book before the quiz unlocks. Prevents
   // quiz-hopping across books a kid hasn't claimed to be reading.
@@ -3128,7 +3130,7 @@ function refreshInteractiveBits() {
       quizBtn.title = "";
       quizBtn.classList.remove("locked");
     } else {
-      quizBtn.textContent = "🔒 Mark as reading first";
+      quizBtn.textContent = "🔒 Tap Start first";
       quizBtn.disabled = true;
       quizBtn.title = "Tap \"I'm reading this\" to unlock the quiz.";
       quizBtn.classList.add("locked");
@@ -3165,15 +3167,15 @@ function refreshInteractiveBits() {
         Math.floor((Date.now() - active.startedAt) / 86_400_000)
       );
       startBtn.textContent =
-        days === 0 ? "📖 Reading now" : `📖 Reading · day ${days + 1}`;
+        days === 0 ? "📖 Reading" : `📖 Day ${days + 1}`;
       startBtn.title = "Click to mark a different book as your current read";
     } else {
       // Default state — invitation to start, or to switch if another book is active.
       startBtn.style.display = "inline-flex";
       startBtn.classList.remove("active");
       startBtn.textContent = active
-        ? "📖 Read this instead"
-        : "📖 I'm reading this";
+        ? "📖 Read this one"
+        : "📖 Start";
       startBtn.title = active
         ? `You're currently reading "${BOOK_BY_ID[active.bookId]?.title || active.bookId}". Click to switch.`
         : "Tell the app this is the book you're working on";
@@ -3193,7 +3195,7 @@ function refreshInteractiveBits() {
     note.textContent = "Pass the quiz to unlock voting and comments.";
     note.style.color = "var(--accent-2)";
   } else {
-    note.textContent = `Tap "I read this" to leave a vote or review.`;
+    note.textContent = `Tap "Done" to leave a vote or review.`;
     note.style.color = "var(--muted)";
   }
 
@@ -5270,6 +5272,25 @@ function startOnboarding() {
   };
 
   overlay.classList.add("open");
+
+  // Auto-speak the prompt so K students hear what to do without
+  // having to find and tap a speaker button. Browser SpeechSynthesis
+  // works without auth — important because at first-run the kid
+  // hasn't picked a Polly voice yet. Mirrors the tooSoonOverlay
+  // pattern. Small delay so the overlay open animation finishes.
+  setTimeout(() => {
+    if ("speechSynthesis" in window) {
+      try {
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(
+          "Hi! Pick a voice to read books to you. Tap a face to hear it speak."
+        );
+        u.rate = 0.95;
+        u.pitch = 1.05;
+        window.speechSynthesis.speak(u);
+      } catch {}
+    }
+  }, 350);
 }
 
 function onbCleanupAudio() {
@@ -5362,28 +5383,28 @@ async function onbSaveVoice() {
 const TOUR_STEPS = [
   {
     selector: ".hero-card",
-    title: "Your Pick of the Week",
-    body: "We feature a different book here every few hours. Tap any cover to see more.",
+    title: "Pick of the Week",
+    body: "A new book is here. Tap it to look.",
   },
   {
     selector: "#statsRow",
     title: "Your stats",
-    body: "Your XP, books read, and streak live up here. Hit about 1,200 XP over summer to keep your reading on track.",
+    body: "These are your points. Read books to get more.",
   },
   {
     selector: "#chipRow",
-    title: "Jump to a grade or topic",
-    body: "Use these dropdowns to leap straight to a section — pick a grade or a topic like Animals or Adventures and the catalog scrolls to it.",
+    title: "Find a book",
+    body: "Tap here to find books for your grade or topic.",
   },
   {
     selector: "#navLeaderboard",
-    title: "Top Readers leaderboard",
-    body: "See how your school is doing. Climb by reading harder books — not by speed-clicking.",
+    title: "Top readers",
+    body: "See who has read the most at your school.",
   },
   {
     selector: "#navAchievements",
     title: "Earn badges",
-    body: "Every book you finish unlocks new badges — for words read, topics explored, and finishing thick books. Hidden ones pop when you do something special.",
+    body: "Get a new badge when you finish a book.",
   },
   {
     // Highlight a single book card so the kid sees exactly what to tap.
@@ -5391,7 +5412,7 @@ const TOUR_STEPS = [
     // common mistake from earlier markup).
     selectorFn: () => document.querySelector(".row .scroller .card[data-book-id]"),
     title: "Pick a book",
-    body: "Tap any cover to open the book. Try this one!",
+    body: "Tap a book to open it. Try this one!",
   },
   {
     // The "I'm reading this" button only exists when a book modal is open
@@ -5433,8 +5454,8 @@ const TOUR_STEPS = [
         null
       );
     },
-    title: "Tap \"I'm reading this\"",
-    body: "After you open a book, tap the green \"I'm reading this\" button to start it. The Take the Quiz button only unlocks once you've marked a book as your current read. Pass the quiz to earn XP!",
+    title: "Tap the green Start button",
+    body: "Tap the green Start button. Read the book. Then tap Quiz to get points!",
     // Modal opens with an async cover-image load that can shift layout;
     // bump the per-step settle so the button rect is stable before we
     // measure for the spotlight.
