@@ -1619,7 +1619,6 @@
       </div>
       <div class="stat"><div class="ic">📚</div><span class="v" id="statRead">0</span><span>books read</span></div>
       <div class="stat"><div class="ic">💬</div><span class="v" id="statComments">0</span><span>reviews</span></div>
-      <div class="stat"><div class="ic">🔥</div><span class="v" id="statStreak">0</span><span>day streak</span></div>
       <div class="stat" id="statRankWrap" style="display:none">
         <div class="ic" style="background:rgba(245,158,11,.16);color:#fbbf24">🏆</div>
         <span class="v" id="statRank">—</span><span id="statRankLabel">rank</span>
@@ -2527,6 +2526,13 @@ function cancelSpeech() {
   }
   if (window.speechSynthesis) speechSynthesis.cancel();
 }
+// Sequence token for in-flight TTS requests. Click-twice-during-fetch
+// races (Agent 1 + the tour-speaker overlap from this round's QC):
+// the Polly fetch can be 200-800ms; a second click during that window
+// would create a second <audio> that plays alongside the first.
+// Every speak() call increments this; if it changes before the audio
+// is assigned, the response is stale and dropped.
+let _ttsSeq = 0;
 
 /* Polly-first speak with browser fallback. Order of attempts:
    1. /api/tts (AWS Polly Neural via our cached endpoint) — best quality
@@ -2538,6 +2544,7 @@ async function speak(text, opts = {}) {
   if (!t) return;
 
   cancelSpeech();
+  const mySeq = ++_ttsSeq;
 
   // Skip API call if we already know the budget is gone — go straight to browser
   if (ttsBudgetReached) {
@@ -2550,6 +2557,8 @@ async function speak(text, opts = {}) {
       `/api/tts?voice=${encodeURIComponent(voice)}&text=${encodeURIComponent(t)}`,
       { credentials: "same-origin" }
     );
+    // Bail out if a newer speak() call superseded us during the fetch.
+    if (mySeq !== _ttsSeq) return;
     if (r.status === 429) {
       const data = await r.json().catch(() => ({}));
       ttsBudgetReached = true;
@@ -2571,6 +2580,8 @@ async function speak(text, opts = {}) {
       console.warn("[tts] no URL in response — falling back", data);
       return speakBrowser(t);
     }
+    // One more seq check after the json parse — small window but real.
+    if (mySeq !== _ttsSeq) return;
     console.log(`[tts] voice=${data.voice} cached=${data.cached} → ${data.url.slice(0, 60)}…`);
 
     const audio = new Audio(data.url);
@@ -2810,7 +2821,11 @@ function renderStats() {
   }
   document.getElementById("statRead").textContent = readCount;
   document.getElementById("statComments").textContent = commentCount;
-  document.getElementById("statStreak").textContent = streak;
+  // Streak chip removed (Agent 4) — the streak ladder was swapped for
+  // the word-count ladder when daily-activity tracking was rejected, so
+  // the visible streak chip became an unrewarded metric. Keeping the
+  // `streak` local variable + computeStreak helper for future use
+  // (e.g., if we ever add a real streak feature back).
 
   // "Now reading" chip — visible when state.session.currentlyReading is set.
   // Shows the book title + a soft progress line, and turns red when past
@@ -3919,17 +3934,16 @@ function showTooSoonWarning(gapMs, onProceed) {
     const m = Math.max(1, Math.round(gapMs / 60_000));
     elapsed = `${m} minute${m === 1 ? "" : "s"} ago`;
   }
+  // K-decodable copy (Agent 1 caught the prior verbose version slipping
+  // through). Same string used for visible text + TTS so the kid hears
+  // what they see. The "elapsed" insertion stays short — "X seconds ago"
+  // or "X minutes ago" both decode fine.
   body.textContent =
-    `You started reading this ${elapsed}. You'll only earn XP if you've ` +
-    `actually finished — quizzes taken too soon are held for review and ` +
-    `won't count toward the leaderboard until then.`;
+    `You started this ${elapsed}. You only get XP if you really read the book.`;
   overlay.classList.add("open");
-  // Build a single TTS string for the title + body so the speak button
-  // and the auto-speak both pull from the same source.
   const ttsText =
-    `Have you finished the book? You started reading this ${elapsed}. ` +
-    `You'll only earn XP if you've actually finished. Quizzes taken too ` +
-    `soon are held for review.`;
+    `Did you finish the book? You started this ${elapsed}. ` +
+    `You only get XP if you really read the book.`;
   // Speak it aloud once on open if TTS is on so emergent readers hear it.
   if (typeof speak === "function") {
     try { speak(ttsText); } catch {}
@@ -5474,6 +5488,13 @@ function onbCleanupAudio() {
 
 async function onbHandleVoiceClick(btn) {
   const voice = btn.dataset.voice;
+  // Cancel any in-flight SpeechSynthesis (e.g., the 350ms auto-speak
+  // intro that fires when the overlay opens). Without this the intro
+  // utterance overlaps the Polly preview audio and the kid hears
+  // two voices at once. (Agent 1, round-2 QC.)
+  if ("speechSynthesis" in window) {
+    try { window.speechSynthesis.cancel(); } catch {}
+  }
   // Mark selected (visual + state) and enable Next
   document.querySelectorAll(".onb-voice").forEach((b) => {
     b.classList.toggle("selected", b === btn);
@@ -5690,8 +5711,13 @@ function cancelTourSpeech() {
   }
 }
 
+let _tourSpeakSeq = 0;
 async function speakCurrentTourStep() {
   cancelTourSpeech();
+  // Also cancel any global TTS audio (welcome screen, modal speak, etc.)
+  // — the tour speaker shouldn't double up on those.
+  cancelSpeech();
+  const mySeq = ++_tourSpeakSeq;
   const step = TOUR_STEPS[_tourIdx];
   if (!step) return;
   const btn = document.getElementById("tourSpeak");
@@ -5708,8 +5734,11 @@ async function speakCurrentTourStep() {
       `/api/tts?voice=${encodeURIComponent(voice)}&text=${encodeURIComponent(text)}`,
       { credentials: "same-origin" }
     );
+    // Bail if a newer tour-speak superseded us during the fetch.
+    if (mySeq !== _tourSpeakSeq) return;
     if (r.ok) {
       const j = await r.json();
+      if (mySeq !== _tourSpeakSeq) return;
       if (j.url) {
         _tourSpeakAudio = new Audio(j.url);
         _tourSpeakAudio.onended = () => {

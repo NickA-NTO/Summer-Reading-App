@@ -80,6 +80,15 @@ export default async function handler(req, res) {
   const softOK = checks.anthropic.ok && checks.polly.ok;
   const status = !hardOK ? "degraded" : !softOK ? "partial" : "healthy";
 
+  // Commit SHA is gated behind HEALTH_TOKEN — synthetic monitors set
+  // the bearer to detect partial deploys; drive-by attackers see only
+  // ok/status/region. (Agent 8 recon: public commit SHA + open repo =
+  // every internal threshold + security comment becomes readable.)
+  // Schema versions + region stay public — useful for ops, no leak.
+  const wantCommit =
+    !!process.env.HEALTH_TOKEN &&
+    String(req.headers.authorization || "") === `Bearer ${process.env.HEALTH_TOKEN}`;
+
   res.statusCode = !hardOK ? 503 : !softOK ? 206 : 200;
   res.end(
     JSON.stringify({
@@ -88,12 +97,9 @@ export default async function handler(req, res) {
       timestamp: new Date().toISOString(),
       latencyMs: Date.now() - start,
       checks,
-      // SCHEMA_VERSION bumps invalidate the quiz cache; surface it here
-      // so monitors can catch a partial deploy where one function has
-      // the old version and another has the new.
       schemaVersions: { quiz: 8 },
       build: {
-        commit: process.env.VERCEL_GIT_COMMIT_SHA || null,
+        commit: wantCommit ? (process.env.VERCEL_GIT_COMMIT_SHA || null) : null,
         region: process.env.VERCEL_REGION || null,
       },
     })
