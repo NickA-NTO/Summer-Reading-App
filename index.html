@@ -5513,9 +5513,13 @@ function renderWelcomeScreen() {
       </div>`;
     errorTts = "Your email isn't verified yet. ";
   }
+  // Browser SpeechSynthesis treats "reading" as a heteronym and often picks
+  // the place-name pronunciation (REH-ding) over the activity (REE-ding).
+  // Respelling as "reeding" in the TTS string only forces the right one
+  // — the visible text and brand stay "Reading."
   const welcomeTts =
     errorTts +
-    "Hi! Welcome to Alpha Summer Reading. Tap the big blue Sign In button to start reading books.";
+    "Hi! Welcome to Alpha Summer Reeding. Tap the big blue Sign In button to start reeding books.";
   boot.innerHTML = `
     <div style="text-align:center;max-width:480px;padding:0 24px">
       <div style="width:88px;height:88px;margin:0 auto 24px;border-radius:22px;
