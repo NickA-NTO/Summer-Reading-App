@@ -556,6 +556,8 @@ export default async function handler(req, res) {
   // ============================ 404 ==============================
   return json(res, 404, {
     error: "not_found",
-    hint: "Use ?action=users|tts-usage|quiz-reports|held-xp|set-grade|bulk-set-grades|set-track-overrides|reset-tour|test-caliper|caliper-health|caliper-drain-retry",
+    receivedAction: action,
+    receivedMethod: req.method,
+    hint: "Use ?action= users | tts-usage | quiz-reports | held-xp | held-xp(POST) | hold-existing-read(POST) | set-grade(POST) | bulk-set-grades(POST) | set-track-overrides(POST) | reset-tour(POST) | test-caliper | caliper-health | caliper-drain-retry | timeback-sync | obs-stats | env-check | user-diag",
   });
 }
