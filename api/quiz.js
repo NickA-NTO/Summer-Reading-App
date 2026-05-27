@@ -553,6 +553,16 @@ const SCHEMA_VERSION = 8;
 export const QUIZ_SCHEMA_VERSION = SCHEMA_VERSION;
 
 /**
+ * Remove the answer index from a question before shipping to the client.
+ * The Redis-cached pool keeps the full {q, options, answer} so the server
+ * can grade quiz_submit; the wire payload to the browser is only
+ * {q, options}. Closes the DevTools answer-reveal vector.
+ */
+function stripAnswerKey(q) {
+  return { q: q.q, options: q.options };
+}
+
+/**
  * Read the cached quiz pool for (bookId, studentGrade). Returns the full
  * payload (questions WITH the answer index) or null. Used by activity.js
  * to grade a submitted quiz against the same pool the kid was shown —
@@ -883,6 +893,12 @@ export default async function handler(req, res) {
         quizStyle: style,
         cached: true,
         ...cached,
+        // SECURITY: strip the answer key before sending to the client.
+        // The cached pool keeps answers for server-side grading via
+        // /api/activity kind:"quiz_submit"; clients never see them. This
+        // closes the DevTools-reveal attack (kid opens console, reads
+        // question.answer, taps the right option).
+        questions: cached.questions.map(stripAnswerKey),
       })
     );
   }
@@ -999,6 +1015,9 @@ export default async function handler(req, res) {
         quizStyle: style,
         cached: false,
         ...payload,
+        // SECURITY: strip the answer key before sending. The cache still
+        // has the full answers for server-side grading; clients don't.
+        questions: payload.questions.map(stripAnswerKey),
       })
     );
   } catch (err) {

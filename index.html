@@ -870,6 +870,13 @@
     border-color: var(--bad); background: rgba(232,124,124,.12);
   }
   .quiz-option.wrong .letter { background: var(--bad); color: #2c0404; }
+  /* Neutral "you tapped this" state — no correctness reveal during the
+     quiz. Replaces the old red/green flash now that the server grades
+     end-of-quiz and the answer key is no longer shipped to the client. */
+  .quiz-option.chosen {
+    border-color: var(--accent-2); background: rgba(37,99,235,.14);
+  }
+  .quiz-option.chosen .letter { background: var(--accent-2); color: #f5f7fb; }
 
   .quiz-result {
     text-align: center; padding: 12px 0;
@@ -3597,24 +3604,24 @@ function pickN(arr, n) {
   return shuffle(arr).slice(0, n);
 }
 
-// Given a server question {q, options, answer} and its index in the
-// original pool, return a copy with the options shuffled and both:
-//   - `answer` remapped to the new shuffled index (for per-question
-//     red/green feedback during the quiz)
+// Given a server question {q, options} (no `answer` — the answer key
+// lives only in the server-side cache for grading) and its index in the
+// original pool, return a copy with the options shuffled and:
 //   - `originalIndices[shuffledPos]` → original option index (so when
 //     the kid taps shuffled position N we can submit the canonical
 //     index to the server for authoritative grading)
 //   - `poolIdx` so the server knows WHICH question in the cached pool
 //     this corresponds to (server grades against pool.questions[poolIdx])
+// No `answer` field — clients never see the answer key. Per-question
+// red/green feedback is replaced with a neutral "you tapped this"
+// highlight; the kid learns the score at the end of the quiz.
 function withShuffledOptions(question, poolIdx) {
   const order = shuffle([0, 1, 2, 3]); // permutation of original positions
   const newOptions = order.map((i) => question.options[i]);
-  const correctOriginal = question.answer;
   return {
     poolIdx,
     q: question.q,
     options: newOptions,
-    answer: order.indexOf(correctOriginal), // for in-flight feedback only
     originalIndices: order, // originalIndices[shuffledPos] = originalIdx
   };
 }
@@ -3883,24 +3890,21 @@ function openReportDialog(q) {
 
 function answerQuestion(choice) {
   const q = quizState.questions[quizState.idx];
-  const correct = choice === q.answer;
   // Record the kid's tap as { poolIdx, chosen } where chosen is the
-  // ORIGINAL (un-shuffled) option index. The shuffled position only
-  // matters for the in-flight red/green feedback; the server grades
-  // against the canonical pool, so we send the canonical index.
+  // ORIGINAL (un-shuffled) option index. The server grades against the
+  // canonical pool, so we send the canonical index. No `correct` flag —
+  // clients don't know what's correct; the server reveals at the end.
   quizState.answers.push({
     poolIdx: q.poolIdx,
     chosen: q.originalIndices[choice],
-    correct,
   });
-  if (correct) quizState.score++;
 
-  // Visual feedback
+  // Visual feedback: neutral "you tapped this" highlight, no red/green.
+  // The kid learns their score at the end of the quiz (server-graded).
   const opts = document.querySelectorAll("#qOpts .quiz-option");
   opts.forEach((btn, i) => {
     btn.disabled = true;
-    if (i === q.answer) btn.classList.add("correct");
-    else if (i === choice) btn.classList.add("wrong");
+    if (i === choice) btn.classList.add("chosen");
   });
 
   setTimeout(() => {
@@ -3910,16 +3914,11 @@ function answerQuestion(choice) {
     } else {
       finishQuiz();
     }
-  }, 1100);
+  }, 700); // shorter delay — no per-question reveal to read
 }
 
 async function finishQuiz() {
   const total = questionsPerAttempt(quizState.style);
-  const score = quizState.score;
-  // `let` (not const) — the server-validated pass/fail can override this
-  // local count if the kid tampered with the submitted indices or the
-  // cached quiz pool expired mid-attempt.
-  let passed = score >= passThreshold(quizState.style);
   setQuizProgress(total);
 
   // 1d.1 — Record the attempt and save seen question texts for rotation.
@@ -3933,57 +3932,55 @@ async function finishQuiz() {
     quizState.seenQTexts = rec.seenQTexts;
   }
 
+  // Show "Checking your answers…" interim. We DON'T know the score yet —
+  // the answer key isn't on the client anymore. Server grades from the
+  // cached pool and tells us pass/fail + score.
+  document.getElementById("quizContent").innerHTML = `
+    <div class="quiz-result">
+      <div class="emoji">🤔</div>
+      <h3>Checking your answers…</h3>
+      <p>One moment.</p>
+    </div>`;
+
+  // Submit answers (poolIdx + chosen original index per question).
+  // Server validates against its cached pool and decides pass/fail +
+  // applies fraud checks + records the read in one round-trip.
+  let serverResp = null;
+  let earnedPoints = 0;
+  if (!state.data.read[quizState.bookId]) {
+    serverResp = await markBookAsRead(
+      quizState.bookId,
+      attemptNum,
+      quizState.answers
+    );
+    earnedPoints = serverResp.points || 0;
+    if (serverResp.held && serverResp.heldInfo?.cooldownUntil) {
+      saveQuizCooldown(
+        serverResp.heldInfo.cooldownUntil,
+        serverResp.heldInfo.flagCount
+      );
+    }
+  }
+
+  // Server is the authoritative source for score + pass/fail.
+  const passed = !!(serverResp && serverResp.passed);
+  const score = serverResp && Number.isInteger(serverResp.score)
+    ? serverResp.score
+    : 0;
+
+  // markBookAsRead writes state.data.read[bookId] = true BEFORE the
+  // server call (optimistic UI). If the server said we didn't pass,
+  // roll that back so the kid can retry.
+  if (!passed && state.data.read[quizState.bookId]) {
+    state.data.read[quizState.bookId] = false;
+    saveData(state.session.email, state.data);
+  }
+
   rec.count = Math.min(rec.count + 1, MAX_ATTEMPTS_PER_DAY);
   rec.passed = rec.passed || passed;
   saveAttemptRecord(quizState.bookId, rec);
 
   if (passed) {
-    // Show interim success while we wait for the server-validated score.
-    // The server independently grades the submitted answers against its
-    // cached pool — if it disagrees with our client-side count (e.g., the
-    // pool expired mid-attempt or the kid tampered with the submit body),
-    // we surface the server verdict instead of awarding XP.
-    document.getElementById("quizContent").innerHTML = `
-      <div class="quiz-result">
-        <div class="emoji">🎉</div>
-        <h3>Great reading!</h3>
-        <div class="score">You got ${score} / ${total} right</div>
-        <p>Saving your progress…</p>
-      </div>`;
-
-    let earnedPoints = 0;
-    let serverResp = null;
-    if (!state.data.read[quizState.bookId]) {
-      // Submit the answers (poolIdx + chosen original index per question).
-      // Server validates against its cached pool and decides pass/fail +
-      // applies fraud checks + records the read in one round-trip.
-      serverResp = await markBookAsRead(
-        quizState.bookId,
-        attemptNum,
-        quizState.answers
-      );
-      earnedPoints = serverResp.points || 0;
-
-      // If the server disagreed with our local pass count (passed:false
-      // in the response despite our local 4-of-5), undo the local read
-      // mark and bail to the fail flow. Defensive — the local UI already
-      // showed correct/wrong per question, so this should only fire on
-      // tamper or expired cache.
-      if (serverResp.passed === false) {
-        state.data.read[quizState.bookId] = false;
-        saveData(state.session.email, state.data);
-        // Fall through to the "failed" rendering below.
-        passed = false; // overrides the local computation
-      }
-
-      // 1d.3 — If server held the XP, mirror cooldown in localStorage
-      if (serverResp.held && serverResp.heldInfo?.cooldownUntil) {
-        saveQuizCooldown(
-          serverResp.heldInfo.cooldownUntil,
-          serverResp.heldInfo.flagCount
-        );
-      }
-    }
 
     let pointsLine, pointsTts;
     if (serverResp && serverResp.held) {
@@ -4014,27 +4011,22 @@ async function finishQuiz() {
       pointsTts = "Book marked as read. You can now leave a review.";
     }
 
-    // Only render the success screen if the SERVER agreed this was a
-    // pass. If the server flipped `passed` to false (tamper / expired
-    // pool), fall through to the failure-rendering block below.
-    if (passed) {
-      const passTts =
-        `Great reading! You got ${score} out of ${total} right. ${pointsTts}`;
-      document.getElementById("quizContent").innerHTML = `
-        <div class="quiz-result" style="position:relative">
-          ${quizResultSpeakBtn("quizResultSpeak")}
-          <div class="emoji">🎉</div>
-          <h3>Great reading!</h3>
-          <div class="score">You got ${score} / ${total} right</div>
-          ${pointsLine}
-          <div class="actions">
-            <button class="icon-btn read active" id="quizDone">Done</button>
-          </div>
-        </div>`;
-      document.getElementById("quizDone").addEventListener("click", closeQuiz);
-      wireQuizResultTTS("quizResultSpeak", passTts);
-      return;
-    }
+    const passTts =
+      `Great reading! You got ${score} out of ${total} right. ${pointsTts}`;
+    document.getElementById("quizContent").innerHTML = `
+      <div class="quiz-result" style="position:relative">
+        ${quizResultSpeakBtn("quizResultSpeak")}
+        <div class="emoji">🎉</div>
+        <h3>Great reading!</h3>
+        <div class="score">You got ${score} / ${total} right</div>
+        ${pointsLine}
+        <div class="actions">
+          <button class="icon-btn read active" id="quizDone">Done</button>
+        </div>
+      </div>`;
+    document.getElementById("quizDone").addEventListener("click", closeQuiz);
+    wireQuizResultTTS("quizResultSpeak", passTts);
+    return;
   }
 
   // Failed — check if they have another attempt left today
