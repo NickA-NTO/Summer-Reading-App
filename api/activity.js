@@ -12,7 +12,8 @@
 //       reading time, the XP is either held for admin review or partially
 //       reduced. Manual "I read this" reads skip fraud detection entirely.
 
-import { verifySession, parseCookies } from "../lib/session.js";
+import { verifySession, parseCookies, isAdmin } from "../lib/session.js";
+import { resolveVisibleTracks, trackForBook } from "../lib/tracks.js";
 import {
   recordRead,
   guessGradeFromEmail,
@@ -65,6 +66,25 @@ async function loadProfile(email) {
 function resolveGradeServerSide(profile, email) {
   if (profile && profile.grade) return normalizeGrade(profile.grade);
   return normalizeGrade(guessGradeFromEmail(email) || "K");
+}
+
+/**
+ * Belt-and-suspenders track-locking for /api/activity. /api/quiz.js
+ * already 403s on track-locked books (lib/quiz.js:843), but a kid
+ * could otherwise hit /api/activity directly with kind:"start" /
+ * "read" / "quiz_submit" to mark a locked book as currently reading
+ * or record a read against a stale cache. Returns true if the kid
+ * is allowed to act on this book, false to reject.
+ *
+ * Admins bypass — they need to act on every book for QA + admin work.
+ */
+function isBookTrackVisibleForUser(book, profile, email) {
+  if (isAdmin(email)) return true;
+  const t = trackForBook(book);
+  if (!t) return true; // unknown track → don't block (defensive)
+  const grade = resolveGradeServerSide(profile, email);
+  const visible = resolveVisibleTracks(grade, profile?.trackOverrides || {});
+  return visible.includes(t);
 }
 
 // Internal-leaderboard XP multiplier for 2nd-attempt passes.
@@ -178,6 +198,18 @@ export default async function handler(req, res) {
     if (!bookId) {
       res.statusCode = 400;
       return res.end(JSON.stringify({ error: "invalid_request" }));
+    }
+    // Track-locking gate — refuse to start a read on a book this student
+    // can't see. Belt-and-suspenders with the same check in /api/quiz.js;
+    // an admin can lock a track for a kid mid-summer and we don't want
+    // them able to "currently read" a hidden book.
+    const startBook = getBook(bookId);
+    if (startBook && !isBookTrackVisibleForUser(startBook, profile, session.email)) {
+      res.statusCode = 403;
+      return res.end(JSON.stringify({
+        error: "track_locked",
+        message: "This book isn't available at your grade level.",
+      }));
     }
     const existing = await getCurrentlyReading(session.email);
     if (existing && existing.bookId !== bookId && !body.swap) {
@@ -332,6 +364,19 @@ export default async function handler(req, res) {
   }
 
   const book = getBook(bookId);
+  // Track-locking gate — refuse to record a read or quiz pass on a book
+  // this student isn't allowed to see. Catches the path where an admin
+  // locks a track mid-summer but the kid's client still has the locked
+  // bookId in scope (e.g., from a stale `currentlyReading`). Mirrors the
+  // same check in /api/quiz.js (line 843) and the kind:"start" branch
+  // above. Admins bypass for QA access.
+  if (book && !isBookTrackVisibleForUser(book, profile, session.email)) {
+    res.statusCode = 403;
+    return res.end(JSON.stringify({
+      error: "track_locked",
+      message: "This book isn't available at your grade level.",
+    }));
+  }
   // Quiz-driven reads (attemptNum present) include the expected quiz time
   // in the XP base — that's how we land at ~1 XP per active minute of
   // focused work (reading + quiz). Manual "I read this" reads (no quiz)
