@@ -28,12 +28,15 @@ import {
   clearCurrentlyReading,
   updateUserOnboarding,
   evaluateAchievementsForUser,
+  recordQuizAttempt,
+  consumeQuizOpens,
   redis,
   FRAUD_RATIO_HOLD,
   FRAUD_RATIO_SOFT,
   FRAUD_FRESHNESS_WINDOW_MS,
   FIRST_OPEN_SUSPICION_HOURS,
   STARTED_RECENTLY_HOLD_MS,
+  QUIZ_DAILY_ATTEMPT_LIMIT,
 } from "../lib/store.js";
 import { getBook } from "../lib/books.js";
 import { pointsForBook, normalizeGrade, WCPM_BY_GRADE } from "../lib/xp.js";
@@ -138,7 +141,10 @@ export default async function handler(req, res) {
   const profile = await loadProfile(session.email);
   const grade = resolveGradeServerSide(profile, session.email);
   // attemptNum: 1 or 2 (present for quiz passes, absent for manual reads).
-  const attemptNum =
+  // `let` rather than const because the quiz_submit branch (#40) overrides
+  // it with the server-authoritative count from recordQuizAttempt — the
+  // client value is a hint, the server count is the source of truth.
+  let attemptNum =
     body.attemptNum != null ? Number(body.attemptNum) : null;
 
   // -----------------------------------------------------------------------
@@ -324,6 +330,33 @@ export default async function handler(req, res) {
         error: "no_quiz_for_book",
         message: "This book doesn't have a quiz.",
       }));
+    }
+    // #40: server-authoritative attempt counter. Previously the client sent
+    // `attemptNum` from localStorage, so a kid could clear storage between
+    // failed attempts and reset to attemptNum=1 (= full XP, no retake
+    // multiplier). INCR before grading so a refusal counts toward the cap
+    // — keeping retry attempts cheap to detect. After QUIZ_DAILY_ATTEMPT_LIMIT
+    // attempts in a 72h rolling window we 429 and ask them to come back
+    // tomorrow. Redis-down case: serverAttempt is null → fall back to the
+    // client-supplied attemptNum so we degrade gracefully.
+    const serverAttempt = await recordQuizAttempt(session.email, bookId);
+    if (serverAttempt != null && serverAttempt > QUIZ_DAILY_ATTEMPT_LIMIT) {
+      trackEvent("quiz_attempt_blocked", { bookId, attempt: serverAttempt });
+      res.statusCode = 429;
+      return res.end(JSON.stringify({
+        error: "too_many_attempts",
+        message: "You've used your attempts for this book today. Come back tomorrow and try again!",
+        attempt: serverAttempt,
+        limit: QUIZ_DAILY_ATTEMPT_LIMIT,
+      }));
+    }
+    // Override the client-supplied attemptNum with the server count
+    // (clamped to 2 because downstream code only branches on === 2 for
+    // the retake multiplier). This makes the localStorage-wipe exploit
+    // a no-op — a kid resetting client state still sees their 2nd attempt
+    // counted as a retake (50%-equivalent XP via RETAKE_MULTIPLIER).
+    if (serverAttempt != null) {
+      attemptNum = Math.min(2, Math.max(1, serverAttempt));
     }
     // Client posts `answers: [{ idx, chosen }, ...]` — idx is the index
     // into the cached pool (0..poolSize-1), chosen is the kid's tapped
@@ -553,13 +586,36 @@ export default async function handler(req, res) {
       /* missing currentlyReading data → don't synthesize a hold from absence */
     }
 
+    // 2e. Quiz-open count (#41). consumeQuizOpens reads + DELs the per-
+    //     (email,bookId) hash that /api/quiz writes to on every fetch.
+    //     count >= 6 reopens since last submit looks like lookup behavior
+    //     (peek the questions, close, look up answers, come back). count
+    //     of 3-5 is a softer signal (might be browser-back / refresh).
+    //     count of 0 means we have no telemetry — don't synthesize fraud
+    //     from missing data.
+    let openCountStatus = "clean"; // "clean" | "suspicious" | "hold"
+    let openCountDebug = null;
+    try {
+      const opens = await consumeQuizOpens(session.email, bookId);
+      openCountDebug = { opens: opens.count, firstAt: opens.firstAt };
+      if (opens.count >= 6) {
+        openCountStatus = "hold";
+      } else if (opens.count >= 3) {
+        openCountStatus = "suspicious";
+      }
+    } catch {
+      /* missing open data → don't synthesize fraud from absence */
+    }
+
     // 2c. Combine the signals using a fair soft matrix:
     //       WCPM clean   + open clean         → clean
     //       WCPM clean   + open suspicious    → soft_flag (only 1 signal)
     //       WCPM soft    + open clean         → soft_flag (existing behavior)
     //       WCPM soft    + open suspicious    → held (both signals agree)
     //       WCPM hold    + (any)              → held (WCPM hold is strong)
-    //       recent-start hold  (any other)    → held (1-hour floor, hard rule)
+    //       recent-start hold  (any other)    → held (per-book floor, hard rule)
+    //       openCount    hold                 → held (6+ reopens = lookup pattern)
+    //       openCount    suspicious           → folds into the soft tally
     //
     //     Net effect: a kid who already had the book at home is mostly
     //     protected — the WCPM check sees a reasonable gap because they
@@ -571,9 +627,18 @@ export default async function handler(req, res) {
       combined = "hold";
     } else if (wcpmStatus === "hold") {
       combined = "hold";
-    } else if (wcpmStatus === "soft" && openStatus === "suspicious") {
+    } else if (openCountStatus === "hold") {
       combined = "hold";
-    } else if (wcpmStatus === "soft" || openStatus === "suspicious") {
+    } else if (
+      wcpmStatus === "soft" &&
+      (openStatus === "suspicious" || openCountStatus === "suspicious")
+    ) {
+      combined = "hold";
+    } else if (
+      wcpmStatus === "soft" ||
+      openStatus === "suspicious" ||
+      openCountStatus === "suspicious"
+    ) {
       combined = "soft";
     }
 
@@ -581,9 +646,15 @@ export default async function handler(req, res) {
       fraudStatus = "held";
       // Observability — track every held submission so a spike is visible
       // in the admin dashboard before a parent complains.
-      trackEvent("fraud_held", {
-        reason: recentStartStatus === "hold" ? "started_recently" : "speed",
-      });
+      // Pick the dominant reason for telemetry / admin queue display.
+      const heldReason =
+        recentStartStatus === "hold" ? "started_recently"
+        : openCountStatus === "hold" ? "quiz_reopen_pattern"
+        : wcpmStatus === "hold" ? "speed"
+        : openStatus === "suspicious" && wcpmStatus === "soft" ? "speed_plus_recent_open"
+        : wcpmStatus === "soft" && openCountStatus === "suspicious" ? "speed_plus_reopens"
+        : "speed";
+      trackEvent("fraud_held", { reason: heldReason });
       const flagResult = await applyFraudFlag(session.email);
       const heldResult = await addHeldXpEntry({
         email: session.email,
@@ -597,19 +668,13 @@ export default async function handler(req, res) {
         minExpectedMins: wcpmDebug?.minExpectedMins ?? null,
         hoursSinceOpen: openDebug?.hoursSinceOpen ?? null,
         gapStartedToQuizSec: recentStartDebug?.gapSec ?? null,
-        reason:
-          recentStartStatus === "hold"
-            ? "started_recently"  // <1 hour between "I'm reading" and quiz
-            : wcpmStatus === "hold"
-              ? "speed"
-              : openStatus === "suspicious" && wcpmStatus === "soft"
-                ? "speed_plus_recent_open"
-                : "speed",
+        quizOpenCount: openCountDebug?.opens ?? null,
+        reason: heldReason,
       });
       heldInfo = {
         // Surface the actual signal so the client can phrase the message
         // appropriately (and so the admin queue shows the right reason).
-        reason: recentStartStatus === "hold" ? "started_recently" : "speed",
+        reason: heldReason,
         cooldownUntil: flagResult.cooldownUntil,
         flagCount: flagResult.flagCount,
         heldId: heldResult.id || null,

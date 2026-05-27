@@ -25,6 +25,7 @@ import {
   setCachedQuiz,
   guessGradeFromEmail,
   getCurrentlyReading,
+  recordQuizOpen,
   redis,
 } from "../lib/store.js";
 import { normalizeGrade } from "../lib/xp.js";
@@ -969,6 +970,10 @@ export default async function handler(req, res) {
     Array.isArray(cached.questions) &&
     cached.questions.length >= minUsable
   ) {
+    // #41: count this open. Used as a fraud signal in /api/activity
+    // quiz_submit — opens-without-submit pattern feeds the soft-flag
+    // matrix. Fire-and-forget; failures here mustn't block the response.
+    recordQuizOpen(session.email, bookId).catch(() => {});
     res.statusCode = 200;
     res.setHeader("Cache-Control", "private, max-age=86400");
     return res.end(
@@ -1131,6 +1136,8 @@ export default async function handler(req, res) {
     };
     await setCachedQuiz(cacheKey, payload);
 
+    // #41: count this open (cold-path mirror of the cached-hit branch).
+    recordQuizOpen(session.email, bookId).catch(() => {});
     res.statusCode = 200;
     return res.end(
       JSON.stringify({
