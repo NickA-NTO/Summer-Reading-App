@@ -3883,12 +3883,14 @@ document.getElementById("quizBtn").addEventListener("click", () => {
     return;
   }
   // #21 — Pre-quiz warning. If the kid clicked "I'm reading this" less
-  // than 1 hour ago, give them a chance to back out before the server
-  // holds the XP for review. The threshold mirrors STARTED_RECENTLY_HOLD_MS
-  // on the backend (lib/store.js) — kept in sync manually.
-  const STARTED_RECENTLY_WARN_MS = 60 * 60 * 1000;
+  // than the server's hold threshold ago, give them a chance to back
+  // out before the server queues their XP for review. Threshold comes
+  // from /api/auth/me (startedRecentlyHoldMs) — server is the source
+  // of truth; falls back to 1 hour if the session didn't include it.
+  const warnMs =
+    Number(state.session?.startedRecentlyHoldMs) || 60 * 60 * 1000;
   const gap = active?.startedAt ? Date.now() - Number(active.startedAt) : Infinity;
-  if (gap >= 0 && gap < STARTED_RECENTLY_WARN_MS) {
+  if (gap >= 0 && gap < warnMs) {
     showTooSoonWarning(gap, () => openQuiz(activeBookId));
     return;
   }
@@ -4713,7 +4715,7 @@ function renderAchievements() {
     const icon = hideContent ? "🔒" : a.icon;
     const name = hideContent ? "???" : a.name;
     const desc = hideContent ? "Keep reading to unlock this secret badge." : a.desc;
-    const progress = !isUnlocked && !hideContent ? localProgressFor(a.id, ctx) : null;
+    const progress = !isUnlocked && !hideContent ? localProgressFor(a, ctx) : null;
     const bar = progress
       ? `<div class="ach-mini-bar"><div class="ach-mini-fill" style="width:${
           Math.min(100, Math.round((progress.current / progress.target) * 100))
@@ -4757,34 +4759,23 @@ function buildLocalAchCtx() {
   return { booksReadCount, xpTotal, genresRead, maxWordCount, totalWordsRead };
 }
 
-// Mirrors the targets baked into lib/achievements.js. Kept in sync
-// manually — if you add a new tier on the server, add it here too.
-const ACH_PROGRESS_TARGETS = {
-  first_read:    { stat: "booksReadCount", target: 1 },
-  bookworm_5:    { stat: "booksReadCount", target: 5 },
-  caterpillar:   { stat: "booksReadCount", target: 10 },
-  wise_owl:      { stat: "booksReadCount", target: 25 },
-  library_champ: { stat: "booksReadCount", target: 50 },
-  xp_100:        { stat: "xpTotal", target: 100 },
-  xp_500:        { stat: "xpTotal", target: 500 },
-  xp_1k:         { stat: "xpTotal", target: 1000 },
-  xp_summer:     { stat: "xpTotal", target: 1200 },
-  xp_2500:       { stat: "xpTotal", target: 2500 },
-  xp_5k:         { stat: "xpTotal", target: 5000 },
-  words_500:     { stat: "totalWordsRead", target: 500 },
-  words_2k:      { stat: "totalWordsRead", target: 2000 },
-  words_5k:      { stat: "totalWordsRead", target: 5000 },
-  words_15k:     { stat: "totalWordsRead", target: 15000 },
-  explorer_3:    { stat: "genresReadSize", target: 3 },
-  curious_reader:{ stat: "genresReadSize", target: 5 },
-};
-function localProgressFor(id, ctx) {
-  const spec = ACH_PROGRESS_TARGETS[id];
-  if (!spec) return null;
-  const cur = spec.stat === "genresReadSize"
+// Progress targets are SERVER-AUTHORITATIVE now — each catalog entry
+// from /api/auth/me carries optional `progressTarget` + `progressStat`
+// fields, baked at the achievement definition in lib/achievements.js.
+// Tier-style badges include them; event-style ones (Tour Guide, the
+// stretch ladder) don't, and render no progress bar.
+//
+// Previously this lived in a hardcoded ACH_PROGRESS_TARGETS const that
+// had to be kept in lockstep with the server's targets — drift risk on
+// every achievement change. Removed.
+function localProgressFor(achEntry, ctx) {
+  const target = achEntry?.progressTarget;
+  const stat = achEntry?.progressStat;
+  if (target == null || !stat) return null;
+  const cur = stat === "genresReadSize"
     ? (ctx.genresRead?.size || 0)
-    : Number(ctx[spec.stat] || 0);
-  return { current: Math.min(cur, spec.target), target: spec.target };
+    : Number(ctx[stat] || 0);
+  return { current: Math.min(cur, target), target };
 }
 
 function formatUnlockDate(ts) {
@@ -6053,6 +6044,10 @@ function renderWelcomeScreen() {
       unlockedAchievements: me.unlockedAchievements && typeof me.unlockedAchievements === "object"
         ? me.unlockedAchievements
         : {},
+      // Server-derived constants (drift fix). Pre-quiz warning threshold
+      // and any other server-authoritative timings land here so the
+      // client never gets out of sync.
+      startedRecentlyHoldMs: Number(me.startedRecentlyHoldMs) || null,
     });
 
     // First-run onboarding: voice picker → spotlight tour. Only shows

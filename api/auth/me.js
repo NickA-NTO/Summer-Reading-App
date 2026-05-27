@@ -9,6 +9,7 @@ import {
   getAchievements,
   evaluateAchievementsForUser,
   setInitialGradeIfMissing,
+  STARTED_RECENTLY_HOLD_MS,
 } from "../../lib/store.js";
 import { normalizeGrade, stallAlarmDays, estimatedMinutes } from "../../lib/xp.js";
 import { resolveVisibleTracks, TRACK_ORDER, trackForBook } from "../../lib/tracks.js";
@@ -87,13 +88,22 @@ export default async function handler(req, res) {
   // Send the full catalog of achievement definitions + the user's unlocked
   // timestamps. Lets the client render the achievements modal without a
   // second round-trip.
-  const achievementCatalog = ACHIEVEMENTS.map((a) => ({
-    id: a.id,
-    name: a.name,
-    icon: a.icon,
-    desc: a.desc,
-    hidden: !!a.hidden,
-  }));
+  // Include progress targets so the client doesn't have to mirror them
+  // in a hardcoded const. Optional — boolean / event-style achievements
+  // (Tour Guide, Beginner's Mind, the stretch ladder) omit them and the
+  // client renders no progress bar for those.
+  const achievementCatalog = ACHIEVEMENTS.map((a) => {
+    const entry = {
+      id: a.id,
+      name: a.name,
+      icon: a.icon,
+      desc: a.desc,
+      hidden: !!a.hidden,
+    };
+    if (a.progressTarget != null) entry.progressTarget = a.progressTarget;
+    if (a.progressStat) entry.progressStat = a.progressStat;
+    return entry;
+  });
   // Enrich with the alarm threshold + expected minutes so the client can
   // render the stall warning without needing the book wordCount on the
   // client side. Server is the single source of truth for these numbers.
@@ -145,6 +155,13 @@ export default async function handler(req, res) {
       grade,
       visibleTracks,
       currentlyReading,
+      // Server-derived constants exposed so the client doesn't have to
+      // mirror them in hardcoded constants (low-tier drift risk).
+      // startedRecentlyHoldMs is the threshold the server uses to
+      // auto-hold quizzes submitted too soon after "I'm reading this";
+      // the pre-quiz "Slow down a sec" warning fires under the same
+      // window so the kid never gets surprised by a held submission.
+      startedRecentlyHoldMs: STARTED_RECENTLY_HOLD_MS,
       // Onboarding state (#17) — client uses these to decide whether to
       // show the first-run voice picker + spotlight tour. tourCompleted=true
       // suppresses it forever (admin can reset via the admin endpoint).
