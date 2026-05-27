@@ -608,9 +608,10 @@ const MULTI_PASS_TEMPS = [0.4, 0.7, 1.0];
 // 3 random seeds" — a strong signal it's not a one-off hallucination.
 const MULTI_PASS_CONSENSUS_THRESHOLD = 2;
 
-// How AI should calibrate question difficulty for each student grade.
-// The book itself stays the same — only the questions change to match
-// the reader's level.
+// DIFFICULTY rubric — keyed to the student's WORKING grade. Controls
+// vocabulary depth, inference complexity, sentence length. The book
+// itself stays the same; questions adapt to what the kid can decode +
+// reason about.
 const GRADE_GUIDANCE = {
   PK:
     "Test LITERAL RECALL only — who, what, where, how many. Use only the " +
@@ -642,11 +643,64 @@ const GRADE_GUIDANCE = {
     "and analysis of literary technique where relevant.",
 };
 
+// MATURITY rubric — keyed to the student's AGE grade (physical age),
+// SEPARATE from working grade. Controls the FRAMING of distractors and
+// the tone of the question — what kinds of "wrong-but-plausible" answers
+// feel right for a kid that age, what reference points they understand
+// (recess vs nap-time, etc.), and whether the language can assume basic
+// social context (peer pressure, sportsmanship, etc.).
+//
+// Task #30: a 4th-grader reading at G2 working level gets G2-level
+// difficulty but with FRAMING that doesn't feel babyish — distractors
+// reference school playground / siblings / pets, not toddler-level
+// scenarios. Without this, a kid reading below grade level felt
+// infantilized by their distractors even when the question vocab fit.
+const MATURITY_GUIDANCE = {
+  PK:
+    "Frame distractors around toddler-world scenes: parents, naps, " +
+    "blocks, snack, animals at home, big-or-little objects. Keep the " +
+    "tone gentle and warm.",
+  K:
+    "Frame distractors around early-school scenes: storytime, cubbies, " +
+    "lunch, sharing, the playground, simple feelings (happy/sad/scared). " +
+    "Tone is gentle and encouraging.",
+  "1":
+    "Frame distractors around 6-7-year-old life: school routines, " +
+    "siblings, family, recess, friendship moments. Light humor is fine. " +
+    "Avoid scenarios that require nap-time / toddler context.",
+  "2":
+    "Frame distractors around 7-8-year-old life: classroom dynamics, " +
+    "playground games, family events, simple peer interactions, basic " +
+    "fairness. Avoid both nap-time framing AND adult-level conflict.",
+  "3":
+    "Frame distractors around 8-9-year-old life: clubs and teams, " +
+    "school projects, sibling rivalries, sportsmanship, simple moral " +
+    "dilemmas. Tone is warm but not babyish — no preschool framing.",
+  "4":
+    "Frame distractors around 9-10-year-old life: friendships and " +
+    "social groups, independence, perseverance, fairness, peer " +
+    "pressure. Tone is engaged and respectful — never condescending.",
+  "5":
+    "Frame distractors around 10-11-year-old life: identity, fairness, " +
+    "loyalty, deeper moral choices, light irony where the book supports " +
+    "it. Tone respects the reader as a capable thinker.",
+  "6":
+    "Frame distractors around 11-12-year-old life: identity, " +
+    "consequence, hypocrisy, social complexity, broader cultural " +
+    "context. The reader is approaching middle-school maturity.",
+  "7":
+    "Frame distractors at full middle-school maturity: peer dynamics, " +
+    "moral ambiguity, real-world consequence, light irony.",
+  "8":
+    "Same as Grade 7 with more sophisticated themes and a slightly " +
+    "more analytical tone.",
+};
+
 // One generation pass — extracted so the multi-pass orchestrator can call
 // it N times in parallel at different temperatures. The prompt is identical
 // across runs; only `temperature` varies. Returns the array of questions
 // (poolSize long for the book's style) or throws.
-async function generateOnce(book, studentGrade, guidance, temperature) {
+async function generateOnce(book, studentGrade, guidance, temperature, ageGrade) {
   const poolSize = POOL_SIZE_FULL;
   const schema = quizSchemaFor();
 
@@ -654,11 +708,27 @@ async function generateOnce(book, studentGrade, guidance, temperature) {
   // to keep questions readable for a 4-5 year old. Everything else uses
   // the standard grade-calibrated comprehension prompt.
   const isPreK = String(studentGrade || "").toUpperCase() === "PK";
+  // Age grade falls back to working grade when missing — same maturity
+  // as the difficulty floor in that case (matches old behavior).
+  const ageGradeKey = String(ageGrade || studentGrade || "K").toUpperCase();
+  const maturityRubric =
+    MATURITY_GUIDANCE[ageGradeKey] || MATURITY_GUIDANCE[studentGrade] || "";
+  const includeMaturity =
+    maturityRubric && String(ageGrade || "").toUpperCase() !== String(studentGrade || "").toUpperCase();
 
   const system =
     `You are an early-elementary reading specialist designing reading-` +
     `comprehension questions for a GRADE ${studentGrade} reader.\n\n` +
-    `DIFFICULTY CALIBRATION for Grade ${studentGrade}:\n${guidance}\n\n` +
+    `DIFFICULTY CALIBRATION for Grade ${studentGrade} (vocabulary, ` +
+    `inference depth, sentence length):\n${guidance}\n\n` +
+    (includeMaturity
+      ? `MATURITY CALIBRATION — this student is age-Grade ${ageGrade} but ` +
+        `reads at Grade ${studentGrade}. Keep the DIFFICULTY at Grade ` +
+        `${studentGrade} (above), but the FRAMING of distractors and the ` +
+        `tone of questions should match Grade ${ageGrade}. Don't use ` +
+        `toddler/preschool framing for an older kid even when their ` +
+        `reading level is below grade. Maturity rubric:\n${maturityRubric}\n\n`
+      : "") +
     `Tone: warm and concrete. Each question has EXACTLY 4 options, ONE ` +
     `of which is clearly correct. The other three should be plausible-` +
     `but-wrong things a kid who skimmed might pick. Vary which index ` +
@@ -818,6 +888,7 @@ export default async function handler(req, res) {
   // profile, falling back to email heuristic. This drives both the quiz
   // calibration AND the track-visibility check below.
   let profileGrade = null;
+  let profileAgeGrade = null;
   let trackOverrides = {};
   const r = redis();
   if (r) {
@@ -826,6 +897,7 @@ export default async function handler(req, res) {
       if (raw) {
         const prof = typeof raw === "string" ? JSON.parse(raw) : raw;
         if (prof?.grade) profileGrade = prof.grade;
+        if (prof?.ageGrade) profileAgeGrade = prof.ageGrade;
         if (prof?.trackOverrides) trackOverrides = prof.trackOverrides;
       }
     } catch {
@@ -835,6 +907,12 @@ export default async function handler(req, res) {
   const studentGrade = normalizeGrade(
     profileGrade || guessGradeFromEmail(session.email) || "K"
   );
+  // Age grade is OPTIONAL — TimeBack supplies it via the working-grade
+  // sync cron. When missing, fall back to studentGrade so the prompt
+  // ignores the maturity rubric (same behavior as before task #30).
+  const ageGrade = profileAgeGrade
+    ? normalizeGrade(profileAgeGrade)
+    : studentGrade;
 
   // Track-visibility enforcement (#14). If admin has locked this book's
   // track for this student (or default rule hides it), refuse to serve the
@@ -875,9 +953,16 @@ export default async function handler(req, res) {
   const style = book.quizStyle || "comprehension";
   const minUsable = minUsableFor(style);
 
-  // Cache key: (book, student grade). Different grades get different
-  // question pools because difficulty is calibrated to the reader.
-  const cacheKey = `v${SCHEMA_VERSION}:${bookId}:${studentGrade}`;
+  // Cache key: (book, working grade, age grade). Different working grades
+  // get different question pools because difficulty is calibrated to the
+  // reader. Different (working, age) PAIRS also get different pools
+  // because the maturity rubric reshapes distractors when age ≠ working.
+  // To preserve old-cache compatibility for the common same-grade case,
+  // we only suffix age when it differs.
+  const cacheKey =
+    ageGrade && ageGrade !== studentGrade
+      ? `v${SCHEMA_VERSION}:${bookId}:${studentGrade}:age${ageGrade}`
+      : `v${SCHEMA_VERSION}:${bookId}:${studentGrade}`;
   const cached = await getCachedQuiz(cacheKey);
   if (
     cached &&
@@ -917,7 +1002,7 @@ export default async function handler(req, res) {
     if (MULTI_PASS_ENABLED) {
       const settled = await Promise.allSettled(
         MULTI_PASS_TEMPS.map((t) =>
-          generateOnce(book, studentGrade, guidance, t)
+          generateOnce(book, studentGrade, guidance, t, ageGrade)
         )
       );
       const successful = settled
@@ -941,7 +1026,8 @@ export default async function handler(req, res) {
         book,
         studentGrade,
         guidance,
-        0.7 // sensible default
+        0.7, // sensible default
+        ageGrade
       );
       candidates = [questions];
     }

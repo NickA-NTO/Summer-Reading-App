@@ -124,6 +124,15 @@ export default async function handler(req, res) {
     }
   }
 
+  // Age grade is separate from working grade. Working grade drives
+  // catalog visibility + XP math; age grade drives question MATURITY
+  // (task #30). When TimeBack hasn't given us an age grade, fall
+  // through to the working grade so quiz prompts have something
+  // sensible to anchor on.
+  const ageGrade = profile?.ageGrade
+    ? normalizeGrade(profile.ageGrade)
+    : grade;
+
   res.statusCode = 200;
   res.end(
     JSON.stringify({
@@ -131,6 +140,7 @@ export default async function handler(req, res) {
       email: session.email,
       name: session.name,
       picture: session.picture || null,
+      ageGrade,
       isAdmin: isAdminUser,
       grade,
       visibleTracks,
