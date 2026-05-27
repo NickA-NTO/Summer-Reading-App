@@ -6008,45 +6008,8 @@ function renderWelcomeScreen() {
   const welcomeTts =
     errorTts +
     "Hi! Welcome to Alpha Summer Reeding. Tap the big blue Sign In button to start reeding books.";
-
-  // #55 — parent-facing content. The kid-facing hero (logo, title, big
-  // blue button) is unchanged so a K student can still navigate it
-  // unassisted. The "For parents" panel below it gives a privacy-conscious
-  // adult enough information to evaluate before they hand the device to
-  // their child. Three sample covers come from BOOK_BY_ID so we don't
-  // hard-code anything that could drift out of sync with the catalog.
-  // Skipped if BOOK_BY_ID isn't populated yet (defensive — render order
-  // means it usually is by the time this screen shows).
-  const sampleIds = ["e02", "k01", "a07", "b07", "c05"];
-  const samples = sampleIds
-    .map((id) => (typeof BOOK_BY_ID !== "undefined" ? BOOK_BY_ID[id] : null))
-    .filter(Boolean)
-    .slice(0, 5);
-  const samplesHtml = samples.length
-    ? `<div style="display:flex;gap:10px;justify-content:center;
-                   margin:14px 0 6px;flex-wrap:wrap">
-         ${samples.map(b => `
-           <div style="width:62px;height:90px;border-radius:8px;
-                       background:linear-gradient(135deg,${(b.palette||["#2563eb","#1d4ed8"]).join(",")});
-                       display:grid;place-items:center;padding:6px;
-                       box-shadow:0 4px 12px rgba(0,0,0,.4);
-                       font-size:9px;color:#fff;font-weight:700;
-                       text-align:center;line-height:1.15;overflow:hidden;
-                       text-overflow:ellipsis">
-             ${escapeHtml(b.title)}
-           </div>`).join("")}
-       </div>`
-    : "";
-
-  // bootLoader is a grid with place-items:center. With the parent panel
-  // appended the content can exceed viewport height — switch align to
-  // start + allow vertical scroll so nothing gets clipped on small screens.
-  boot.style.alignItems = "start";
-  boot.style.overflowY = "auto";
-  boot.style.paddingTop = "40px";
-  boot.style.paddingBottom = "40px";
   boot.innerHTML = `
-    <div style="text-align:center;max-width:520px;padding:0 24px;width:100%">
+    <div style="text-align:center;max-width:480px;padding:0 24px">
       <div style="width:88px;height:88px;margin:0 auto 24px;border-radius:22px;
                   background:linear-gradient(135deg,#2563eb,#1d4ed8);display:grid;
                   place-items:center;color:#fff;font-weight:900;font-size:48px;
@@ -6055,11 +6018,8 @@ function renderWelcomeScreen() {
                  letter-spacing:-0.02em;line-height:1.1">
         Alpha Summer Reading
       </h1>
-      <p style="color:#93a0b8;font-size:16px;margin:0 0 8px">
-        Read real books. Earn XP. Win badges.
-      </p>
-      <p style="color:#64748b;font-size:13px;margin:0 0 28px">
-        Pre-K through Grade 3 · 60+ classics, leveled to your reader
+      <p style="color:#93a0b8;font-size:16px;margin:0 0 28px">
+        Read books. Earn XP. Win badges.
       </p>
       ${errorBanner}
       <button id="welcomeSignIn" style="
@@ -6078,40 +6038,6 @@ function renderWelcomeScreen() {
         font-family:inherit">
         🔊 Read this aloud
       </button>
-
-      <!-- ============ For parents ============ -->
-      <!-- Privacy policy + contact email intentionally omitted until the
-           policy is finalized (#59 covers the data export / delete endpoints
-           that pair with it). This panel is product-description only. -->
-      <div style="margin:36px auto 0;padding:24px;border-radius:16px;
-                  background:rgba(20,30,48,.6);border:1px solid rgba(148,163,184,.18);
-                  text-align:left;color:#cbd5e1;font-size:14px;line-height:1.55">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
-          <span style="font-size:18px">👨‍👩‍👧</span>
-          <strong style="color:#f5f7fb;font-size:15px">For parents</strong>
-        </div>
-
-        <p style="margin:0 0 16px">
-          Alpha Summer Reading is a free summer reading app for
-          <strong style="color:#f5f7fb">Pre-K through Grade 3</strong>.
-          Kids read real, well-loved books at home, then prove they read them
-          with a 5-question comprehension quiz to earn XP and badges.
-        </p>
-
-        ${samplesHtml ? `
-          <div style="margin:18px 0 0">
-            <div style="color:#94a3b8;font-size:12px;letter-spacing:.06em;
-                        text-transform:uppercase;margin-bottom:6px">
-              A few books in the catalog
-            </div>
-            ${samplesHtml}
-            <div style="text-align:center;color:#64748b;font-size:11px;
-                        margin-top:4px">
-              Mo Willems · Eric Carle · Maurice Sendak · Roald Dahl · E.B. White
-            </div>
-          </div>
-        ` : ""}
-      </div>
     </div>`;
   // Wire up the Sign In and Read Aloud buttons.
   const speak = () => {
