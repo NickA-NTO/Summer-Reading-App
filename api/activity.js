@@ -38,6 +38,34 @@ import { getBook } from "../lib/books.js";
 import { pointsForBook, normalizeGrade, WCPM_BY_GRADE } from "../lib/xp.js";
 import { buildQuizEventEnvelope } from "../lib/caliper.js";
 import { sendCaliperEnvelopeAsync } from "../lib/timeback.js";
+// QUIZ_BOOKS = full set of quiz-enabled book ids. Imported so we can
+// reject `kind:"read"` calls for quiz-enabled books — the only legitimate
+// XP path for those is `kind:"quiz_submit"`, which the server validates
+// against the cached question pool. Closes Agent 3's "skip the quiz"
+// attack (`kind:"read"` with no attemptNum bypassed all fraud checks).
+import { QUIZ_BOOKS, QUIZ_SCHEMA_VERSION, getCachedQuizPool } from "./quiz.js";
+
+// Load the user's profile from Redis. Returns null if missing or on error.
+async function loadProfile(email) {
+  const r = redis();
+  if (!r) return null;
+  try {
+    const raw = await r.hget("users", String(email).toLowerCase());
+    if (!raw) return null;
+    return typeof raw === "string" ? JSON.parse(raw) : raw;
+  } catch {
+    return null;
+  }
+}
+
+// Resolve the student's working grade — SERVER side, no client trust.
+// Mirrors the resolution chain in /api/auth/me (profile → email heuristic
+// → "K"). Closes Agent 3's grade-spoof attack (kid was posting
+// `grade:"PK"` from DevTools to inflate XP by ~7× via the lower WCPM).
+function resolveGradeServerSide(profile, email) {
+  if (profile && profile.grade) return normalizeGrade(profile.grade);
+  return normalizeGrade(guessGradeFromEmail(email) || "K");
+}
 
 // Internal-leaderboard XP multiplier for 2nd-attempt passes.
 // 0.7 default: question rotation (1d.1) already kills the "memorize-then-
@@ -78,12 +106,14 @@ export default async function handler(req, res) {
 
   const kind = String(body.kind || "").toLowerCase();
   const bookId = String(body.bookId || "");
-  // Student's working grade: client-supplied (comes from /api/auth/me
-  // once we wire up working-grade storage), falling back to email heuristic,
-  // ultimately defaulting to "K" inside normalizeGrade.
-  const grade = normalizeGrade(
-    body.grade || guessGradeFromEmail(session.email) || "K"
-  );
+  // Student's working grade — SERVER-RESOLVED from the profile. Previous
+  // versions accepted body.grade from the client, which let a Grade-3
+  // reader POST `grade:"PK"` to mint ~7× XP (lower WCPM target = bigger
+  // payout). Client-supplied grade is now ignored entirely. The kid's
+  // working grade is the one their /api/auth/me would resolve to:
+  // profile.grade → email heuristic → "K".
+  const profile = await loadProfile(session.email);
+  const grade = resolveGradeServerSide(profile, session.email);
   // attemptNum: 1 or 2 (present for quiz passes, absent for manual reads).
   const attemptNum =
     body.attemptNum != null ? Number(body.attemptNum) : null;
@@ -177,9 +207,128 @@ export default async function handler(req, res) {
     );
   }
 
-  if (kind !== "read" || !bookId) {
+  // ============================================================
+  // kind === "quiz_submit" — the kid finished a 5-question attempt;
+  // server validates their chosen indices against the cached pool
+  // and decides pass/fail. ONLY path to XP for quiz-enabled books.
+  // ============================================================
+  if (kind === "quiz_submit") {
+    if (!bookId || !(attemptNum === 1 || attemptNum === 2)) {
+      res.statusCode = 400;
+      return res.end(JSON.stringify({
+        error: "invalid_request",
+        message: "Need bookId + attemptNum (1 or 2).",
+      }));
+    }
+    if (!(bookId in QUIZ_BOOKS)) {
+      res.statusCode = 400;
+      return res.end(JSON.stringify({
+        error: "no_quiz_for_book",
+        message: "This book doesn't have a quiz.",
+      }));
+    }
+    // Client posts `answers: [{ idx, chosen }, ...]` — idx is the index
+    // into the cached pool (0..poolSize-1), chosen is the kid's tapped
+    // option (0..3). Validates length + bounds before grading.
+    const answers = Array.isArray(body.answers) ? body.answers : [];
+    if (answers.length !== 5) {
+      res.statusCode = 400;
+      return res.end(JSON.stringify({
+        error: "invalid_answers",
+        message: "Need exactly 5 answers.",
+      }));
+    }
+    const pool = await getCachedQuizPool(bookId, grade);
+    if (!pool || !Array.isArray(pool.questions) || pool.questions.length < 5) {
+      // The kid hit quiz_submit without ever fetching /api/quiz, OR the
+      // pool expired mid-attempt. Either way we can't validate; refuse.
+      res.statusCode = 409;
+      return res.end(JSON.stringify({
+        error: "no_quiz_pool",
+        message: "Couldn't find the quiz for this book. Reopen the quiz and try again.",
+      }));
+    }
+    // Grade each answer against the cached correct index.
+    let correctCount = 0;
+    const correctFlags = [];
+    const seenIdx = new Set();
+    for (const a of answers) {
+      const idx = Number(a?.idx);
+      const chosen = Number(a?.chosen);
+      if (
+        !Number.isInteger(idx) || idx < 0 || idx >= pool.questions.length ||
+        !Number.isInteger(chosen) || chosen < 0 || chosen > 3 ||
+        seenIdx.has(idx) // reject duplicate questions in a single attempt
+      ) {
+        res.statusCode = 400;
+        return res.end(JSON.stringify({
+          error: "invalid_answer_entry",
+          message: "Answer entries must be unique {idx, chosen} pairs within the pool.",
+        }));
+      }
+      seenIdx.add(idx);
+      const isCorrect = chosen === Number(pool.questions[idx].answer);
+      correctFlags.push(isCorrect);
+      if (isCorrect) correctCount++;
+    }
+    const passed = correctCount >= 4; // 4 of 5 to pass
+    // If they didn't pass, return the result but don't record. Client
+    // shows a "try again" screen.
+    if (!passed) {
+      res.statusCode = 200;
+      return res.end(JSON.stringify({
+        ok: true,
+        kind: "quiz_submit",
+        passed: false,
+        score: correctCount,
+        total: 5,
+        correct: correctFlags,
+        attemptNum,
+      }));
+    }
+    // Passed — fall through to the recordRead path below by transparently
+    // rewriting the kind. The existing fraud + leaderboard + Caliper code
+    // is the source of truth for held-XP / soft-flag / retake math, so
+    // we route the validated pass through that pipeline instead of
+    // re-implementing it here.
+    body.kind = "read";
+    body._serverValidatedQuizPass = {
+      score: correctCount,
+      total: 5,
+      correct: correctFlags,
+    };
+    // Re-fall through; the kind === "read" handler below sees attemptNum
+    // and treats this as a quiz pass (with our server-graded score).
+  }
+
+  if (body.kind !== "read" && kind !== "quiz_submit") {
+    // Unknown kind — keep the strict-rejection behaviour for everything
+    // that isn't open/start/profile/read/quiz_submit.
     res.statusCode = 400;
     return res.end(JSON.stringify({ error: "invalid_request" }));
+  }
+  if (!bookId) {
+    res.statusCode = 400;
+    return res.end(JSON.stringify({ error: "invalid_request" }));
+  }
+
+  // Reject manual `kind:"read"` for any book that has a quiz pool — the
+  // only XP path for quiz-enabled books is `kind:"quiz_submit"` (server-
+  // validated). This closes Agent 3's attack B (skip the quiz by posting
+  // `kind:"read"` directly, which bypassed all fraud detection).
+  // The kind === "quiz_submit" branch rewrites body.kind to "read" only
+  // AFTER validating the answers, so legitimate quiz passes still flow
+  // through this gate via the _serverValidatedQuizPass marker.
+  if (
+    body.kind === "read" &&
+    bookId in QUIZ_BOOKS &&
+    !body._serverValidatedQuizPass
+  ) {
+    res.statusCode = 400;
+    return res.end(JSON.stringify({
+      error: "quiz_required",
+      message: "This book requires passing the quiz to earn XP. Open the quiz and submit your answers.",
+    }));
   }
 
   const book = getBook(bookId);
@@ -408,15 +557,8 @@ export default async function handler(req, res) {
   // -----------------------------------------------------------------------
   if (result.recorded && fraudStatus !== "held") {
     try {
-      // Pull user profile so achievements can read tourCompleted + grade.
-      const r = redis();
-      let profile = null;
-      if (r) {
-        try {
-          const raw = await r.hget("users", String(session.email).toLowerCase());
-          profile = raw ? (typeof raw === "string" ? JSON.parse(raw) : raw) : null;
-        } catch {}
-      }
+      // Reuse the profile we already loaded at the top of the handler
+      // (for grade resolution). Same request, same value.
       const newAch = await evaluateAchievementsForUser(session.email, profile, {
         streakDays: Number(body.streakDays) || 0,
         justRead: { bookId },

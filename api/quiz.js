@@ -41,7 +41,7 @@ import {
 //   "emergent" — Beginning Readers tier: 6-question pool, 3/attempt,
 //                2/3 pass. Vocabulary in questions + options constrained
 //                to first-100 Dolch sight words + CVC patterns.
-const QUIZ_BOOKS = {
+export const QUIZ_BOOKS = {
   /* ---------- Beginning Readers (Track B emergent quiz style) ---------- */
   e01: {
     title: "We Are in a Book!",
@@ -547,6 +547,25 @@ const QCSchema = z.object({
 //     age-appropriate. Cache namespace bump invalidates all v7 emergent
 //     pools, forcing them to regenerate as 12-question pools on next request.
 const SCHEMA_VERSION = 8;
+// Exported alias so api/activity.js can build the same cache key when it
+// validates a quiz_submit. Kept as a renamed export so the local const can
+// be reassigned independently if we ever split client / server schemas.
+export const QUIZ_SCHEMA_VERSION = SCHEMA_VERSION;
+
+/**
+ * Read the cached quiz pool for (bookId, studentGrade). Returns the full
+ * payload (questions WITH the answer index) or null. Used by activity.js
+ * to grade a submitted quiz against the same pool the kid was shown —
+ * the cache is the ONLY source of truth for what the correct answer was.
+ */
+export async function getCachedQuizPool(bookId, studentGrade) {
+  const key = `v${SCHEMA_VERSION}:${bookId}:${studentGrade}`;
+  try {
+    return await getCachedQuiz(key);
+  } catch {
+    return null;
+  }
+}
 
 // Quiz model + QC reviewer model. Opus 4.5 for both — generation needs the
 // stronger model for accuracy on lesser-known books; QC needs it to reliably
