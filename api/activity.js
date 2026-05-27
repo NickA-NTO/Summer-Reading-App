@@ -45,6 +45,7 @@ import { sendCaliperEnvelopeAsync } from "../lib/timeback.js";
 // against the cached question pool. Closes Agent 3's "skip the quiz"
 // attack (`kind:"read"` with no attemptNum bypassed all fraud checks).
 import { QUIZ_BOOKS, QUIZ_SCHEMA_VERSION, getCachedQuizPool } from "./quiz.js";
+import { trackError, trackEvent } from "../lib/observability.js";
 
 // Load the user's profile from Redis. Returns null if missing or on error.
 async function loadProfile(email) {
@@ -513,6 +514,11 @@ export default async function handler(req, res) {
 
     if (combined === "hold") {
       fraudStatus = "held";
+      // Observability — track every held submission so a spike is visible
+      // in the admin dashboard before a parent complains.
+      trackEvent("fraud_held", {
+        reason: recentStartStatus === "hold" ? "started_recently" : "speed",
+      });
       const flagResult = await applyFraudFlag(session.email);
       const heldResult = await addHeldXpEntry({
         email: session.email,
@@ -660,6 +666,7 @@ export default async function handler(req, res) {
     } catch (err) {
       // Never let Caliper emission break the student-facing response.
       console.warn("[caliper_emit_failed]", String(err?.message || err));
+      trackError("caliper_emit_failed", err, { bookId });
     }
   }
 

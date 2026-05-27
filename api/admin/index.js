@@ -35,6 +35,7 @@ import {
   unawardAndHold,
 } from "../../lib/store.js";
 import { sanitizeTrackOverrides, TRACK_ORDER } from "../../lib/tracks.js";
+import { getStats as getObsStats } from "../../lib/observability.js";
 import {
   APP_CAP_CHARS,
   APP_CAP_USD,
@@ -104,6 +105,15 @@ export default async function handler(req, res) {
       count: users.length,
       users,
     });
+  }
+
+  // ========================= obs-stats ===========================
+  // 7-day rollup of error + event counters. Companion to /api/health.
+  // GET /api/admin?action=obs-stats[&days=N]
+  if (action === "obs-stats" && req.method === "GET") {
+    const days = Math.min(30, Math.max(1, Number(url.searchParams.get("days")) || 7));
+    const stats = await getObsStats(days);
+    return json(res, 200, stats);
   }
 
   // ========================= env-check ===========================

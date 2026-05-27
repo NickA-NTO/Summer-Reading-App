@@ -19,6 +19,7 @@ import { anthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
 import { verifySession, parseCookies, isAdmin } from "../lib/session.js";
 import { moderateQuizQuestions } from "../lib/moderation.js";
+import { trackError, trackEvent } from "../lib/observability.js";
 import {
   getCachedQuiz,
   setCachedQuiz,
@@ -1061,6 +1062,7 @@ export default async function handler(req, res) {
     );
   } catch (err) {
     console.error("quiz_generation_failed", err);
+    await trackError("quiz_generation_failed", err, { bookId, studentGrade });
     res.statusCode = 500;
     return res.end(
       JSON.stringify({
