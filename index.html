@@ -4486,7 +4486,12 @@ function startAttempt() {
   // and drops every other letter (user saw "A apples oranges C pears
   // plums" — B and D skipped). The colon forces the letter to be
   // pronounced as a standalone label.
-  const speakText = `${q.q} ${q.options.map((o, i) => `${letters[i]}: ${o}.`).join(" ")}`;
+  // Ellipsis between question and first option forces tts-1 to add a
+  // noticeable pause — without it the question and "A:" blur together
+  // ("what color is the sky A blue"). The "..." marker also separates
+  // each option so the kid has time to think between choices. K-2
+  // testers reported the previous single-space joins were too fast.
+  const speakText = `${q.q} ... ${q.options.map((o, i) => `${letters[i]}: ${o}.`).join(" ... ")}`;
     prewarmTts(speakText);
   }
   renderQuizQuestion();
@@ -4519,7 +4524,12 @@ function renderQuizQuestion() {
   // and drops every other letter (user saw "A apples oranges C pears
   // plums" — B and D skipped). The colon forces the letter to be
   // pronounced as a standalone label.
-  const speakText = `${q.q} ${q.options.map((o, i) => `${letters[i]}: ${o}.`).join(" ")}`;
+  // Ellipsis between question and first option forces tts-1 to add a
+  // noticeable pause — without it the question and "A:" blur together
+  // ("what color is the sky A blue"). The "..." marker also separates
+  // each option so the kid has time to think between choices. K-2
+  // testers reported the previous single-space joins were too fast.
+  const speakText = `${q.q} ... ${q.options.map((o, i) => `${letters[i]}: ${o}.`).join(" ... ")}`;
   document.getElementById("quizContent").innerHTML = `
     <h3 class="quiz-question">
       <span>${escapeHtml(q.q)}</span>
@@ -6603,9 +6613,17 @@ async function _retellStartSession() {
     // For admin sessions, also surface the server error code in the UI so
     // debugging is one glance not three.
     const isAdminUser = !!state.session?.isAdmin;
-    retell.statusEl.textContent = isAdminUser
-      ? `Couldn't start (${err.status || "?"}: ${err.serverBody?.error || err.message}). Tap × to close.`
-      : "Couldn't start the reading buddy. Tap × to close.";
+    if (isAdminUser) {
+      // Surface BOTH the error code and the underlying message so
+      // 500 tutor_failed (the catch-all wrapper) doesn't hide the
+      // real exception. e.g. "Couldn't start (500: tutor_failed —
+      // openai_not_configured). Tap × to close."
+      const code = err.serverBody?.error || err.message || "unknown";
+      const detail = err.serverBody?.message ? ` — ${err.serverBody.message.slice(0, 80)}` : "";
+      retell.statusEl.textContent = `Couldn't start (${err.status || "?"}: ${code}${detail}). Tap × to close.`;
+    } else {
+      retell.statusEl.textContent = "Couldn't start the reading buddy. Tap × to close.";
+    }
     return;
   }
   retell.sessionId = resp.sessionId;
