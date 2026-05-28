@@ -4134,9 +4134,11 @@ document.getElementById("adminResetBook").addEventListener("click", async (e) =>
     }
     console.log("[admin] reset-my-book ok", data);
     // Wipe client cached read/attempts for this book too so the UI
-    // matches the server.
+    // matches the server. NOTE: localStorage key is `quizAttempts`
+    // (camelCase) not `attempts` — the earlier version used the wrong
+    // name and left "Come back tomorrow" stuck on after reset.
     if (state?.data?.read) delete state.data.read[activeBookId];
-    if (state?.data?.attempts) delete state.data.attempts[activeBookId];
+    if (state?.data?.quizAttempts) delete state.data.quizAttempts[activeBookId];
     saveData(state.session.email, state.data);
     // Refresh server-derived state then re-render the modal.
     const me = await fetch("/api/auth/me", { credentials: "same-origin" })
@@ -4394,9 +4396,11 @@ async function openQuiz(bookId) {
     return;
   }
 
-  // Daily attempt cap check — let them know up-front if they're locked out
+  // Daily attempt cap check — let them know up-front if they're locked out.
+  // Admin bypass: skip the client-side cap entirely so testers can iterate.
+  // The server-side cap (api/activity #40) is also admin-bypassed.
   const rec = getAttemptRecord(bookId);
-  if (rec.count >= MAX_ATTEMPTS_PER_DAY && !rec.passed) {
+  if (!state.session?.isAdmin && rec.count >= MAX_ATTEMPTS_PER_DAY && !rec.passed) {
     document.getElementById("quizContent").innerHTML = `
       <div class="quiz-result">
         <div class="emoji">⏰</div>
@@ -6679,7 +6683,23 @@ async function _retellListenForKid() {
         }
       });
     } catch (err) {
-      retell.statusEl.textContent = "I couldn't hear you — please allow microphone access.";
+      console.error("[retell] getUserMedia failed", err);
+      // Show a retry button so the kid (or their parent) can grant
+      // permission and try again WITHOUT closing + reopening the modal.
+      retell.statusEl.innerHTML =
+        "I couldn't hear you — please allow microphone access." +
+        '<br><button id="retellMicRetry" style="' +
+        "margin-top:14px;background:#2563eb;color:#fff;border:none;" +
+        "padding:10px 22px;border-radius:10px;font-weight:700;" +
+        'cursor:pointer;font-family:inherit;font-size:14px">' +
+        "🎤 Try again</button>";
+      const retryBtn = document.getElementById("retellMicRetry");
+      if (retryBtn) {
+        retryBtn.addEventListener("click", () => {
+          retell.statusEl.textContent = "Asking again…";
+          _retellListenForKid().catch(() => {});
+        });
+      }
       return;
     }
     const AC = window.AudioContext || window.webkitAudioContext;

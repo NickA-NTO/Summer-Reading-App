@@ -391,6 +391,7 @@ export default async function handler(req, res) {
     let correctCount = 0;
     const correctFlags = [];
     const seenIdx = new Set();
+    const adminDebug = isAdminUser ? [] : null;
     for (const a of answers) {
       const idx = Number(a?.idx);
       const chosen = Number(a?.chosen);
@@ -406,9 +407,19 @@ export default async function handler(req, res) {
         }));
       }
       seenIdx.add(idx);
-      const isCorrect = chosen === Number(pool.questions[idx].answer);
+      const expected = Number(pool.questions[idx].answer);
+      const isCorrect = chosen === expected;
       correctFlags.push(isCorrect);
       if (isCorrect) correctCount++;
+      if (adminDebug) {
+        adminDebug.push({
+          poolIdx: idx,
+          chosen,
+          expected,
+          isCorrect,
+          q: pool.questions[idx]?.q?.slice(0, 60) || "",
+        });
+      }
     }
     const passed = correctCount >= 4; // 4 of 5 to pass
     // #9 atomic session — quiz_submit no longer awards XP directly.
@@ -454,6 +465,10 @@ export default async function handler(req, res) {
       retellRequired: true,
       bookId,
       quizOutcome,
+      // Admin-only breakdown for debugging "I got 0/5 with all correct"
+      // type reports. Shows the chosen/expected indices and the question
+      // text snippet per answer. Stripped for non-admin responses.
+      ...(adminDebug ? { adminDebug } : {}),
     }));
   }
 
