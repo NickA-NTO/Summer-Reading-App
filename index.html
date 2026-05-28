@@ -4606,51 +4606,37 @@ async function finishQuiz() {
   saveAttemptRecord(quizState.bookId, rec);
 
   if (passed) {
-
-    let pointsLine, pointsTts;
-    if (serverResp && serverResp.held) {
-      // XP held for admin review. Always positive, never accusatory — the
-      // kid passed the quiz and should feel that. The review step is
-      // framed as a normal "we double-check XP" beat, not a punishment.
-      pointsLine = `
-        <p style="font-size:16px;color:var(--ink);margin:14px 0 8px">
-          🎯 <strong>Great job on the quiz!</strong>
-        </p>
-        <p style="font-size:14px;color:var(--muted);margin:0 0 18px">
-          Your XP is being reviewed and should be awarded shortly.
-          Book marked as read.
-        </p>`;
-      pointsTts =
-        "Great job on the quiz! Your XP is being reviewed and should be " +
-        "awarded shortly. Book marked as read.";
-    } else if (earnedPoints > 0) {
-      pointsLine = `
-        <p style="font-size:18px;color:var(--ink);margin:14px 0 6px">
-          You earned <strong style="color:#a78bfa">✨ ${earnedPoints} XP</strong>!
-        </p>
-        <p style="font-size:13px;color:var(--muted);margin:0 0 18px">Book marked as read. You can now leave a review.</p>`;
-      pointsTts =
-        `You earned ${earnedPoints} XP! Book marked as read. You can now leave a review.`;
-    } else {
-      pointsLine = `<p>Book marked as read. You can now leave a review.</p>`;
-      pointsTts = "Book marked as read. You can now leave a review.";
-    }
-
+    // #9 atomic flow — XP is no longer awarded from quiz_submit. The
+    // retell modal launches immediately and the server awards combined
+    // XP after both halves finish (via /api/tutor finalize). Show a
+    // brief congrats + auto-transition so the kid doesn't tap "Done"
+    // and walk away thinking they've earned XP they haven't yet.
     const passTts =
-      `Great reading! You got ${score} out of ${total} right. ${pointsTts}`;
+      `Great reading! You got ${score} out of ${total} right. ` +
+      `Now let's talk about the book.`;
     document.getElementById("quizContent").innerHTML = `
       <div class="quiz-result" style="position:relative">
         ${quizResultSpeakBtn("quizResultSpeak")}
         <div class="emoji">🎉</div>
         <h3>Great reading!</h3>
         <div class="score">You got ${score} / ${total} right</div>
-        ${pointsLine}
-        <div class="actions">
-          <button class="icon-btn read active" id="quizDone">Done</button>
-        </div>
+        <p style="font-size:15px;color:var(--muted);margin:14px 0 4px">
+          Now let's talk about the book…
+        </p>
+        <p style="font-size:12px;color:var(--muted);margin:0">
+          (XP awards after the talk.)
+        </p>
       </div>`;
-    document.getElementById("quizDone").addEventListener("click", closeQuiz);
     wireQuizResultTTS("quizResultSpeak", passTts);
+    // Auto-transition to retell after a brief beat so the kid sees
+    // the score, hears the TTS, then flows in. ~1.8 s tuned for K-2
+    // (long enough to read, short enough to feel "instant").
+    setTimeout(() => {
+      if (!quizState.bookId) return;
+      const bid = quizState.bookId;
+      closeQuiz();
+      openRetell(bid);
+    }, 1800);
     return;
   }
 
@@ -4686,8 +4672,20 @@ async function finishQuiz() {
       quizState.attemptNum = 2;
       startAttempt();
     });
+    document.getElementById("quizLater").addEventListener("click", closeQuiz);
+  } else {
+    // No retries left — quiz outcome is locked as "fF". Auto-launch
+    // the retell so the kid still has a chance at base XP via the
+    // "pass 1 of 2" path. They keep the Close button as an escape
+    // hatch but the primary flow is forward.
+    document.getElementById("quizLater").addEventListener("click", closeQuiz);
+    setTimeout(() => {
+      if (!quizState.bookId) return;
+      const bid = quizState.bookId;
+      closeQuiz();
+      openRetell(bid);
+    }, 2400);
   }
-  document.getElementById("quizLater").addEventListener("click", closeQuiz);
   wireQuizResultTTS("quizResultSpeak", failTts);
 }
 
