@@ -793,6 +793,34 @@
     background: linear-gradient(180deg, #0d9488, #0f766e);
   }
 
+  /* ============ Retell overlay state animations (#9) ============ */
+  /* Tutor avatar pulses gently while listening (kid is talking) and
+     speeds up while speaking (TTS playback). Box-shadow halo intensifies
+     during the speaking state so the kid sees who's talking. */
+  #retellTutor.state-listening {
+    animation: retellPulseSlow 1.8s ease-in-out infinite;
+  }
+  #retellTutor.state-thinking {
+    animation: retellPulseFast 0.9s ease-in-out infinite;
+    opacity: 0.6;
+  }
+  #retellTutor.state-speaking {
+    animation: retellPulseTalk 0.55s ease-in-out infinite;
+    box-shadow: 0 12px 48px rgba(37,99,235,.75);
+  }
+  @keyframes retellPulseSlow {
+    0%,100% { transform: scale(1.0); }
+    50%     { transform: scale(1.04); }
+  }
+  @keyframes retellPulseFast {
+    0%,100% { transform: scale(1.0); }
+    50%     { transform: scale(1.02); }
+  }
+  @keyframes retellPulseTalk {
+    0%,100% { transform: scale(1.0); }
+    50%     { transform: scale(1.08); }
+  }
+
   /* ============ Quiz overlay ============ */
   .quiz-overlay {
     position: fixed; inset: 0; z-index: 40;
@@ -1747,6 +1775,94 @@
       <div class="bar"><i id="quizBar" style="width:25%"></i></div>
     </div>
     <div id="quizContent"></div>
+  </div>
+</div>
+
+<!-- ============ Retell overlay (#9) ============ -->
+<!-- Conversational tutor — atomic follow-up to the quiz. Single tap
+     to start ("Start the retell"); after that the mic stays open and
+     VAD ends each kid turn automatically. -->
+<div class="quiz-overlay" id="retellOverlay" role="dialog" aria-modal="true">
+  <div class="quiz-card" id="retellCard" style="text-align:center">
+    <button class="quiz-close" id="retellClose" aria-label="Close retell">✕</button>
+    <p class="quiz-book-title" id="retellBookTitle">—</p>
+
+    <!-- Pre-start state: kid sees an explanation + the big Start button -->
+    <div id="retellIntro">
+      <div style="font-size:64px;line-height:1;margin:8px 0 16px">🎙️</div>
+      <h2 style="margin:0 0 10px;color:var(--ink);font-size:22px;font-weight:800">
+        Tell me about the book
+      </h2>
+      <p style="margin:0 0 24px;color:var(--muted);font-size:15px;line-height:1.5;max-width:380px;margin-left:auto;margin-right:auto">
+        I'll ask you a few quick questions. Talk into the mic — I'll know when you're done.
+      </p>
+      <button id="retellStartBtn" style="
+        background:#2563eb;color:#fff;border:none;padding:16px 28px;
+        border-radius:14px;font-weight:800;font-size:18px;cursor:pointer;
+        box-shadow:0 8px 24px rgba(37,99,235,.45);font-family:inherit">
+        🎤 Start the retell
+      </button>
+      <p style="margin:18px 0 0;color:var(--muted);font-size:12px;line-height:1.4">
+        Your microphone will be on so you can talk to the reading buddy.
+      </p>
+    </div>
+
+    <!-- In-session state: state-machine UI -->
+    <div id="retellLive" style="display:none">
+      <!-- Tutor avatar + status indicator -->
+      <div id="retellTutor" style="
+        width:120px;height:120px;margin:0 auto 16px;border-radius:50%;
+        background:linear-gradient(135deg,#2563eb,#1d4ed8);
+        display:grid;place-items:center;color:#fff;font-size:56px;
+        box-shadow:0 12px 32px rgba(37,99,235,.45);
+        transition:transform .25s ease, box-shadow .25s ease">📚</div>
+      <div id="retellStatus" style="
+        margin:0 0 16px;color:var(--ink);font-size:16px;font-weight:700;
+        min-height:24px">Getting ready…</div>
+
+      <!-- Live transcript preview — kid sees what was heard. -->
+      <div id="retellTranscript" style="
+        background:var(--panel);border:1px solid var(--line);
+        border-radius:12px;padding:14px 16px;margin:0 0 18px;
+        color:var(--muted);font-size:14px;line-height:1.5;
+        min-height:60px;text-align:left;
+        max-height:220px;overflow-y:auto"></div>
+
+      <!-- Waveform / pulse indicator. CSS animations swap based on state. -->
+      <div id="retellMicBar" style="
+        height:8px;border-radius:99px;background:var(--line);overflow:hidden;
+        margin:0 auto 8px;max-width:300px">
+        <div id="retellMicBarFill" style="
+          height:100%;width:0%;background:#22c55e;
+          transition:width 120ms ease"></div>
+      </div>
+      <div style="color:var(--muted);font-size:11px">
+        <span id="retellTurnLabel">Question 1 of 3</span>
+      </div>
+    </div>
+
+    <!-- Final result state: shown after grading -->
+    <div id="retellResult" style="display:none">
+      <div id="retellResultIcon" style="font-size:64px;line-height:1;margin:8px 0 12px">🎉</div>
+      <h2 id="retellResultTitle" style="margin:0 0 10px;color:var(--ink);font-size:24px;font-weight:800">
+        Great job!
+      </h2>
+      <p id="retellResultMsg" style="margin:0 0 8px;color:var(--ink);font-size:15px;line-height:1.5"></p>
+      <div id="retellResultXp" style="
+        background:linear-gradient(135deg,#fbbf24,#f97316);color:#1c1917;
+        border-radius:14px;padding:16px 22px;margin:18px auto;display:inline-block;
+        font-weight:900;font-size:22px;box-shadow:0 8px 24px rgba(249,115,22,.35)">
+        +0 XP
+      </div>
+      <div>
+        <button id="retellResultClose" style="
+          background:var(--panel);color:var(--ink);border:1px solid var(--line);
+          padding:12px 24px;border-radius:12px;font-weight:700;font-size:15px;
+          cursor:pointer;font-family:inherit">
+          Done
+        </button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -6177,6 +6293,428 @@ function renderPreviewBanner(env) {
   // Cheap: a body padding-top equal to the banner's height (~26px).
   document.body.style.paddingTop = "26px";
 }
+
+/* ============================================================
+   Retell modal (#9) — conversational tutor follow-up to the quiz
+   ============================================================ */
+//
+// One-tap continuous flow:
+//   1. Kid taps "Start the retell" → mic permission gate
+//   2. Browser opens mic with echo cancellation + noise suppression
+//   3. Tutor TTS plays through device speakers (mic software-muted)
+//   4. When TTS ends → mic unmutes → VAD waits for speech onset
+//   5. VAD detects 1.5–2.5 s of silence after speech → ends turn
+//   6. Audio chunk uploads to /api/tutor?action=turn
+//   7. Server transcribes (Whisper), generates next tutor message,
+//      synthesizes TTS, returns to client
+//   8. Repeat for TUTOR_QUESTION_COUNT (3) turns
+//   9. Final turn → server grades + awards combined XP atomically
+//
+// State machine: intro → listening ↔ thinking ↔ speaking → done
+
+const retell = {
+  // Element refs (looked up lazily so the modal can render before this runs)
+  overlay: null, card: null,
+  intro: null, live: null, result: null,
+  startBtn: null, closeBtn: null, resultCloseBtn: null,
+  tutorEl: null, statusEl: null, transcriptEl: null,
+  micBarFill: null, turnLabelEl: null, bookTitleEl: null,
+  resultIcon: null, resultTitle: null, resultMsg: null, resultXp: null,
+
+  // Session state
+  bookId: null,
+  sessionId: null,
+  voiceId: "nova",
+  turnIndex: 0,
+  totalTurns: 3,
+  active: false,
+
+  // Audio plumbing
+  stream: null,
+  audioContext: null,
+  analyser: null,
+  micGain: null,
+  mediaRecorder: null,
+  recordedChunks: [],
+  rafId: null,
+  vadState: "idle", // "idle" | "warming" | "speech" | "silenceCountdown"
+  speechStartAt: 0,
+  silenceStartAt: 0,
+  vadSilenceMs: 2000,     // default — adjusted per working grade
+  vadSpeechOnsetMs: 250,  // min sustained loud frames before "speech" registers
+  energyThreshold: 0.02,  // background-noise floor; calibrated on warm-up
+
+  // Tutor TTS playback
+  tutorAudio: null, // <audio> element for tutor speech
+
+  // No-op handlers for events that might race after close()
+  _closed: false,
+};
+
+function _retellGrabRefs() {
+  if (retell.overlay) return; // already grabbed
+  retell.overlay        = document.getElementById("retellOverlay");
+  retell.card           = document.getElementById("retellCard");
+  retell.intro          = document.getElementById("retellIntro");
+  retell.live           = document.getElementById("retellLive");
+  retell.result         = document.getElementById("retellResult");
+  retell.startBtn       = document.getElementById("retellStartBtn");
+  retell.closeBtn       = document.getElementById("retellClose");
+  retell.resultCloseBtn = document.getElementById("retellResultClose");
+  retell.tutorEl        = document.getElementById("retellTutor");
+  retell.statusEl       = document.getElementById("retellStatus");
+  retell.transcriptEl   = document.getElementById("retellTranscript");
+  retell.micBarFill     = document.getElementById("retellMicBarFill");
+  retell.turnLabelEl    = document.getElementById("retellTurnLabel");
+  retell.bookTitleEl    = document.getElementById("retellBookTitle");
+  retell.resultIcon     = document.getElementById("retellResultIcon");
+  retell.resultTitle    = document.getElementById("retellResultTitle");
+  retell.resultMsg      = document.getElementById("retellResultMsg");
+  retell.resultXp       = document.getElementById("retellResultXp");
+}
+
+function openRetell(bookId) {
+  _retellGrabRefs();
+  retell.bookId = bookId;
+  retell.sessionId = null;
+  retell.turnIndex = 0;
+  retell.active = true;
+  retell._closed = false;
+  retell.bookTitleEl.textContent = BOOK_BY_ID[bookId]?.title || "";
+  // Reset views
+  retell.intro.style.display = "block";
+  retell.live.style.display = "none";
+  retell.result.style.display = "none";
+  retell.transcriptEl.innerHTML = "";
+  retell.tutorEl.className = "";
+  retell.statusEl.textContent = "Getting ready…";
+  retell.overlay.classList.add("open");
+  // Calibrate VAD silence threshold by the student's working grade —
+  // K kids speak slowly with longer pauses, G3 kids are faster.
+  const grade = state?.session?.grade;
+  retell.vadSilenceMs =
+    (grade === "PK" || grade === "K") ? 2500 :
+    (grade === "1")                   ? 2000 :
+                                        1500;
+}
+
+function closeRetell({ confirmed = false } = {}) {
+  if (retell.active && !confirmed) {
+    // Mid-session close → warn the kid. They forfeit all XP if they bail.
+    const ok = confirm(
+      "If you stop now, you won't earn any XP for this book. " +
+      "Are you sure you want to close?"
+    );
+    if (!ok) return;
+  }
+  retell._closed = true;
+  retell.active = false;
+  retell.overlay.classList.remove("open");
+  _retellTearDownAudio();
+  // No XP awarded on a mid-session close — server reading session
+  // expires on its 30-min TTL.
+}
+
+function _retellTearDownAudio() {
+  cancelAnimationFrame(retell.rafId);
+  retell.rafId = null;
+  try { retell.mediaRecorder?.stop(); } catch {}
+  try { retell.stream?.getTracks().forEach(t => t.stop()); } catch {}
+  try { retell.audioContext?.close(); } catch {}
+  try { retell.tutorAudio?.pause(); } catch {}
+  retell.mediaRecorder = null;
+  retell.stream = null;
+  retell.audioContext = null;
+  retell.analyser = null;
+  retell.micGain = null;
+  retell.tutorAudio = null;
+  retell.vadState = "idle";
+  retell.recordedChunks = [];
+}
+
+function _retellSetState(s) {
+  // Listening / thinking / speaking — drives avatar animation + label.
+  retell.tutorEl.className = `state-${s}`;
+  if (s === "listening") {
+    retell.statusEl.textContent = "Listening…";
+  } else if (s === "thinking") {
+    retell.statusEl.textContent = "Thinking…";
+    retell.micBarFill.style.width = "0%";
+  } else if (s === "speaking") {
+    retell.statusEl.textContent = "Reading buddy is talking…";
+    retell.micBarFill.style.width = "0%";
+  }
+}
+
+function _retellAppendTranscript(role, text) {
+  const div = document.createElement("div");
+  div.style.cssText = "margin:6px 0;line-height:1.4";
+  const label = role === "tutor" ? "🤖" : "🙂";
+  const color = role === "tutor" ? "#7dd3fc" : "var(--ink)";
+  div.innerHTML = `<span style="margin-right:6px">${label}</span><span style="color:${color}">${escapeHtml(text)}</span>`;
+  retell.transcriptEl.appendChild(div);
+  retell.transcriptEl.scrollTop = retell.transcriptEl.scrollHeight;
+}
+
+// Start the conversation: server creates the session + returns the
+// first tutor message + audio URL. Then we play it and start listening.
+async function _retellStartSession() {
+  retell.intro.style.display = "none";
+  retell.live.style.display = "block";
+  _retellSetState("thinking");
+  retell.statusEl.textContent = "Getting ready…";
+  let resp;
+  try {
+    const r = await fetch("/api/tutor?action=start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ bookId: retell.bookId }),
+    });
+    resp = await r.json();
+    if (!r.ok) throw new Error(resp.error || "start_failed");
+  } catch (err) {
+    retell.statusEl.textContent = "Couldn't start the reading buddy. Tap × to close.";
+    return;
+  }
+  retell.sessionId = resp.sessionId;
+  retell.totalTurns = resp.questionCount || 3;
+  retell.voiceId = resp.voiceId || "nova";
+  retell.turnLabelEl.textContent = `Question 1 of ${retell.totalTurns}`;
+  _retellAppendTranscript("tutor", resp.tutorMessage);
+  await _retellPlayTutor(resp.tutorAudioUrl, resp.tutorMessage);
+  if (retell._closed) return;
+  await _retellListenForKid();
+}
+
+// Play tutor audio (TTS) and wait for it to finish before unmuting mic.
+async function _retellPlayTutor(audioUrl, fallbackText) {
+  _retellSetState("speaking");
+  if (audioUrl) {
+    return new Promise((resolve) => {
+      const a = new Audio(audioUrl);
+      retell.tutorAudio = a;
+      a.onended = () => { retell.tutorAudio = null; resolve(); };
+      a.onerror = () => { retell.tutorAudio = null; resolve(); };
+      a.play().catch(() => resolve());
+    });
+  }
+  // Fallback to browser SpeechSynthesis if server TTS failed.
+  if ("speechSynthesis" in window && fallbackText) {
+    return new Promise((resolve) => {
+      const u = new SpeechSynthesisUtterance(fallbackText);
+      u.rate = 0.95; u.pitch = 1.05;
+      u.onend = resolve;
+      u.onerror = resolve;
+      window.speechSynthesis.speak(u);
+    });
+  }
+}
+
+// Open the mic (once, on first turn) and listen for the kid's response
+// using VAD. Returns when the kid stops talking and audio uploads.
+async function _retellListenForKid() {
+  if (retell._closed) return;
+  // First-time setup: request mic + create MediaRecorder + AudioContext.
+  if (!retell.stream) {
+    try {
+      retell.stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        }
+      });
+    } catch (err) {
+      retell.statusEl.textContent = "I couldn't hear you — please allow microphone access.";
+      return;
+    }
+    const AC = window.AudioContext || window.webkitAudioContext;
+    retell.audioContext = new AC();
+    const source = retell.audioContext.createMediaStreamSource(retell.stream);
+    retell.analyser = retell.audioContext.createAnalyser();
+    retell.analyser.fftSize = 1024;
+    source.connect(retell.analyser);
+  }
+  _retellSetState("listening");
+  retell.vadState = "warming";
+  retell.speechStartAt = 0;
+  retell.silenceStartAt = 0;
+  retell.recordedChunks = [];
+
+  // Spin up a fresh MediaRecorder per turn so we get one tidy chunk.
+  retell.mediaRecorder = new MediaRecorder(retell.stream, {
+    mimeType: "audio/webm;codecs=opus",
+  });
+  retell.mediaRecorder.ondataavailable = (e) => {
+    if (e.data && e.data.size > 0) retell.recordedChunks.push(e.data);
+  };
+  retell.mediaRecorder.onstop = async () => {
+    const blob = new Blob(retell.recordedChunks, { type: "audio/webm" });
+    retell.recordedChunks = [];
+    if (retell._closed) return;
+    await _retellUploadTurn(blob);
+  };
+  retell.mediaRecorder.start();
+
+  // VAD loop — read frequency-domain RMS each animation frame.
+  const buf = new Uint8Array(retell.analyser.frequencyBinCount);
+  const startTime = performance.now();
+  const tick = () => {
+    if (retell._closed) return;
+    if (retell.vadState === "idle") return;
+    retell.analyser.getByteFrequencyData(buf);
+    let sum = 0;
+    for (let i = 0; i < buf.length; i++) sum += buf[i];
+    const energy = sum / buf.length / 255;
+    const now = performance.now();
+    // Visualize energy on the mic bar (0–100%).
+    retell.micBarFill.style.width = Math.min(100, Math.max(0, energy * 220)) + "%";
+
+    if (retell.vadState === "warming") {
+      // First ~500 ms: just calibrate background floor + ignore.
+      if (now - startTime > 500) {
+        retell.energyThreshold = Math.max(0.018, energy * 1.5);
+        retell.vadState = "silenceCountdown";
+        retell.silenceStartAt = now;
+      }
+    } else if (retell.vadState === "silenceCountdown") {
+      // Waiting for speech onset OR overall timeout (10 s no speech).
+      if (energy > retell.energyThreshold) {
+        if (!retell.speechStartAt) retell.speechStartAt = now;
+        if (now - retell.speechStartAt > retell.vadSpeechOnsetMs) {
+          retell.vadState = "speech";
+        }
+      } else {
+        retell.speechStartAt = 0;
+        if (now - startTime > 10_000) {
+          // 10 s of silence with no speech → "are you still there?"
+          _retellEndTurn();
+          return;
+        }
+      }
+    } else if (retell.vadState === "speech") {
+      if (energy < retell.energyThreshold) {
+        if (!retell.silenceStartAt) retell.silenceStartAt = now;
+        if (now - retell.silenceStartAt > retell.vadSilenceMs) {
+          _retellEndTurn();
+          return;
+        }
+      } else {
+        retell.silenceStartAt = 0;
+      }
+    }
+    retell.rafId = requestAnimationFrame(tick);
+  };
+  retell.rafId = requestAnimationFrame(tick);
+}
+
+function _retellEndTurn() {
+  retell.vadState = "idle";
+  cancelAnimationFrame(retell.rafId);
+  retell.rafId = null;
+  _retellSetState("thinking");
+  try { retell.mediaRecorder?.stop(); } catch {}
+}
+
+async function _retellUploadTurn(blob) {
+  if (!retell.sessionId) return;
+  let data;
+  try {
+    const r = await fetch(
+      `/api/tutor?action=turn&sessionId=${encodeURIComponent(retell.sessionId)}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "audio/webm" },
+        credentials: "same-origin",
+        body: blob,
+      }
+    );
+    data = await r.json();
+    if (!r.ok) throw new Error(data.error || "turn_failed");
+  } catch (err) {
+    retell.statusEl.textContent = "Hmm, that didn't work. Tap × to try again later.";
+    return;
+  }
+  if (retell._closed) return;
+  // Show what Whisper heard (if anything) before the tutor speaks again.
+  if (data.studentTranscript) {
+    _retellAppendTranscript("student", data.studentTranscript);
+  }
+  if (data.tutorMessage) {
+    _retellAppendTranscript("tutor", data.tutorMessage);
+  }
+  retell.turnIndex = data.turnIndex || (retell.turnIndex + 1);
+  retell.turnLabelEl.textContent =
+    `Question ${Math.min(retell.turnIndex + 1, retell.totalTurns)} of ${retell.totalTurns}`;
+  await _retellPlayTutor(data.tutorAudioUrl, data.tutorMessage);
+  if (retell._closed) return;
+  if (data.done) {
+    _retellShowResult(data);
+  } else if (data.retry) {
+    // Whisper couldn't make it out — re-listen on the same turn.
+    await _retellListenForKid();
+  } else {
+    await _retellListenForKid();
+  }
+}
+
+function _retellShowResult(data) {
+  retell.active = false;
+  _retellTearDownAudio();
+  retell.live.style.display = "none";
+  retell.result.style.display = "block";
+  const xp = data.points || 0;
+  retell.resultXp.textContent = `+${xp} XP`;
+  if (data.passed) {
+    retell.resultIcon.textContent = "🎉";
+    retell.resultTitle.textContent = "Awesome reading!";
+  } else if (data.held) {
+    retell.resultIcon.textContent = "👀";
+    retell.resultTitle.textContent = "We'll check this one.";
+    retell.resultXp.textContent = "Held for review";
+    retell.resultXp.style.background = "linear-gradient(135deg,#a78bfa,#7c3aed)";
+  } else if (xp > 0) {
+    retell.resultIcon.textContent = "👍";
+    retell.resultTitle.textContent = "Nice work!";
+  } else {
+    retell.resultIcon.textContent = "📚";
+    retell.resultTitle.textContent = "Read again and give it another shot.";
+    retell.resultXp.style.display = "none";
+  }
+  retell.resultMsg.textContent =
+    (data.gradeResult?.feedback) || "Thanks for telling me about the book!";
+  // Fire-and-forget refresh of /api/auth/me so the leaderboard + currentlyReading update.
+  if (xp > 0 && data.recorded) {
+    fetch("/api/auth/me", { credentials: "same-origin" })
+      .then(r => r.ok ? r.json() : null)
+      .then(me => {
+        if (me?.currentlyReading !== undefined && state?.session) {
+          state.session.currentlyReading = me.currentlyReading || null;
+        }
+        renderStats();
+        renderRows();
+      })
+      .catch(() => {});
+  }
+}
+
+// Wire up the modal's buttons. Run once, after the markup is in the DOM.
+(function bindRetellHandlers() {
+  document.addEventListener("DOMContentLoaded", () => {
+    _retellGrabRefs();
+    retell.startBtn?.addEventListener("click", () => {
+      _retellStartSession().catch((err) => {
+        console.error("retell start failed", err);
+        retell.statusEl.textContent = "Something went wrong. Tap × to close.";
+      });
+    });
+    retell.closeBtn?.addEventListener("click", () => closeRetell());
+    retell.resultCloseBtn?.addEventListener("click", () => {
+      closeRetell({ confirmed: true });
+    });
+  });
+})();
 
 (async function boot() {
   try {
