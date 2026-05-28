@@ -4351,14 +4351,15 @@ function withShuffledOptions(question, poolIdx) {
   };
 }
 
-// Reads + writes the per-book attempt log in localStorage. Resets daily.
+// Reads + writes the per-book attempt log in localStorage.
+// PERMANENT cap — no daily reset. 2 attempts ever per book. If the
+// kid fails both, admin must run reset-my-book to give them another
+// shot. Matches the server-side QUIZ_DAILY_ATTEMPT_LIMIT semantics
+// (despite the name, it's not actually daily — see lib/store.js).
 function getAttemptRecord(bookId) {
-  const today = new Date().toISOString().slice(0, 10);
   const all = (state.data.quizAttempts = state.data.quizAttempts || {});
   const rec = all[bookId];
-  if (!rec || rec.date !== today) {
-    return { date: today, count: 0, passed: false };
-  }
+  if (!rec) return { count: 0, passed: false };
   return rec;
 }
 function saveAttemptRecord(bookId, rec) {
@@ -4433,7 +4434,7 @@ async function openQuiz(bookId) {
         <div class="emoji">⏰</div>
         <h3>Out of attempts</h3>
         <div class="score">You've used both attempts for this book</div>
-        <p>Two tries per book so the quiz stays meaningful. Re-read the book and try again in a few days.</p>
+        <p>Two tries per book — the quiz stays meaningful. Pick a different book to read next!</p>
         <div class="actions">
           <button class="icon-btn" id="quizLater2">Close</button>
         </div>
@@ -4808,12 +4809,12 @@ async function finishQuiz() {
   const retryButton = canRetry
     ? `<button class="icon-btn" id="quizRetry">Try again (${attemptsLeft} left)</button>`
     : "";
-  // Wording: "today / tomorrow" was misleading because the server cap
-  // is actually 72 h rolling (not daily) — kid who used both today
-  // can't simply come back tomorrow. Use neutral framing.
+  // 2 attempts ever per book — no daily/weekly reset. If the kid
+  // runs out, an admin has to reset (or the kid moves to the next
+  // book). Message reflects the permanence honestly.
   const message = canRetry
     ? `You need ${passThreshold(quizState.style)} out of ${total}. Re-read the book and try once more — you've got ${attemptsLeft} attempt${attemptsLeft === 1 ? "" : "s"} left.`
-    : `You've used both attempts for this book. Re-read it and try again in a few days.`;
+    : `You've used both attempts for this book. Move on to another one!`;
   const failTts =
     `${canRetry ? "Almost there!" : "Out of attempts."} ` +
     `You got ${score} out of ${total} right. ${message}`;
@@ -6752,6 +6753,8 @@ async function _retellListenForKid() {
       console.error("[retell] getUserMedia failed", err);
       // Show a retry button so the kid (or their parent) can grant
       // permission and try again WITHOUT closing + reopening the modal.
+      // On click we FULLY tear down any half-built audio state (closed
+      // AudioContext etc.) so the next attempt starts fresh.
       retell.statusEl.innerHTML =
         "I couldn't hear you — please allow microphone access." +
         '<br><button id="retellMicRetry" style="' +
@@ -6763,6 +6766,12 @@ async function _retellListenForKid() {
       if (retryBtn) {
         retryBtn.addEventListener("click", () => {
           retell.statusEl.textContent = "Asking again…";
+          // Hard-reset everything so retry starts from scratch.
+          try { retell.stream?.getTracks().forEach(t => t.stop()); } catch {}
+          try { retell.audioContext?.close(); } catch {}
+          retell.stream = null;
+          retell.audioContext = null;
+          retell.analyser = null;
           _retellListenForKid().catch(() => {});
         });
       }
@@ -6770,10 +6779,29 @@ async function _retellListenForKid() {
     }
     const AC = window.AudioContext || window.webkitAudioContext;
     retell.audioContext = new AC();
+    // CRITICAL: AudioContext often starts in "suspended" state — on
+    // mobile Safari always, on desktop Chrome after a permission flow.
+    // Without an explicit resume() the analyser returns all-zero
+    // frequency data forever (kid sees no EQ movement, VAD never
+    // detects speech-end). Resume in a user-gesture context.
+    if (retell.audioContext.state === "suspended") {
+      try { await retell.audioContext.resume(); } catch (e) {
+        console.warn("[retell] AudioContext resume failed", e);
+      }
+    }
     const source = retell.audioContext.createMediaStreamSource(retell.stream);
     retell.analyser = retell.audioContext.createAnalyser();
     retell.analyser.fftSize = 1024;
     source.connect(retell.analyser);
+    // Sanity-log to console so admin can confirm audio is wired.
+    const tracks = retell.stream.getAudioTracks();
+    console.log("[retell] mic ready:", {
+      audioContextState: retell.audioContext.state,
+      tracks: tracks.length,
+      trackEnabled: tracks[0]?.enabled,
+      trackMuted: tracks[0]?.muted,
+      trackLabel: tracks[0]?.label,
+    });
   }
   _retellSetState("listening");
   retell.vadState = "warming";
