@@ -29,6 +29,8 @@ import {
   setUserAgeGrade,
   bulkSetWorkingGrades,
   setTrackOverrides,
+  clearReadingSession,
+  clearCurrentlyReading,
   redis,
   getCurrentlyReading,
   getQuizFraudState,
@@ -112,12 +114,17 @@ export default async function handler(req, res) {
     cronHeader === `Bearer ${cronSecret}` &&
     CRON_ALLOWED_ACTIONS.has(action);
 
+  // Authed user's email — exposed for endpoints that need to act on
+  // the calling admin's own account (e.g., reset-my-book). Null for
+  // cron calls. Declared at handler scope so per-action code can use it.
+  let authedEmail = null;
   if (!isCronCall) {
     const secret = process.env.AUTH_SECRET;
     const cookies = parseCookies(req.headers.cookie);
     const session = await verifySession(cookies.rs_session, secret);
     if (!session) return json(res, 401, { error: "unauthenticated" });
     if (!isAdmin(session.email)) return json(res, 403, { error: "forbidden" });
+    authedEmail = session.email;
   }
 
   // ============================ users ============================
@@ -425,6 +432,58 @@ export default async function handler(req, res) {
       return json(res, 500, { error: result.reason || "save_failed" });
     }
     return json(res, 200, { ok: true, email, grade });
+  }
+
+  // ========================= reset-my-book =======================
+  // Body: { bookId }
+  // ADMIN-ONLY testing aid. Clears every per-(admin, bookId) state so
+  // the admin can redo the quiz + retell flow from scratch:
+  //   - SREM from user:{e}:books        (remove the "read" dedupe)
+  //   - DEL quizattempts:{e}:{bookId}   (#40 attempt counter)
+  //   - DEL quizopen:{e}:{bookId}       (#41 open counter)
+  //   - DEL readsess:{e}:{bookId}       (#9 in-flight reading session)
+  //   - DEL firstopen:{e}:{bookId}      (first-open fraud signal)
+  //   - DEL user:{e}:book:{bookId}:points (audit value)
+  //   - resetFraudFlags(e)              (drops the 2h-8h-24h cooldown ladder)
+  //   - clearCurrentlyReading(e) if active book matches
+  // Auth comes from the existing isAdmin gate at the top of this handler.
+  if (action === "reset-my-book" && req.method === "POST") {
+    const body = await readBody(req);
+    if (body === null) return json(res, 400, { error: "invalid_json" });
+    const bookId = String(body.bookId || "").trim();
+    if (!bookId) return json(res, 400, { error: "bookId_required" });
+    const r = redis();
+    if (!r) return json(res, 500, { error: "no_redis" });
+    const e = String(authedEmail).toLowerCase();
+    const cleared = {};
+    try {
+      const sremRes = await r.srem(`user:${e}:books`, bookId);
+      cleared.removedFromReadSet = Number(sremRes) > 0;
+    } catch (err) { cleared.removedFromReadSet = `error:${String(err)}`; }
+    for (const key of [
+      `quizattempts:${e}:${bookId}`,
+      `quizopen:${e}:${bookId}`,
+      `readsess:${e}:${bookId}`,
+      `firstopen:${e}:${bookId}`,
+      `user:${e}:book:${bookId}:points`,
+    ]) {
+      try { await r.del(key); } catch {}
+    }
+    // resetFraudFlags clears cooldownUntil + flagCount globally for the
+    // admin — which is what we want, since the "come back in 2 hours"
+    // wait is the fraud cooldown firing on a held tutor session.
+    try {
+      await resetFraudFlags(e);
+      cleared.fraudReset = true;
+    } catch (err) { cleared.fraudReset = `error:${String(err)}`; }
+    try {
+      const active = await getCurrentlyReading(e);
+      if (active && active.bookId === bookId) {
+        await clearCurrentlyReading(e);
+        cleared.clearedCurrentlyReading = true;
+      }
+    } catch {}
+    return json(res, 200, { ok: true, email: e, bookId, cleared });
   }
 
   // ========================= set-age-grade =======================

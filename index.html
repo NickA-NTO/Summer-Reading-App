@@ -1744,6 +1744,14 @@
              button now reads title + author + blurb in one tap so K kids
              aren't choosing between two speakers. -->
         <a class="icon-btn amazon" id="amazonLink" target="_blank" rel="noopener noreferrer">🛒 Buy on Amazon</a>
+        <!-- Admin-only: reset every per-(admin, bookId) state so we can
+             redo the quiz + retell flow from scratch. Hidden for students. -->
+        <button class="icon-btn" id="adminResetBook"
+          style="display:none;background:rgba(168,85,247,.18);color:#a78bfa;
+                 border:1px solid rgba(168,85,247,.45)"
+          title="Admin: clear all my state for this book so I can retake the quiz/retell">
+          🔄 Reset for me
+        </button>
       </div>
       <div class="note" id="votedOnly">Tap "Done" to leave a vote or comment.</div>
       <div class="comments">
@@ -2757,22 +2765,27 @@ async function speak(text, opts = {}) {
 // also effectively free at scale: first kid pays Polly, every other kid
 // reading that same book + voice pair hits the shared Blob cache.
 let _ttsPrewarmInFlight = new Set();
+function prewarmTts(text, voice) {
+  if (!text || !text.trim()) return;
+  const v = voice || chosenPollyVoice || "nova";
+  const key = `${v}|${text}`;
+  if (_ttsPrewarmInFlight.has(key)) return;
+  _ttsPrewarmInFlight.add(key);
+  fetch(
+    `/api/tts?voice=${encodeURIComponent(v)}&text=${encodeURIComponent(text)}`,
+    { credentials: "same-origin" }
+  )
+    .catch(() => {})
+    .finally(() => _ttsPrewarmInFlight.delete(key));
+}
 function prewarmTtsForBook(book) {
   if (!book) return;
-  const voice = chosenPollyVoice || "nova";
-  const texts = [book.title, `${book.title}. ${book.blurb || ""}`];
-  for (const text of texts) {
-    if (!text || !text.trim()) continue;
-    const key = `${voice}|${text}`;
-    if (_ttsPrewarmInFlight.has(key)) continue;
-    _ttsPrewarmInFlight.add(key);
-    fetch(
-      `/api/tts?voice=${encodeURIComponent(voice)}&text=${encodeURIComponent(text)}`,
-      { credentials: "same-origin" }
-    )
-      .catch(() => {})
-      .finally(() => _ttsPrewarmInFlight.delete(key));
-  }
+  // Match EXACTLY the strings the speak handlers will play. Mismatched
+  // strings (e.g., "by Author" in one and not the other) result in a
+  // cache miss + cold synth on click, which is what caused the 3-sec
+  // delay the user was seeing.
+  prewarmTts(book.title);
+  prewarmTts(`${book.title}. By ${book.author}. ${book.blurb || ""}`);
 }
 
 /* Browser Web Speech API fallback */
@@ -3379,6 +3392,14 @@ function refreshInteractiveBits() {
   // below if the new book is in its 15-min waiting window.
   clearQuizCountdown();
 
+  // Admin-only "Reset for me" button (#admin override). Hidden for
+  // students — flipped to inline-flex on every refresh because the
+  // modal may be reused across books.
+  const adminResetBtn = document.getElementById("adminResetBook");
+  if (adminResetBtn) {
+    adminResetBtn.style.display = state.session?.isAdmin ? "inline-flex" : "none";
+  }
+
   document.getElementById("upCount").textContent = counts.up;
   document.getElementById("downCount").textContent = counts.down;
   document.getElementById("modalRating").innerHTML = `${pct}% loved · ${total} ratings`;
@@ -3410,9 +3431,13 @@ function refreshInteractiveBits() {
       //   A) Less than QUIZ_AVAILABLE_DELAY_MS since "I'm reading this"  → greyed countdown
       //   B) At or past QUIZ_AVAILABLE_DELAY_MS                          → active "Take the Quiz"
       //   C) startedAt missing (legacy data)                             → active (fail-open)
+      //
+      // Admin bypass: testing the quiz/retell flow without waiting 15 min
+      // each iteration would be miserable. Admins go straight to (B).
+      const isAdminUser = !!state.session?.isAdmin;
       const startedAt = Number(activeRead?.startedAt) || 0;
       const elapsedMs = startedAt ? Date.now() - startedAt : Infinity;
-      const remainingMs = QUIZ_AVAILABLE_DELAY_MS - elapsedMs;
+      const remainingMs = isAdminUser ? 0 : QUIZ_AVAILABLE_DELAY_MS - elapsedMs;
       if (remainingMs > 0) {
         // (A) — greyed countdown. Tick once per second to update the label.
         const renderCountdown = () => {
@@ -4070,6 +4095,58 @@ document.getElementById("speakTitle").addEventListener("click", (e) => {
   speakWithFeedback(e.currentTarget, fullText, { force: true });
 });
 
+// Admin-only "Reset for me" button (visibility flipped in refreshInteractiveBits).
+// Calls /api/admin?action=reset-my-book which wipes every per-(admin, bookId)
+// state slot: read dedupe, attempt counter, open counter, reading session,
+// first-open timestamp, audit value, fraud cooldown, currentlyReading.
+// After it returns we refetch /api/auth/me to sync state.session and
+// re-render the modal so the kid sees the freshly-unlocked CTA.
+document.getElementById("adminResetBook").addEventListener("click", async (e) => {
+  if (!activeBookId) return;
+  if (!state.session?.isAdmin) return;
+  const btn = e.currentTarget;
+  const origLabel = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Resetting…";
+  try {
+    const r = await fetch("/api/admin?action=reset-my-book", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ bookId: activeBookId }),
+    });
+    const data = await r.json();
+    if (!r.ok) {
+      console.error("[admin] reset-my-book failed", data);
+      btn.textContent = "✗ Reset failed";
+      setTimeout(() => { btn.textContent = origLabel; btn.disabled = false; }, 2000);
+      return;
+    }
+    console.log("[admin] reset-my-book ok", data);
+    // Wipe client cached read/attempts for this book too so the UI
+    // matches the server.
+    if (state?.data?.read) delete state.data.read[activeBookId];
+    if (state?.data?.attempts) delete state.data.attempts[activeBookId];
+    saveData(state.session.email, state.data);
+    // Refresh server-derived state then re-render the modal.
+    const me = await fetch("/api/auth/me", { credentials: "same-origin" })
+      .then(r => r.ok ? r.json() : null)
+      .catch(() => null);
+    if (me && state?.session) {
+      state.session.currentlyReading = me.currentlyReading || null;
+    }
+    btn.textContent = "✓ Reset";
+    setTimeout(() => { btn.textContent = origLabel; btn.disabled = false; }, 1500);
+    refreshInteractiveBits();
+    renderStats();
+    renderRows();
+  } catch (err) {
+    console.error("[admin] reset-my-book threw", err);
+    btn.textContent = "✗ Reset failed";
+    setTimeout(() => { btn.textContent = origLabel; btn.disabled = false; }, 2000);
+  }
+});
+
 /* ---------- 12. Header scroll + user menu ---------- */
 window.addEventListener("scroll", () => {
   document.getElementById("appHeader").classList.toggle("scrolled", window.scrollY > 20);
@@ -4388,6 +4465,15 @@ function startAttempt() {
   quizState.questions = chosenIndices.map((poolIdx) =>
     withShuffledOptions(quizState.pool[poolIdx], poolIdx)
   );
+  // Pre-warm TTS for every question + answer-choices block in the
+  // attempt. The auto-speak after each question render hits the cache
+  // instead of a cold synth. Strings must match renderQuizQuestion's
+  // speakText exactly or the cache won't hit.
+  const letters = ["A", "B", "C", "D"];
+  for (const q of quizState.questions) {
+    const speakText = `${q.q}. ${q.options.map((o, i) => `${letters[i]}. ${o}.`).join(" ")}`;
+    prewarmTts(speakText);
+  }
   renderQuizQuestion();
 }
 

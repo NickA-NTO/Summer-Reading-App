@@ -216,8 +216,13 @@ async function actionStart(req, res, sessionAuth) {
 
   // Daily attempt counter (#40) — the tutor shares the same budget as
   // the MCQ quiz, so a kid can't bypass the cap by switching modes.
-  const attemptCount = await recordQuizAttempt(sessionAuth.email, bookId);
-  if (attemptCount != null && attemptCount > QUIZ_DAILY_ATTEMPT_LIMIT) {
+  // Admin bypass: skip INCR and the limit check entirely so admins can
+  // iterate without being locked out after two test runs.
+  const isAdminUser = isAdmin(sessionAuth.email);
+  const attemptCount = isAdminUser
+    ? 1
+    : await recordQuizAttempt(sessionAuth.email, bookId);
+  if (!isAdminUser && attemptCount != null && attemptCount > QUIZ_DAILY_ATTEMPT_LIMIT) {
     trackEvent("tutor_attempt_blocked", { bookId, attempt: attemptCount });
     return json(res, 429, {
       error: "too_many_attempts",
