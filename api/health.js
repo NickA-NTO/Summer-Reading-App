@@ -54,10 +54,11 @@ export default async function handler(req, res) {
   // without it, but a fresh book + grade combo would fail.
   checks.anthropic = { ok: !!process.env.ANTHROPIC_API_KEY };
 
-  // Polly — TTS. Optional; falls back to browser SpeechSynthesis.
-  checks.polly = {
-    ok: !!(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY),
-  };
+  // OpenAI TTS (#32 — was Polly). Optional; falls back to browser SpeechSynthesis.
+  // Hash field name kept as `polly` for backcompat with synthetic monitors
+  // that have already been configured to parse this key. Add an alias.
+  checks.polly = { ok: !!process.env.OPENAI_API_KEY };
+  checks.tts   = { ok: !!process.env.OPENAI_API_KEY };
 
   // Auth — without these the app cannot serve a single page.
   checks.auth = {
