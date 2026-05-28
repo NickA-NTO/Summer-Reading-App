@@ -339,13 +339,38 @@ async function actionTurn(req, res, sessionAuth, url) {
     trackError("tutor_audio_store_failed", { err: String(err?.message || err) });
   }
 
-  // Transcribe via Whisper.
+  // Transcribe via Whisper (with book-context prompt-bias to suppress
+  // YouTube-transcript hallucinations like "Thanks for watching").
   let transcript = "";
   try {
-    transcript = await transcribeAudio(audioBytes, "turn.webm");
+    transcript = await transcribeAudio(audioBytes, "turn.webm", { book });
   } catch (err) {
     trackError("tutor_whisper_failed", { err: String(err?.message || err) });
     // Couldn't transcribe — ask the kid to repeat. Don't advance the turn.
+    let retryAudioUrl = null;
+    try {
+      const tts = await synthTutorTts(
+        "Oops, I didn't quite catch that. Can you say that again?",
+        tutorSession.voiceId
+      );
+      retryAudioUrl = tts.url;
+    } catch {}
+    return json(res, 200, {
+      ok: true,
+      sessionId: tutorSession.sessionId,
+      turnIndex: tutorSession.turnIndex,
+      tutorMessage: "Oops, I didn't quite catch that. Can you say that again?",
+      tutorAudioUrl: retryAudioUrl,
+      retry: true,
+      done: false,
+    });
+  }
+
+  // Empty transcript = Whisper either heard silence or hallucinated
+  // a YouTube-transcript phrase we filtered out (lib/tutor.js).
+  // Treat as "didn't catch that" retry — don't advance turn, ask
+  // the kid to repeat. Same path as a thrown Whisper error.
+  if (!transcript) {
     let retryAudioUrl = null;
     try {
       const tts = await synthTutorTts(

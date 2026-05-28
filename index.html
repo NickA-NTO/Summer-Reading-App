@@ -6659,12 +6659,50 @@ function _retellSetState(s) {
     }
   }
   if (s === "listening") {
-    retell.statusEl.textContent = "Listening…";
+    // Big bold prompt so a K kid SEES that it's their turn. The EQ
+    // bars + avatar pulse alone were apparently too subtle. Also
+    // plays a short rising chime so kids who aren't reading the
+    // screen still get a "you can talk now" signal.
+    retell.statusEl.innerHTML =
+      '<div style="font-size:20px;font-weight:800;color:#22c55e">' +
+      '🎤 Your turn — talk!</div>';
+    _retellChirp("up");
   } else if (s === "thinking") {
-    retell.statusEl.textContent = "Thinking…";
+    retell.statusEl.innerHTML =
+      '<div style="font-size:16px;color:var(--muted)">Thinking…</div>';
   } else if (s === "speaking") {
-    retell.statusEl.textContent = "Reading buddy is talking…";
+    retell.statusEl.innerHTML =
+      '<div style="font-size:16px;color:var(--muted)">📚 Reading buddy is talking…</div>';
   }
+}
+
+// Short rising or falling tone via WebAudio. Used to signal state
+// transitions audibly so the kid doesn't have to be watching the
+// screen to know "it's your turn now". Falls back silently if
+// AudioContext isn't usable.
+function _retellChirp(direction) {
+  try {
+    if (!retell.audioContext) return;
+    const ctx = retell.audioContext;
+    if (ctx.state === "suspended") ctx.resume();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    const t0 = ctx.currentTime;
+    if (direction === "up") {
+      osc.frequency.setValueAtTime(440, t0);
+      osc.frequency.linearRampToValueAtTime(660, t0 + 0.12);
+    } else {
+      osc.frequency.setValueAtTime(660, t0);
+      osc.frequency.linearRampToValueAtTime(440, t0 + 0.12);
+    }
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.exponentialRampToValueAtTime(0.12, t0 + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.18);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(t0);
+    osc.stop(t0 + 0.20);
+  } catch {}
 }
 
 function _retellAppendTranscript(role, text) {
@@ -6731,18 +6769,36 @@ async function _retellStartSession() {
 // Play tutor audio (TTS) and wait for it to finish before unmuting mic.
 async function _retellPlayTutor(audioUrl, fallbackText) {
   _retellSetState("speaking");
+  console.log("[retell] tutor speaking:", { audioUrl: !!audioUrl, fallbackText: fallbackText?.slice(0, 60) });
+  // Try server-synthed audio first.
   if (audioUrl) {
-    return new Promise((resolve) => {
+    const played = await new Promise((resolve) => {
       const a = new Audio(audioUrl);
       retell.tutorAudio = a;
-      a.onended = () => { retell.tutorAudio = null; resolve(); };
-      a.onerror = () => { retell.tutorAudio = null; resolve(); };
-      a.play().catch(() => resolve());
+      a.onended = () => { retell.tutorAudio = null; resolve(true); };
+      a.onerror = (ev) => {
+        console.warn("[retell] tutor audio onerror", ev);
+        retell.tutorAudio = null;
+        resolve(false);
+      };
+      a.play().catch((err) => {
+        // Most common: NotAllowedError on turns 2/3 because the
+        // user-gesture window can expire after long async waits.
+        // Resolve false → we fall back to browser TTS below.
+        console.warn("[retell] audio.play() rejected:", err?.name || err);
+        retell.tutorAudio = null;
+        resolve(false);
+      });
     });
+    if (played) return;
+    // Server audio failed → fall through to browser TTS so the kid
+    // still hears what the tutor said. Without this fallback the
+    // modal sits silent and the kid has no idea it's their turn.
   }
-  // Fallback to browser SpeechSynthesis if server TTS failed.
+  // Fallback to browser SpeechSynthesis if server TTS failed OR didn't play.
   if ("speechSynthesis" in window && fallbackText) {
     return new Promise((resolve) => {
+      try { window.speechSynthesis.cancel(); } catch {}
       const u = new SpeechSynthesisUtterance(fallbackText);
       u.rate = 0.95; u.pitch = 1.05;
       u.onend = resolve;
