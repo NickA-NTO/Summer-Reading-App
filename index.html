@@ -1712,7 +1712,9 @@
         <button class="icon-btn quiz" id="quizBtn" style="display:none">📝 Take the Quiz</button>
         <button class="icon-btn up"   id="voteUp" disabled>👍 <span id="upCount">0</span></button>
         <button class="icon-btn down" id="voteDown" disabled>👎 <span id="downCount">0</span></button>
-        <button class="icon-btn" id="speakBlurb">🔊 Read blurb aloud</button>
+        <!-- Read-aloud "blurb" button removed — the top-of-modal 🔊 Title
+             button now reads title + author + blurb in one tap so K kids
+             aren't choosing between two speakers. -->
         <a class="icon-btn amazon" id="amazonLink" target="_blank" rel="noopener noreferrer">🛒 Buy on Amazon</a>
       </div>
       <div class="note" id="votedOnly">Tap "Done" to leave a vote or comment.</div>
@@ -3225,6 +3227,30 @@ function showLevelWarningIfNeeded(book) {
   banner.style.display = "flex";
 }
 
+// Minimum elapsed time between tapping "I'm reading this" and being
+// allowed to tap "Take the Quiz". Pure UX nudge — kids who tap-and-quiz
+// instantly aren't proving they read, so we grey the button until at
+// least this much time has passed. Server's STARTED_RECENTLY_HOLD_MS
+// (1 hour) is the actual fraud gate; this 15-min number is a friendlier
+// "you can't even open the quiz yet" stop.
+const QUIZ_AVAILABLE_DELAY_MS = 15 * 60 * 1000;
+
+// Live countdown timer handle so we can clear it when the modal closes
+// or the kid taps the now-active Quiz button.
+let _quizCountdownInterval = null;
+function clearQuizCountdown() {
+  if (_quizCountdownInterval) {
+    clearInterval(_quizCountdownInterval);
+    _quizCountdownInterval = null;
+  }
+}
+function formatCountdown(msRemaining) {
+  const totalSec = Math.max(0, Math.ceil(msRemaining / 1000));
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
 function refreshInteractiveBits() {
   const id = activeBookId;
   const wasRead = !!state.data.read[id];
@@ -3232,6 +3258,10 @@ function refreshInteractiveBits() {
   const counts  = effectiveCounts(id);
   const total = counts.up + counts.down;
   const pct = total ? Math.round(counts.up/total*100) : 0;
+
+  // Reset any countdown from a previous modal open — we'll re-arm it
+  // below if the new book is in its 15-min waiting window.
+  clearQuizCountdown();
 
   document.getElementById("upCount").textContent = counts.up;
   document.getElementById("downCount").textContent = counts.down;
@@ -3260,10 +3290,40 @@ function refreshInteractiveBits() {
     readBtn.style.display = "none";
     quizBtn.style.display = "inline-flex";
     if (isActiveBook) {
-      quizBtn.textContent = "📝 Take the Quiz";
-      quizBtn.disabled = false;
-      quizBtn.title = "";
-      quizBtn.classList.remove("locked");
+      // The kid has declared they're reading this book. Three sub-states:
+      //   A) Less than QUIZ_AVAILABLE_DELAY_MS since "I'm reading this"  → greyed countdown
+      //   B) At or past QUIZ_AVAILABLE_DELAY_MS                          → active "Take the Quiz"
+      //   C) startedAt missing (legacy data)                             → active (fail-open)
+      const startedAt = Number(activeRead?.startedAt) || 0;
+      const elapsedMs = startedAt ? Date.now() - startedAt : Infinity;
+      const remainingMs = QUIZ_AVAILABLE_DELAY_MS - elapsedMs;
+      if (remainingMs > 0) {
+        // (A) — greyed countdown. Tick once per second to update the label.
+        const renderCountdown = () => {
+          const left = QUIZ_AVAILABLE_DELAY_MS - (Date.now() - startedAt);
+          if (left <= 0) {
+            // Promote to active state without re-rendering the whole modal.
+            clearQuizCountdown();
+            quizBtn.textContent = "📝 Take the Quiz";
+            quizBtn.disabled = false;
+            quizBtn.title = "";
+            quizBtn.classList.remove("locked");
+          } else {
+            quizBtn.textContent = `📝 Quiz in ${formatCountdown(left)}`;
+            quizBtn.disabled = true;
+            quizBtn.title = "Take your time with the book — the quiz unlocks soon.";
+            quizBtn.classList.add("locked");
+          }
+        };
+        renderCountdown();
+        _quizCountdownInterval = setInterval(renderCountdown, 1000);
+      } else {
+        // (B) / (C) — quiz is reachable.
+        quizBtn.textContent = "📝 Take the Quiz";
+        quizBtn.disabled = false;
+        quizBtn.title = "";
+        quizBtn.classList.remove("locked");
+      }
     } else {
       quizBtn.textContent = "🔒 Tap Start first";
       quizBtn.disabled = true;
@@ -3374,6 +3434,9 @@ function closeModal() {
   document.body.style.overflow = "";
   activeBookId = null;
   if (window.speechSynthesis) speechSynthesis.cancel();
+  // Stop the quiz-unlock countdown timer if it was ticking — otherwise
+  // it'd keep firing setInterval against a detached button.
+  clearQuizCountdown();
   renderStats();
   renderHero();
   renderRows();
@@ -3879,14 +3942,16 @@ async function speakWithFeedback(button, text, opts = {}) {
   }
 }
 
+// Single read-aloud button at the top — reads title + author + blurb in
+// one tap. Replaces the old separate "Read blurb aloud" button so a K
+// kid only has to find ONE speaker. Author included so a kid who can't
+// decode the small author line still gets it.
 document.getElementById("speakTitle").addEventListener("click", (e) => {
   if (!activeBookId) return;
-  speakWithFeedback(e.currentTarget, BOOK_BY_ID[activeBookId].title, { force: true });
-});
-document.getElementById("speakBlurb").addEventListener("click", (e) => {
-  if (!activeBookId) return;
   const b = BOOK_BY_ID[activeBookId];
-  speakWithFeedback(e.currentTarget, `${b.title}. ${b.blurb}`, { force: true });
+  if (!b) return;
+  const fullText = `${b.title}. By ${b.author}. ${b.blurb}`;
+  speakWithFeedback(e.currentTarget, fullText, { force: true });
 });
 
 /* ---------- 12. Header scroll + user menu ---------- */
