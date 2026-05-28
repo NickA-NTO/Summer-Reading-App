@@ -6565,9 +6565,21 @@ async function _retellStartSession() {
       body: JSON.stringify({ bookId: retell.bookId }),
     });
     resp = await r.json();
-    if (!r.ok) throw new Error(resp.error || "start_failed");
+    if (!r.ok) {
+      const e = new Error(resp.error || "start_failed");
+      e.status = r.status;
+      e.serverBody = resp;
+      throw e;
+    }
   } catch (err) {
-    retell.statusEl.textContent = "Couldn't start the reading buddy. Tap × to close.";
+    console.error("[retell] /api/tutor?action=start failed", err.status, err.serverBody || err);
+    // Friendly kid-facing message + admin gets the real error in console.
+    // For admin sessions, also surface the server error code in the UI so
+    // debugging is one glance not three.
+    const isAdminUser = !!state.session?.isAdmin;
+    retell.statusEl.textContent = isAdminUser
+      ? `Couldn't start (${err.status || "?"}: ${err.serverBody?.error || err.message}). Tap × to close.`
+      : "Couldn't start the reading buddy. Tap × to close.";
     return;
   }
   retell.sessionId = resp.sessionId;

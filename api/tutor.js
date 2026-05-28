@@ -200,12 +200,24 @@ async function actionStart(req, res, sessionAuth) {
     });
   }
 
-  // CurrentlyReading enforcement — same gate as /api/quiz. Kid must
-  // have declared they're reading THIS book before they can take the
-  // tutor for it. Prevents tutor-hopping across books they haven't
-  // claimed to be working on.
+  // Eligibility gate — kid must be either:
+  //   a) actively currently-reading this book (the standard path), OR
+  //   b) auto-flowing from a quiz they just submitted on this book
+  //      (i.e., a reading session exists with a quizOutcome already
+  //      recorded). Required because /api/activity quiz_submit clears
+  //      currentlyReading in some flows, and we don't want to force
+  //      the kid to re-declare a book they just answered 5 Qs about.
+  // Admins always pass — they're the ones testing.
   const active = await getCurrentlyReading(sessionAuth.email);
-  if (!active || active.bookId !== bookId) {
+  const matchesActive = active && active.bookId === bookId;
+  let matchesRecentQuiz = false;
+  if (!matchesActive && !isAdmin(sessionAuth.email)) {
+    try {
+      const readSess = await getReadingSession(sessionAuth.email, bookId);
+      matchesRecentQuiz = !!(readSess && readSess.quizOutcome);
+    } catch {}
+  }
+  if (!matchesActive && !matchesRecentQuiz && !isAdmin(sessionAuth.email)) {
     return json(res, 403, {
       error: "not_currently_reading",
       bookId,
