@@ -2702,25 +2702,32 @@ async function speak(text, opts = {}) {
     );
     // Bail out if a newer speak() call superseded us during the fetch.
     if (mySeq !== _ttsSeq) return;
+    // ALL fallback paths check mySeq first — if a newer speak() fired
+    // during this fetch, we MUST NOT start browser TTS for the stale
+    // text (otherwise Q1's fallback audio races Q2's primary audio).
     if (r.status === 429) {
       const data = await r.json().catch(() => ({}));
       ttsBudgetReached = true;
       showBudgetBanner(data);
       console.warn("[tts] budget reached — falling back to browser voice");
+      if (mySeq !== _ttsSeq) return;
       return speakBrowser(t);
     }
     if (r.status === 503) {
-      console.warn("[tts] Polly not configured — falling back to browser voice");
+      console.warn("[tts] TTS not configured — falling back to browser voice");
+      if (mySeq !== _ttsSeq) return;
       return speakBrowser(t);
     }
     if (!r.ok) {
       const body = await r.text().catch(() => "");
       console.warn(`[tts] ${r.status} from /api/tts — falling back to browser`, body);
+      if (mySeq !== _ttsSeq) return;
       return speakBrowser(t);
     }
     const data = await r.json();
     if (!data.url) {
       console.warn("[tts] no URL in response — falling back", data);
+      if (mySeq !== _ttsSeq) return;
       return speakBrowser(t);
     }
     // One more seq check after the json parse — small window but real.
@@ -2735,6 +2742,7 @@ async function speak(text, opts = {}) {
     audio.addEventListener("error", (ev) => {
       console.warn("[tts] audio element error — falling back to browser", ev);
       if (currentTtsAudio === audio) currentTtsAudio = null;
+      if (mySeq !== _ttsSeq) return;
       speakBrowser(t);
     });
     try {
@@ -2744,10 +2752,12 @@ async function speak(text, opts = {}) {
       // during the async fetch above. Browser TTS still works in that case.
       console.warn(`[tts] audio.play() rejected (${err?.name || "error"}) — falling back to browser`);
       if (currentTtsAudio === audio) currentTtsAudio = null;
+      if (mySeq !== _ttsSeq) return;
       speakBrowser(t);
     }
   } catch (err) {
     console.warn("[tts] outer failure — falling back to browser:", err);
+    if (mySeq !== _ttsSeq) return;
     speakBrowser(t);
   }
 }
@@ -4471,7 +4481,12 @@ function startAttempt() {
   // speakText exactly or the cache won't hit.
   const letters = ["A", "B", "C", "D"];
   for (const q of quizState.questions) {
-    const speakText = `${q.q}. ${q.options.map((o, i) => `${letters[i]}. ${o}.`).join(" ")}`;
+    // Use ": " instead of ". " between the letter label and the option
+  // text — tts-1 treats "A. apples. B. oranges." as "A apples B oranges"
+  // and drops every other letter (user saw "A apples oranges C pears
+  // plums" — B and D skipped). The colon forces the letter to be
+  // pronounced as a standalone label.
+  const speakText = `${q.q} ${q.options.map((o, i) => `${letters[i]}: ${o}.`).join(" ")}`;
     prewarmTts(speakText);
   }
   renderQuizQuestion();
@@ -4499,7 +4514,12 @@ function renderQuizQuestion() {
   // Single canonical text for the speak helper — used by both the
   // manual button and the auto-speak below so they always read the
   // same thing.
-  const speakText = `${q.q}. ${q.options.map((o, i) => `${letters[i]}. ${o}.`).join(" ")}`;
+  // Use ": " instead of ". " between the letter label and the option
+  // text — tts-1 treats "A. apples. B. oranges." as "A apples B oranges"
+  // and drops every other letter (user saw "A apples oranges C pears
+  // plums" — B and D skipped). The colon forces the letter to be
+  // pronounced as a standalone label.
+  const speakText = `${q.q} ${q.options.map((o, i) => `${letters[i]}: ${o}.`).join(" ")}`;
   document.getElementById("quizContent").innerHTML = `
     <h3 class="quiz-question">
       <span>${escapeHtml(q.q)}</span>
@@ -4530,6 +4550,12 @@ function renderQuizQuestion() {
   // have to find and tap the speaker before they can hear the
   // question. Small delay so the screen settles + the per-tap "you
   // chose this" transition out of the previous question finishes.
+  //
+  // Eager cancel: if Q1's audio is still playing or its fetch is
+  // in-flight when this render fires, kill it BEFORE the setTimeout
+  // so there's no chance of audible overlap. speak() also calls
+  // cancelSpeech but that runs 250 ms later — overkill is fine here.
+  cancelSpeech();
   if (ttsOn) {
     setTimeout(() => {
       try { speak(speakText); } catch {}
