@@ -4431,9 +4431,9 @@ async function openQuiz(bookId) {
     document.getElementById("quizContent").innerHTML = `
       <div class="quiz-result">
         <div class="emoji">⏰</div>
-        <h3>Come back tomorrow</h3>
-        <div class="score">You've used both attempts today</div>
-        <p>Two tries per day so the quiz stays meaningful. Re-read the book and try again tomorrow.</p>
+        <h3>Out of attempts</h3>
+        <div class="score">You've used both attempts for this book</div>
+        <p>Two tries per book so the quiz stays meaningful. Re-read the book and try again in a few days.</p>
         <div class="actions">
           <button class="icon-btn" id="quizLater2">Close</button>
         </div>
@@ -4758,7 +4758,12 @@ async function finishQuiz() {
     saveData(state.session.email, state.data);
   }
 
-  rec.count = Math.min(rec.count + 1, MAX_ATTEMPTS_PER_DAY);
+  // Admin never burns client-side attempts — otherwise after 2 test
+  // runs the FAIL screen would say "out of attempts" even though the
+  // server-side admin bypass would happily accept another submission.
+  if (!state.session?.isAdmin) {
+    rec.count = Math.min(rec.count + 1, MAX_ATTEMPTS_PER_DAY);
+  }
   rec.passed = rec.passed || passed;
   saveAttemptRecord(quizState.bookId, rec);
 
@@ -4803,13 +4808,32 @@ async function finishQuiz() {
   const retryButton = canRetry
     ? `<button class="icon-btn" id="quizRetry">Try again (${attemptsLeft} left)</button>`
     : "";
+  // Wording: "today / tomorrow" was misleading because the server cap
+  // is actually 72 h rolling (not daily) — kid who used both today
+  // can't simply come back tomorrow. Use neutral framing.
   const message = canRetry
-    ? `You need ${passThreshold(quizState.style)} out of ${total}. Re-read the book and try once more — you've got ${attemptsLeft} attempt${attemptsLeft === 1 ? "" : "s"} left today.`
-    : `You've used both attempts today. Come back tomorrow and try again.`;
+    ? `You need ${passThreshold(quizState.style)} out of ${total}. Re-read the book and try once more — you've got ${attemptsLeft} attempt${attemptsLeft === 1 ? "" : "s"} left.`
+    : `You've used both attempts for this book. Re-read it and try again in a few days.`;
   const failTts =
     `${canRetry ? "Almost there!" : "Out of attempts."} ` +
     `You got ${score} out of ${total} right. ${message}`;
 
+  // Admin-only debug panel: when score is unexpectedly 0/5 (or anything
+  // unexpected), show the per-question chosen/expected indices inline
+  // so we can diagnose without going to the Network tab.
+  const adminDebug = serverResp?.adminDebug;
+  const adminDebugHtml = (state.session?.isAdmin && Array.isArray(adminDebug))
+    ? `<details style="text-align:left;margin:14px auto;max-width:480px;
+         background:rgba(168,85,247,.10);border:1px solid rgba(168,85,247,.45);
+         border-radius:10px;padding:10px 14px;font-size:11px;color:#cbd5e1">
+         <summary style="cursor:pointer;font-weight:700;color:#a78bfa">
+           🔧 Admin debug — per-answer breakdown
+         </summary>
+         <pre style="margin:8px 0 0;white-space:pre-wrap;line-height:1.5">${
+           adminDebug.map((d, i) => `${i+1}. poolIdx=${d.poolIdx} chosen=${d.chosen} expected=${d.expected} ${d.isCorrect ? "✓" : "✗"}\n   ${escapeHtml(d.q || "")}`).join("\n")
+         }</pre>
+       </details>`
+    : "";
   document.getElementById("quizContent").innerHTML = `
     <div class="quiz-result" style="position:relative">
       ${quizResultSpeakBtn("quizResultSpeak")}
@@ -4817,6 +4841,7 @@ async function finishQuiz() {
       <h3>${canRetry ? "Almost there!" : "Out of attempts"}</h3>
       <div class="score">You got ${score} / ${total} right</div>
       <p>${message}</p>
+      ${adminDebugHtml}
       <div class="actions">
         ${retryButton}
         <button class="icon-btn" id="quizLater">Close</button>
