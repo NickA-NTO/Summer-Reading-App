@@ -793,6 +793,26 @@
     background: linear-gradient(180deg, #0d9488, #0f766e);
   }
 
+  /* ============ Retell mic-visualizer (7-bar EQ) ============ */
+  /* Each bar's height is set inline per rAF tick by the VAD loop, so
+     the only CSS state is the base color + smooth transition + glow. */
+  #retellMicBars .retell-eq-bar {
+    width: 14px;
+    height: 4px;
+    border-radius: 8px;
+    background: linear-gradient(180deg, #38bdf8, #2563eb);
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.45);
+    transition: height 80ms ease-out, background 200ms ease;
+  }
+  /* When mic isn't active (intro / thinking / speaking / done) bars
+     mute to gray + lose the glow so the kid clearly knows when the
+     mic IS hot. */
+  #retellMicBars.idle .retell-eq-bar {
+    background: var(--line);
+    box-shadow: none;
+    height: 4px !important;
+  }
+
   /* ============ Retell overlay state animations (#9) ============ */
   /* Tutor avatar pulses gently while listening (kid is talking) and
      speeds up while speaking (TTS playback). Box-shadow halo intensifies
@@ -1836,13 +1856,20 @@
         min-height:60px;text-align:left;
         max-height:220px;overflow-y:auto"></div>
 
-      <!-- Waveform / pulse indicator. CSS animations swap based on state. -->
-      <div id="retellMicBar" style="
-        height:8px;border-radius:99px;background:var(--line);overflow:hidden;
-        margin:0 auto 8px;max-width:300px">
-        <div id="retellMicBarFill" style="
-          height:100%;width:0%;background:#22c55e;
-          transition:width 120ms ease"></div>
+      <!-- EQ-style mic visualizer (7 bars). Kids see their voice picked up
+           in real time — much more "you're being heard" than a single
+           progress bar. Bars are inert until the kid is in the listening
+           state; during tutor speech they sit flat. -->
+      <div id="retellMicBars" style="
+        display:flex;align-items:flex-end;justify-content:center;
+        gap:6px;height:54px;margin:0 auto 10px;max-width:300px">
+        <div class="retell-eq-bar"></div>
+        <div class="retell-eq-bar"></div>
+        <div class="retell-eq-bar"></div>
+        <div class="retell-eq-bar"></div>
+        <div class="retell-eq-bar"></div>
+        <div class="retell-eq-bar"></div>
+        <div class="retell-eq-bar"></div>
       </div>
       <div style="color:var(--muted);font-size:11px">
         <span id="retellTurnLabel">Question 1 of 3</span>
@@ -6446,7 +6473,8 @@ const retell = {
   intro: null, live: null, result: null,
   startBtn: null, closeBtn: null, resultCloseBtn: null,
   tutorEl: null, statusEl: null, transcriptEl: null,
-  micBarFill: null, turnLabelEl: null, bookTitleEl: null,
+  micBarsEl: null, eqBars: null, eqLevels: null,
+  turnLabelEl: null, bookTitleEl: null,
   resultIcon: null, resultTitle: null, resultMsg: null, resultXp: null,
 
   // Session state
@@ -6492,7 +6520,11 @@ function _retellGrabRefs() {
   retell.tutorEl        = document.getElementById("retellTutor");
   retell.statusEl       = document.getElementById("retellStatus");
   retell.transcriptEl   = document.getElementById("retellTranscript");
-  retell.micBarFill     = document.getElementById("retellMicBarFill");
+  retell.micBarsEl      = document.getElementById("retellMicBars");
+  retell.eqBars         = retell.micBarsEl
+    ? Array.from(retell.micBarsEl.querySelectorAll(".retell-eq-bar"))
+    : [];
+  retell.eqLevels       = new Array(retell.eqBars.length).fill(0);
   retell.turnLabelEl    = document.getElementById("retellTurnLabel");
   retell.bookTitleEl    = document.getElementById("retellBookTitle");
   retell.resultIcon     = document.getElementById("retellResultIcon");
@@ -6570,16 +6602,25 @@ function _retellTearDownAudio() {
 }
 
 function _retellSetState(s) {
-  // Listening / thinking / speaking — drives avatar animation + label.
+  // Listening / thinking / speaking — drives avatar animation + label
+  // + mic visualizer state. Only "listening" shows live EQ bars;
+  // other states the bars idle out to gray so the kid clearly
+  // perceives when the mic is HOT vs not.
   retell.tutorEl.className = `state-${s}`;
+  if (retell.micBarsEl) {
+    if (s === "listening") {
+      retell.micBarsEl.classList.remove("idle");
+    } else {
+      retell.micBarsEl.classList.add("idle");
+      if (retell.eqLevels) retell.eqLevels.fill(0);
+    }
+  }
   if (s === "listening") {
     retell.statusEl.textContent = "Listening…";
   } else if (s === "thinking") {
     retell.statusEl.textContent = "Thinking…";
-    retell.micBarFill.style.width = "0%";
   } else if (s === "speaking") {
     retell.statusEl.textContent = "Reading buddy is talking…";
-    retell.micBarFill.style.width = "0%";
   }
 }
 
@@ -6733,6 +6774,14 @@ async function _retellListenForKid() {
   // VAD loop — read frequency-domain RMS each animation frame.
   const buf = new Uint8Array(retell.analyser.frequencyBinCount);
   const startTime = performance.now();
+  // 7-bar EQ visualizer. Map the speech-relevant frequency range to
+  // 7 bands so the kid sees their voice picked up live. Bands tilt
+  // toward the lower frequencies where K-2 voices live; the highest
+  // bin caps below ~4 kHz to avoid noisy hash from environmental hiss.
+  const BAND_COUNT = retell.eqBars?.length || 7;
+  const BAND_START_BIN = 2;                     // skip DC + sub-bass
+  const BAND_END_BIN = Math.min(96, buf.length); // ~4 kHz at 44.1 kHz FFT-1024
+  const bandWidth = (BAND_END_BIN - BAND_START_BIN) / BAND_COUNT;
   const tick = () => {
     if (retell._closed) return;
     if (retell.vadState === "idle") return;
@@ -6741,8 +6790,24 @@ async function _retellListenForKid() {
     for (let i = 0; i < buf.length; i++) sum += buf[i];
     const energy = sum / buf.length / 255;
     const now = performance.now();
-    // Visualize energy on the mic bar (0–100%).
-    retell.micBarFill.style.width = Math.min(100, Math.max(0, energy * 220)) + "%";
+    // Update each EQ bar's height from its frequency band. Exponential
+    // decay smooths flicker so peaks decay over ~6 frames (~100 ms)
+    // instead of dropping instantly.
+    if (retell.eqBars && retell.eqLevels) {
+      for (let band = 0; band < BAND_COUNT; band++) {
+        const s = Math.floor(BAND_START_BIN + band * bandWidth);
+        const e = Math.floor(BAND_START_BIN + (band + 1) * bandWidth);
+        let bandSum = 0;
+        for (let i = s; i < e; i++) bandSum += buf[i];
+        const avg = bandSum / Math.max(1, e - s) / 255; // 0..1
+        // Bias toward making low energy visible — kid voices are quieter
+        // than music, so amplify slightly with a sqrt curve.
+        const amped = Math.min(1, Math.sqrt(avg) * 1.4);
+        retell.eqLevels[band] = Math.max(amped, retell.eqLevels[band] * 0.82);
+        const h = Math.max(4, retell.eqLevels[band] * 50); // 4–50 px
+        if (retell.eqBars[band]) retell.eqBars[band].style.height = h + "px";
+      }
+    }
 
     if (retell.vadState === "warming") {
       // First ~500 ms: just calibrate background floor + ignore.
