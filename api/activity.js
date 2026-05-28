@@ -30,6 +30,7 @@ import {
   evaluateAchievementsForUser,
   recordQuizAttempt,
   consumeQuizOpens,
+  setReadingSessionQuizOutcome,
   redis,
   FRAUD_RATIO_HOLD,
   FRAUD_RATIO_SOFT,
@@ -403,33 +404,50 @@ export default async function handler(req, res) {
       if (isCorrect) correctCount++;
     }
     const passed = correctCount >= 4; // 4 of 5 to pass
-    // If they didn't pass, return the result but don't record. Client
-    // shows a "try again" screen.
-    if (!passed) {
-      res.statusCode = 200;
-      return res.end(JSON.stringify({
-        ok: true,
-        kind: "quiz_submit",
-        passed: false,
-        score: correctCount,
-        total: 5,
-        correct: correctFlags,
-        attemptNum,
-      }));
+    // #9 atomic session — quiz_submit no longer awards XP directly.
+    // The kid MUST complete the follow-up retell for XP to release.
+    // We persist the quiz outcome (pass/fail + attempt number) to a
+    // per-(email,bookId) reading session with 30-min TTL; api/tutor.js
+    // reads it back at the end of the retell and awards combined XP
+    // via the ratio table in lib/xp.js.
+    //
+    // If the kid never starts the retell, the session expires and they
+    // get 0 XP — matching the "complete the whole section" rule.
+    const quizOutcome = passed ? (attemptNum === 2 ? "p2" : "p1") : "fF";
+    try {
+      await setReadingSessionQuizOutcome({
+        email: session.email,
+        bookId,
+        quizOutcome,
+        quizAttempt: attemptNum,
+      });
+    } catch (err) {
+      trackError("quiz_submit_session_save_failed", {
+        bookId,
+        err: String(err?.message || err),
+      });
+      // Non-fatal — the client still launches retell; if session is
+      // missing at finalize time, tutor.js falls back to quizOutcome="fF".
     }
-    // Passed — fall through to the recordRead path below by transparently
-    // rewriting the kind. The existing fraud + leaderboard + Caliper code
-    // is the source of truth for held-XP / soft-flag / retake math, so
-    // we route the validated pass through that pipeline instead of
-    // re-implementing it here.
-    body.kind = "read";
-    body._serverValidatedQuizPass = {
+
+    trackEvent("quiz_submit_recorded", { bookId, passed, attemptNum });
+
+    res.statusCode = 200;
+    return res.end(JSON.stringify({
+      ok: true,
+      kind: "quiz_submit",
+      passed,
       score: correctCount,
       total: 5,
       correct: correctFlags,
-    };
-    // Re-fall through; the kind === "read" handler below sees attemptNum
-    // and treats this as a quiz pass (with our server-graded score).
+      attemptNum,
+      // Tells the client to launch the retell modal immediately.
+      // XP isn't awarded yet — it releases atomically after retell
+      // finishes via /api/tutor.
+      retellRequired: true,
+      bookId,
+      quizOutcome,
+    }));
   }
 
   if (body.kind !== "read" && kind !== "quiz_submit") {

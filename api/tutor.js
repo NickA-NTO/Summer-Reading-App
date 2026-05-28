@@ -40,10 +40,12 @@ import {
   addHeldXpEntry,
   applyFraudFlag,
   guessGradeFromEmail,
+  getReadingSession,
+  clearReadingSession,
 } from "../lib/store.js";
 import { resolveVisibleTracks, trackForBook } from "../lib/tracks.js";
 import { getBook } from "../lib/books.js";
-import { normalizeGrade, pointsForBook } from "../lib/xp.js";
+import { normalizeGrade, pointsForBook, xpForReadingSession, outcomeCode } from "../lib/xp.js";
 import { trackError, trackEvent } from "../lib/observability.js";
 import {
   TUTOR_QUESTION_COUNT,
@@ -439,7 +441,9 @@ async function actionGrade(req, res, sessionAuth, url) {
 /* ------------------------------------------------------------------ */
 
 async function finalizeAndGrade(res, tutorSession, book) {
-  // Grade the conversation via the LLM rubric.
+  const email = tutorSession.email;
+
+  // Grade the retell conversation via the LLM rubric.
   let grade;
   try {
     grade = await gradeConversation({
@@ -449,8 +453,6 @@ async function finalizeAndGrade(res, tutorSession, book) {
     });
   } catch (err) {
     trackError("tutor_grade_failed", { err: String(err?.message || err) });
-    // Grade failure → "needs review" so the kid doesn't lose progress
-    // and an admin can take a look at the transcript + audio.
     grade = {
       retell_quality: 0,
       character_recall: 0,
@@ -478,12 +480,40 @@ async function finalizeAndGrade(res, tutorSession, book) {
   });
   await saveTutorSession(tutorSession);
 
-  // Award XP if the grader says pass=true. Otherwise: held for admin
-  // review (pass=null) or no XP (pass=false). Mirrors the MCQ pipeline.
-  const email = tutorSession.email;
-  const grade_ = tutorSession.workingGrade;
-  const basePoints = pointsForBook(book.wordCount, grade_, {
-    includeQuizTime: true,
+  // #9 atomic award — read the quiz outcome from the reading session
+  // stored by api/activity.js quiz_submit. If missing (session expired
+  // or quiz never submitted on this device), treat as "quiz failed"
+  // so the kid still earns the retell-only ratio if their retell
+  // passes. retellRequired=true on quiz_submit means a happy-path kid
+  // should always have a reading session present when we land here.
+  const readingSession = await getReadingSession(email, tutorSession.bookId);
+  const quizOutcome = readingSession?.quizOutcome || "fF";
+  const quizAttempt = readingSession?.quizAttempt || 2;
+
+  // Map LLM grader verdict → retell outcome code.
+  //   grader pass=true  → retell pass on this attempt (p1 or p2)
+  //   grader pass=false → retell fail this attempt (could be p2 if att 2)
+  //   grader pass=null  → defer to admin review (treat as held; still
+  //                       compute XP as if pass for the user response,
+  //                       but mark held so XP goes to the queue not the
+  //                       leaderboard).
+  // Server uses the per-(email,bookId) attempt counter to know what
+  // retell attempt this was — for now we infer from tutorSession.
+  // TODO: retell-specific attempt counter is a follow-up; v1 counts
+  // any reaching of finalize as attempt 1.
+  const retellAttempt = 1; // v1 — single retell attempt per session
+  const retellPassed = grade.overall_pass === true;
+  const retellOutcome = retellPassed
+    ? outcomeCode(true, retellAttempt)
+    : "fF";
+  const retellHeld = grade.overall_pass === null;
+
+  // Compute combined XP using the ratio table.
+  const xpCalc = xpForReadingSession({
+    wordCount: book.wordCount,
+    workingGrade: tutorSession.workingGrade,
+    quizOutcome,
+    retellOutcome,
     emergent: book.quizStyle === "emergent",
   });
 
@@ -497,24 +527,62 @@ async function finalizeAndGrade(res, tutorSession, book) {
     gradeResult: grade,
     tutorMessage: closing,
     tutorAudioUrl: closingAudioUrl,
+    quizOutcome,
+    retellOutcome,
+    xpBreakdown: {
+      readingMin: xpCalc.readingMin,
+      quizMin: xpCalc.quizMin,
+      retellMin: xpCalc.retellMin,
+      totalMin: xpCalc.totalMin,
+      ratio: xpCalc.ratio,
+      outcomeKey: xpCalc.outcomeKey,
+      xp: xpCalc.xp,
+    },
   };
 
-  if (grade.overall_pass === true) {
-    // Pass — award XP via the same recordRead pipeline as the MCQ.
+  if (retellHeld) {
+    // LLM grader was unsure — hold the XP for admin review even if the
+    // ratio says non-zero. Quiz outcome still counts in the audit trail.
+    try {
+      const flagResult = await applyFraudFlag(email);
+      const heldResult = await addHeldXpEntry({
+        email,
+        name: tutorSession.email.split("@")[0],
+        bookId: tutorSession.bookId,
+        bookTitle: book.title || tutorSession.bookId,
+        grade: tutorSession.workingGrade,
+        points: xpCalc.xp,
+        reason: "tutor_review",
+        tutorRubric: grade,
+        tutorTranscript: tutorSession.transcript,
+        tutorAudioUrls: tutorSession.audioUrls,
+        quizOutcome,
+      });
+      response.held = true;
+      response.heldInfo = {
+        reason: "tutor_review",
+        cooldownUntil: flagResult.cooldownUntil,
+        flagCount: flagResult.flagCount,
+        heldId: heldResult.id || null,
+      };
+    } catch (err) {
+      trackError("tutor_held_xp_failed", { err: String(err?.message || err) });
+    }
+    trackEvent("tutor_held", { bookId: tutorSession.bookId });
+  } else if (xpCalc.xp > 0) {
+    // Atomic award — single recordRead call routes through the same
+    // leaderboard/dedupe/Caliper pipeline as the legacy quiz path.
     const result = await recordRead({
       email,
       name: tutorSession.email.split("@")[0],
-      grade: grade_,
+      grade: tutorSession.workingGrade,
       bookId: tutorSession.bookId,
-      points: basePoints,
+      points: xpCalc.xp,
     });
-    response.passed = true;
+    response.passed = retellPassed;
     response.recorded = result.recorded;
     response.points = result.points || 0;
     response.reason = result.reason || null;
-    // Clear currentlyReading + evaluate achievements + Caliper would
-    // normally fire here. For v1 we skip Caliper (tutor verdicts aren't
-    // a Caliper event type yet) and let the kid finish the modal first.
     if (result.recorded) {
       try {
         const profile = await loadProfile(email);
@@ -533,40 +601,27 @@ async function finalizeAndGrade(res, tutorSession, book) {
         }
       } catch {}
     }
-    trackEvent("tutor_passed", { bookId: tutorSession.bookId, points: result.points });
-  } else if (grade.overall_pass === null) {
-    // Borderline / unclear → hold for admin review.
-    try {
-      const flagResult = await applyFraudFlag(email);
-      const heldResult = await addHeldXpEntry({
-        email,
-        name: tutorSession.email.split("@")[0],
-        bookId: tutorSession.bookId,
-        bookTitle: book.title || tutorSession.bookId,
-        grade: grade_,
-        points: basePoints,
-        reason: "tutor_review",
-        // Audit data — admin sees the rubric scores + the full transcript.
-        tutorRubric: grade,
-        tutorTranscript: tutorSession.transcript,
-        tutorAudioUrls: tutorSession.audioUrls,
-      });
-      response.held = true;
-      response.heldInfo = {
-        reason: "tutor_review",
-        cooldownUntil: flagResult.cooldownUntil,
-        flagCount: flagResult.flagCount,
-        heldId: heldResult.id || null,
-      };
-    } catch (err) {
-      trackError("tutor_held_xp_failed", { err: String(err?.message || err) });
-    }
-    trackEvent("tutor_held", { bookId: tutorSession.bookId });
+    trackEvent("tutor_session_awarded", {
+      bookId: tutorSession.bookId,
+      quizOutcome,
+      retellOutcome,
+      xp: result.points,
+    });
   } else {
-    // Fail — no XP, kid gets the closing message + "try again" path.
+    // Total XP is zero (both halves failed). No leaderboard write, no
+    // currentlyReading clear (kid may still want to switch books).
     response.passed = false;
-    trackEvent("tutor_failed", { bookId: tutorSession.bookId });
+    response.points = 0;
+    trackEvent("tutor_session_zero", {
+      bookId: tutorSession.bookId,
+      quizOutcome,
+      retellOutcome,
+    });
   }
+
+  // Clear the reading-session record either way — atomic award succeeded
+  // or the kid bottomed out at 0 XP. New session needed for next attempt.
+  await clearReadingSession(email, tutorSession.bookId);
 
   return json(res, 200, response);
 }
