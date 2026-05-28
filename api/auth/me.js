@@ -54,7 +54,12 @@ export default async function handler(req, res) {
 
   if (!session) {
     res.statusCode = 401;
-    return res.end(JSON.stringify({ authenticated: false }));
+    return res.end(JSON.stringify({
+      authenticated: false,
+      // #71 — surface the environment even when unauthenticated so the
+      // welcome screen can show the PREVIEW banner before sign-in.
+      env: (process.env.VERCEL_ENV || "production").toLowerCase(),
+    }));
   }
 
   const profile = await loadProfile(session.email);
@@ -155,6 +160,10 @@ export default async function handler(req, res) {
       grade,
       visibleTracks,
       currentlyReading,
+      // #71 — deployment environment. "production" | "preview" | "development".
+      // Client renders a PREVIEW banner when this isn't "production" so an
+      // admin testing on a preview URL never confuses it for the live site.
+      env: (process.env.VERCEL_ENV || "production").toLowerCase(),
       // Server-derived constants exposed so the client doesn't have to
       // mirror them in hardcoded constants (low-tier drift risk).
       // startedRecentlyHoldMs is the threshold the server uses to

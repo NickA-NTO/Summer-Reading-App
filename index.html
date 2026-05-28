@@ -1577,10 +1577,11 @@
     <div class="tts-wrap" title="Read text aloud">
       <span class="lbl">Text to Speech</span>
       <select id="voicePicker" class="voice-picker" aria-label="Choose a voice">
-        <option value="Ivy">👧 Female Child</option>
-        <option value="Kevin">👦 Male Child</option>
-        <option value="Joanna">👩 Female Adult</option>
-        <option value="Matthew">👨 Male Adult</option>
+        <option value="nova">🌟 Nova (warm, energetic)</option>
+        <option value="shimmer">✨ Shimmer (gentle)</option>
+        <option value="coral">🪸 Coral (very warm)</option>
+        <option value="ash">🌳 Ash (warm male)</option>
+        <option value="fable">📖 Fable (read-aloud)</option>
       </select>
       <button id="ttsSwitch" class="switch" role="switch" aria-checked="false" aria-label="Toggle text to speech"></button>
     </div>
@@ -2464,15 +2465,31 @@ function updateTtsTooltip() {
   wrap.title = `Read aloud · cloud: ${pollyLabel} (${chosenPollyVoice}) · fallback: ${browserLabel}`;
 }
 
-/* Voice picker — kid chooses between Polly's 4 neural voices */
+/* Voice picker — kid chooses between OpenAI's neural voices (#32).
+   Old Polly voice IDs (Ivy/Kevin/Joanna/Matthew) are remapped to OpenAI
+   equivalents below so existing profiles keep working through the migration. */
 const voicePicker = document.getElementById("voicePicker");
 const VOICE_LABELS = {
-  Ivy:     "Female Child",
-  Kevin:   "Male Child",
-  Joanna:  "Female Adult",
-  Matthew: "Male Adult",
+  nova:    "Nova",
+  shimmer: "Shimmer",
+  coral:   "Coral",
+  ash:     "Ash",
+  fable:   "Fable",
 };
-let chosenPollyVoice = "Ivy";
+// Legacy Polly → OpenAI voice mapping. Closest analogue per voice character:
+//   Ivy / Kevin (kid voices)  → nova (warm + energetic)
+//   Joanna  (adult female)    → shimmer (gentler female)
+//   Matthew (adult male)      → ash (warm male)
+const LEGACY_VOICE_MAP = { Ivy: "nova", Kevin: "nova", Joanna: "shimmer", Matthew: "ash" };
+function normalizeVoiceId(v) {
+  if (!v) return "nova";
+  if (VOICE_LABELS[v]) return v;          // already a current OpenAI ID
+  if (LEGACY_VOICE_MAP[v]) return LEGACY_VOICE_MAP[v];
+  return "nova";                          // default for unknown values
+}
+// Variable name kept as `chosenPollyVoice` to avoid a high-risk rename across
+// ~10 call sites in this commit. The VALUE is now an OpenAI voice ID.
+let chosenPollyVoice = "nova";
 voicePicker.addEventListener("change", () => {
   chosenPollyVoice = voicePicker.value;
   if (state && state.data) {
@@ -2551,7 +2568,7 @@ async function speak(text, opts = {}) {
     return speakBrowser(t);
   }
 
-  const voice = chosenPollyVoice || "Ivy";
+  const voice = chosenPollyVoice || "nova";
   try {
     const r = await fetch(
       `/api/tts?voice=${encodeURIComponent(voice)}&text=${encodeURIComponent(t)}`,
@@ -2624,7 +2641,7 @@ async function speak(text, opts = {}) {
 let _ttsPrewarmInFlight = new Set();
 function prewarmTtsForBook(book) {
   if (!book) return;
-  const voice = chosenPollyVoice || "Ivy";
+  const voice = chosenPollyVoice || "nova";
   const texts = [book.title, `${book.title}. ${book.blurb || ""}`];
   for (const text of texts) {
     if (!text || !text.trim()) continue;
@@ -2688,14 +2705,18 @@ function startApp(session) {
   // (preferredVoiceId from /api/auth/me) wins over the localStorage cache
   // because it survives device-hopping. localStorage is the fallback for
   // users who set it before the server persistence shipped.
-  const savedVoice =
+  // #32 — savedVoice may be a legacy Polly ID (Ivy/Kevin/Joanna/Matthew).
+  // normalizeVoiceId remaps to the closest OpenAI voice so existing
+  // profiles don't see a broken picker after the migration.
+  const rawSavedVoice =
     session.preferredVoiceId ||
     state.data.ttsVoice ||
     null;
+  const savedVoice = rawSavedVoice ? normalizeVoiceId(rawSavedVoice) : null;
   if (savedVoice && document.querySelector(`#voicePicker option[value="${savedVoice}"]`)) {
     chosenPollyVoice = savedVoice;
     voicePicker.value = chosenPollyVoice;
-    state.data.ttsVoice = savedVoice; // keep localStorage in sync
+    state.data.ttsVoice = savedVoice; // keep localStorage in sync (now an OpenAI ID)
   }
 
   // Default TTS ON for emergent readers (#25). PK / K / Grade 1 students
@@ -5429,10 +5450,10 @@ function friendlyDate(ts) {
 // it again on later sign-ins.
 
 const ONB_VOICES = [
-  { id: "Ivy",     emoji: "👧", label: "Female Child" },
-  { id: "Kevin",   emoji: "👦", label: "Male Child" },
-  { id: "Joanna",  emoji: "👩", label: "Female Adult" },
-  { id: "Matthew", emoji: "👨", label: "Male Adult" },
+  { id: "nova",    emoji: "🌟", label: "Nova"    },
+  { id: "shimmer", emoji: "✨", label: "Shimmer" },
+  { id: "coral",   emoji: "🪸", label: "Coral"   },
+  { id: "ash",     emoji: "🌳", label: "Ash"     },
 ];
 const ONB_PREVIEW_TEXT =
   "Hi! I'll read along with you. Pick a voice you like.";
@@ -5452,8 +5473,10 @@ function startOnboarding() {
     </button>
   `).join("");
 
-  // Pre-select current preference if one exists
-  _onbSelectedVoice = state.session?.preferredVoiceId || null;
+  // Pre-select current preference if one exists. Remap legacy Polly IDs to
+  // their OpenAI analogue so a returning kid keeps a sensible selection.
+  const rawPref = state.session?.preferredVoiceId || null;
+  _onbSelectedVoice = rawPref ? normalizeVoiceId(rawPref) : null;
   if (_onbSelectedVoice) {
     const btn = grid.querySelector(`[data-voice="${_onbSelectedVoice}"]`);
     if (btn) {
@@ -5749,10 +5772,11 @@ async function speakCurrentTourStep() {
   btn.classList.add("playing");
   btn.textContent = "🔊 Speaking…";
   const text = `${step.title}. ${step.body}`;
-  const voice =
+  const voice = normalizeVoiceId(
     (typeof chosenPollyVoice !== "undefined" && chosenPollyVoice) ||
     state.session?.preferredVoiceId ||
-    "Ivy";
+    "nova"
+  );
   // Try Polly first via the same /api/tts endpoint TTS uses elsewhere.
   try {
     const r = await fetch(
@@ -6063,6 +6087,32 @@ function renderWelcomeScreen() {
   setTimeout(speak, 350);
 }
 
+// #71 — environment banner. Renders a fixed strip at the top of the page
+// when the current deployment is NOT production (i.e., preview or local).
+// Idempotent: skips if a banner already exists. Spans the top of the
+// viewport with safe-area padding so it doesn't sit under the iOS notch.
+function renderPreviewBanner(env) {
+  if (!env || env === "production") return;
+  if (document.getElementById("previewBanner")) return;
+  const banner = document.createElement("div");
+  banner.id = "previewBanner";
+  const label = env.toUpperCase();
+  const color = env === "preview" ? "#f59e0b" : "#a855f7"; // amber / purple
+  banner.style.cssText = `
+    position:fixed; top:0; left:0; right:0; z-index:9999;
+    background:${color}; color:#0f172a; font-weight:800; font-size:12px;
+    text-align:center; padding:4px 12px; padding-top:calc(4px + env(safe-area-inset-top));
+    letter-spacing:.08em; pointer-events:none;
+    box-shadow:0 1px 8px rgba(0,0,0,.4);
+    font-family:inherit;
+  `;
+  banner.textContent = `${label} · not the live site · data is isolated`;
+  document.body.appendChild(banner);
+  // Nudge top-of-page elements down so the banner doesn't overlap them.
+  // Cheap: a body padding-top equal to the banner's height (~26px).
+  document.body.style.paddingTop = "26px";
+}
+
 (async function boot() {
   try {
     const r = await fetch("/api/auth/me", { credentials: "same-origin" });
@@ -6070,10 +6120,15 @@ function renderWelcomeScreen() {
       // 401 / 5xx from the auth check — show the welcome screen instead
       // of redirecting straight to Google. K students need a beat to hear
       // what's happening before being shoved into the account picker.
+      try {
+        const body = await r.json();
+        renderPreviewBanner(body?.env);
+      } catch { /* 5xx / non-JSON — banner won't render, fine */ }
       renderWelcomeScreen();
       return;
     }
     const me = await r.json();
+    renderPreviewBanner(me.env);
     if (!me.authenticated) {
       renderWelcomeScreen();
       return;
