@@ -6373,6 +6373,15 @@ function _retellGrabRefs() {
 
 function openRetell(bookId) {
   _retellGrabRefs();
+  // Defensive — if any of the modal elements are missing, log loudly
+  // and bail instead of silently throwing.
+  if (!retell.overlay || !retell.intro || !retell.live || !retell.result) {
+    console.error("[retell] modal markup not found in DOM", {
+      overlay: !!retell.overlay, intro: !!retell.intro,
+      live: !!retell.live, result: !!retell.result,
+    });
+    return;
+  }
   retell.bookId = bookId;
   retell.sessionId = null;
   retell.turnIndex = 0;
@@ -6697,21 +6706,35 @@ function _retellShowResult(data) {
   }
 }
 
-// Wire up the modal's buttons. Run once, after the markup is in the DOM.
+// Wire up the modal's buttons. The script tag lives at the end of body
+// so DOM is already parsed by the time we run — calling DOMContentLoaded
+// would never fire. Bind directly instead, with a readyState fallback
+// in case this ever moves up.
 (function bindRetellHandlers() {
-  document.addEventListener("DOMContentLoaded", () => {
+  const bind = () => {
     _retellGrabRefs();
-    retell.startBtn?.addEventListener("click", () => {
+    if (!retell.startBtn) {
+      console.warn("[retell] start button not found — modal markup missing?");
+      return;
+    }
+    retell.startBtn.addEventListener("click", () => {
       _retellStartSession().catch((err) => {
-        console.error("retell start failed", err);
-        retell.statusEl.textContent = "Something went wrong. Tap × to close.";
+        console.error("[retell] start session failed", err);
+        if (retell.statusEl) {
+          retell.statusEl.textContent = "Something went wrong. Tap × to close.";
+        }
       });
     });
     retell.closeBtn?.addEventListener("click", () => closeRetell());
     retell.resultCloseBtn?.addEventListener("click", () => {
       closeRetell({ confirmed: true });
     });
-  });
+  };
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", bind);
+  } else {
+    bind();
+  }
 })();
 
 (async function boot() {
