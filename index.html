@@ -4809,37 +4809,54 @@ async function finishQuiz() {
   const retryButton = canRetry
     ? `<button class="icon-btn" id="quizRetry">Try again (${attemptsLeft} left)</button>`
     : "";
-  // 2 attempts ever per book — no daily/weekly reset. If the kid
-  // runs out, an admin has to reset (or the kid moves to the next
-  // book). Message reflects the permanence honestly.
+  // 2 attempts ever per book — no daily/weekly reset.
+  // When canRetry is false, the retell auto-launches in 2.4 s (see
+  // below) so the kid still has a path to base XP via "pass 1 of 2".
+  // The message reflects that — DON'T tell them to "move on" when
+  // they've actually got more to do in this session.
   const message = canRetry
     ? `You need ${passThreshold(quizState.style)} out of ${total}. Re-read the book and try once more — you've got ${attemptsLeft} attempt${attemptsLeft === 1 ? "" : "s"} left.`
-    : `You've used both attempts for this book. Move on to another one!`;
+    : `Let's talk about the book — you can still earn XP by telling me about it.`;
   const failTts =
-    `${canRetry ? "Almost there!" : "Out of attempts."} ` +
+    `${canRetry ? "Almost there!" : "Nice try."} ` +
     `You got ${score} out of ${total} right. ${message}`;
 
-  // Admin-only debug panel: when score is unexpectedly 0/5 (or anything
-  // unexpected), show the per-question chosen/expected indices inline
-  // so we can diagnose without going to the Network tab.
-  const adminDebug = serverResp?.adminDebug;
-  const adminDebugHtml = (state.session?.isAdmin && Array.isArray(adminDebug))
-    ? `<details style="text-align:left;margin:14px auto;max-width:480px;
-         background:rgba(168,85,247,.10);border:1px solid rgba(168,85,247,.45);
-         border-radius:10px;padding:10px 14px;font-size:11px;color:#cbd5e1">
-         <summary style="cursor:pointer;font-weight:700;color:#a78bfa">
-           🔧 Admin debug — per-answer breakdown
-         </summary>
-         <pre style="margin:8px 0 0;white-space:pre-wrap;line-height:1.5">${
-           adminDebug.map((d, i) => `${i+1}. poolIdx=${d.poolIdx} chosen=${d.chosen} expected=${d.expected} ${d.isCorrect ? "✓" : "✗"}\n   ${escapeHtml(d.q || "")}`).join("\n")
-         }</pre>
-       </details>`
-    : "";
+  // Admin-only debug panel: ALWAYS shown for admin so we can see what
+  // happened on every quiz_submit. If serverResp.adminDebug is missing,
+  // we surface that fact (means server isn't sending it — could be
+  // ADMIN_EMAILS misconfigured in preview, or the deploy hasn't landed).
+  let adminDebugHtml = "";
+  if (state.session?.isAdmin) {
+    let bodyText;
+    const adminDebug = serverResp?.adminDebug;
+    if (Array.isArray(adminDebug) && adminDebug.length > 0) {
+      bodyText = adminDebug.map((d, i) =>
+        `${i+1}. poolIdx=${d.poolIdx} chosen=${d.chosen} expected=${d.expected} ${d.isCorrect ? "✓" : "✗"}\n   ${escapeHtml(d.q || "")}`
+      ).join("\n");
+    } else if (serverResp) {
+      bodyText = "serverResp had no adminDebug array. Full response:\n" +
+                 JSON.stringify(serverResp, null, 2).slice(0, 800);
+    } else {
+      bodyText = "No server response captured (markBookAsRead was skipped or returned null).";
+    }
+    adminDebugHtml = `<details open style="text-align:left;margin:14px auto;max-width:480px;
+       background:rgba(168,85,247,.10);border:1px solid rgba(168,85,247,.45);
+       border-radius:10px;padding:10px 14px;font-size:11px;color:#cbd5e1">
+       <summary style="cursor:pointer;font-weight:700;color:#a78bfa">
+         🔧 Admin debug — per-answer breakdown
+       </summary>
+       <pre style="margin:8px 0 0;white-space:pre-wrap;line-height:1.5">${
+         escapeHtml(bodyText)
+       }</pre>
+     </details>`;
+    // Also log to console for screenshot-friendly debugging.
+    console.log("[quiz-admin-debug]", { passed, score, total, serverResp });
+  }
   document.getElementById("quizContent").innerHTML = `
     <div class="quiz-result" style="position:relative">
       ${quizResultSpeakBtn("quizResultSpeak")}
-      <div class="emoji">${canRetry ? "📖" : "⏰"}</div>
-      <h3>${canRetry ? "Almost there!" : "Out of attempts"}</h3>
+      <div class="emoji">${canRetry ? "📖" : "🎙️"}</div>
+      <h3>${canRetry ? "Almost there!" : "Nice try"}</h3>
       <div class="score">You got ${score} / ${total} right</div>
       <p>${message}</p>
       ${adminDebugHtml}
