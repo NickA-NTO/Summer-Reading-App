@@ -593,13 +593,8 @@ async function finalizeAndGrade(res, tutorSession, book) {
       } catch (err) {
         trackError("tutor_achievement_eval_failed", { err: String(err?.message || err) });
       }
-      try {
-        const active = await getCurrentlyReading(email);
-        if (active && active.bookId === tutorSession.bookId) {
-          await clearCurrentlyReading(email);
-          response.clearedCurrentlyReading = true;
-        }
-      } catch {}
+      // currentlyReading clear handled by the unconditional block at
+      // the bottom of finalizeAndGrade — see #77 fix.
     }
     trackEvent("tutor_session_awarded", {
       bookId: tutorSession.bookId,
@@ -608,8 +603,10 @@ async function finalizeAndGrade(res, tutorSession, book) {
       xp: result.points,
     });
   } else {
-    // Total XP is zero (both halves failed). No leaderboard write, no
-    // currentlyReading clear (kid may still want to switch books).
+    // Total XP is zero (both halves failed). No leaderboard write,
+    // but the kid still completed the section — clear their
+    // currentlyReading so picking a new book doesn't prompt
+    // "are you sure you want to switch?".
     response.passed = false;
     response.points = 0;
     trackEvent("tutor_session_zero", {
@@ -617,6 +614,22 @@ async function finalizeAndGrade(res, tutorSession, book) {
       quizOutcome,
       retellOutcome,
     });
+  }
+
+  // #77 — ALWAYS clear currentlyReading once the atomic session is
+  // finalized, regardless of outcome (pass / held / zero). The kid
+  // is "done with" this book in this session; whether they earned XP
+  // is a separate concern from the in-progress marker. Without this,
+  // a kid who passed a quiz + did the retell still gets prompted
+  // "switch to a new book?" when they tap a different cover.
+  try {
+    const active = await getCurrentlyReading(email);
+    if (active && active.bookId === tutorSession.bookId) {
+      await clearCurrentlyReading(email);
+      response.clearedCurrentlyReading = true;
+    }
+  } catch (err) {
+    trackError("tutor_clear_current_failed", { err: String(err?.message || err) });
   }
 
   // Clear the reading-session record either way — atomic award succeeded

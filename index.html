@@ -6691,19 +6691,21 @@ function _retellShowResult(data) {
   }
   retell.resultMsg.textContent =
     (data.gradeResult?.feedback) || "Thanks for telling me about the book!";
-  // Fire-and-forget refresh of /api/auth/me so the leaderboard + currentlyReading update.
-  if (xp > 0 && data.recorded) {
-    fetch("/api/auth/me", { credentials: "same-origin" })
-      .then(r => r.ok ? r.json() : null)
-      .then(me => {
-        if (me?.currentlyReading !== undefined && state?.session) {
-          state.session.currentlyReading = me.currentlyReading || null;
-        }
-        renderStats();
-        renderRows();
-      })
-      .catch(() => {});
-  }
+  // #77 — Always refresh /api/auth/me after a finalized retell session,
+  // regardless of XP outcome. The server clears currentlyReading on
+  // ALL paths now (pass, held, zero) so the client needs to mirror.
+  // Without this, a kid who finishes the book still sees the active
+  // book as "currently reading" and gets the "switch?" prompt.
+  fetch("/api/auth/me", { credentials: "same-origin" })
+    .then(r => r.ok ? r.json() : null)
+    .then(me => {
+      if (!me || !state?.session) return;
+      // Mirror server's cleared / updated currentlyReading.
+      state.session.currentlyReading = me.currentlyReading || null;
+      try { renderStats(); } catch {}
+      try { renderRows(); } catch {}
+    })
+    .catch(() => {});
 }
 
 // Wire up the modal's buttons. The script tag lives at the end of body
