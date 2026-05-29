@@ -566,13 +566,28 @@ function stripAnswerKey(q) {
 }
 
 /**
- * Read the cached quiz pool for (bookId, studentGrade). Returns the full
- * payload (questions WITH the answer index) or null. Used by activity.js
- * to grade a submitted quiz against the same pool the kid was shown —
- * the cache is the ONLY source of truth for what the correct answer was.
+ * Read the cached quiz pool for (bookId, studentGrade, ageGrade).
+ * Returns the full payload (questions WITH the answer index) or null.
+ * Used by activity.js to grade a submitted quiz against the same pool
+ * the kid was shown — the cache is the ONLY source of truth for what
+ * the correct answer was.
+ *
+ * IMPORTANT — cache key MUST match the writer in the /api/quiz handler:
+ *   ageGrade && ageGrade !== studentGrade
+ *     ? "v{V}:{bookId}:{studentGrade}:age{ageGrade}"
+ *     : "v{V}:{bookId}:{studentGrade}"
+ * A kid with ageGrade ≠ workingGrade (e.g. age 2 reading at K level)
+ * was hitting a different key on the read path and getting either a
+ * 409 no_quiz_pool OR a wrong-answer-key grading (every submit = 0/5).
+ *
+ * ageGrade is optional — pre-#9 callers may not have it; in that case
+ * we fall through to the legacy single-grade key.
  */
-export async function getCachedQuizPool(bookId, studentGrade) {
-  const key = `v${SCHEMA_VERSION}:${bookId}:${studentGrade}`;
+export async function getCachedQuizPool(bookId, studentGrade, ageGrade) {
+  const key =
+    ageGrade && ageGrade !== studentGrade
+      ? `v${SCHEMA_VERSION}:${bookId}:${studentGrade}:age${ageGrade}`
+      : `v${SCHEMA_VERSION}:${bookId}:${studentGrade}`;
   try {
     return await getCachedQuiz(key);
   } catch {

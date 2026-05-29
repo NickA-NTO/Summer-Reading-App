@@ -75,6 +75,17 @@ function resolveGradeServerSide(profile, email) {
   return normalizeGrade(guessGradeFromEmail(email) || "K");
 }
 
+// Age grade is OPTIONAL — TimeBack supplies it via the working-grade
+// sync cron. When missing, fall back to the working grade so the
+// quiz-pool cache key matches what /api/quiz wrote on the fetch side.
+// Without this resolver, getCachedQuizPool was reading from the
+// wrong key for any kid whose ageGrade differs from workingGrade
+// (Carl Hendrick: workingGrade=K, ageGrade=2 → 0/5 grading bug).
+function resolveAgeGradeServerSide(profile, fallbackGrade) {
+  if (profile && profile.ageGrade) return normalizeGrade(profile.ageGrade);
+  return fallbackGrade;
+}
+
 /**
  * Belt-and-suspenders track-locking for /api/activity. /api/quiz.js
  * already 403s on track-locked books (lib/quiz.js:843), but a kid
@@ -141,6 +152,9 @@ export default async function handler(req, res) {
   // profile.grade → email heuristic → "K".
   const profile = await loadProfile(session.email);
   const grade = resolveGradeServerSide(profile, session.email);
+  // Age grade for the quiz-pool cache lookup (#79). Must match the
+  // resolution chain in /api/quiz so reader + writer hit the same key.
+  const ageGrade = resolveAgeGradeServerSide(profile, grade);
   // attemptNum: 1 or 2 (present for quiz passes, absent for manual reads).
   // `let` rather than const because the quiz_submit branch (#40) overrides
   // it with the server-authoritative count from recordQuizAttempt — the
@@ -377,7 +391,11 @@ export default async function handler(req, res) {
         message: "Need exactly 5 answers.",
       }));
     }
-    const pool = await getCachedQuizPool(bookId, grade);
+    // #79 — pass ageGrade so the cache key matches what /api/quiz wrote
+    // when ageGrade ≠ workingGrade. Without this, kids with age overrides
+    // hit a different Redis key on the read path → no_quiz_pool 409, or
+    // a stale pool with wrong answer indices → 0/5 on correct answers.
+    const pool = await getCachedQuizPool(bookId, grade, ageGrade);
     if (!pool || !Array.isArray(pool.questions) || pool.questions.length < 5) {
       // The kid hit quiz_submit without ever fetching /api/quiz, OR the
       // pool expired mid-attempt. Either way we can't validate; refuse.
