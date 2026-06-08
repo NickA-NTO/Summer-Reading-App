@@ -1609,6 +1609,20 @@
   .blurb-speaker-row .tour-speak {
     padding: 4px 8px; font-size: 13px; line-height: 1;
   }
+  /* Polish v3.2: running vote totals below the action row. Calm muted
+     row of two counters — no percentage, no editorialising. */
+  .vote-summary {
+    display: flex; gap: 18px;
+    margin: 14px 0 0; padding: 8px 0 0;
+    border-top: 1px solid var(--line);
+    font-size: 13px; color: var(--muted);
+  }
+  .vote-summary .vs-thumb {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-weight: 600;
+  }
+  .vote-summary .vs-up   { color: #6ee7b7; }
+  .vote-summary .vs-down { color: #fca5a5; }
   .tour-title {
     font-size: 16px; font-weight: 700; margin-bottom: 6px;
   }
@@ -2109,9 +2123,12 @@
            above tells the kid the XP target in one glance. modalXpExplain
            kept hidden so existing JS doesn't throw. -->
       <p class="xp-explain" id="modalXpExplain" style="display:none"></p>
-      <!-- Polish v2: rating footnote — was a 4th pill at the top. Lives
-           here under the blurb where it's an informational signal, not
-           a metadata pill competing for attention. -->
+      <!-- Polish v3.2: the "X% of N readers liked this" footnote is gone.
+           Percentages read as judgement on the kid's pending choice. A
+           running thumbs total below the action row (see #voteSummary)
+           shows the same crowd signal in a less loaded form. Element
+           kept in the DOM (display:none) so any stale JS reference
+           doesn't throw on a missing node. -->
       <div class="modal-rating-note" id="modalRatingNote"
            style="display:none;color:var(--muted);font-size:12px;margin:4px 0 0"></div>
       <div class="actions">
@@ -2137,6 +2154,20 @@
              their kids. -->
         <a class="icon-btn amazon" id="amazonLink" target="_blank" rel="noopener noreferrer"
            title="Open this book on Amazon">🛒 Get this book</a>
+      </div>
+      <!-- Polish v3.2: running thumbs total. Sits directly under the
+           action row (Read / Quiz / Buy). Replaces the "X% of N readers
+           liked this" footnote — percentages read as judgement when the
+           kid is mid-decision; raw counts read as a crowd signal. Non-
+           interactive read-out; the actual vote action happens via the
+           inline "Did you like it?" prompt after the kid finishes. -->
+      <div class="vote-summary" id="voteSummary" style="display:none">
+        <span class="vs-thumb vs-up" aria-label="readers who liked this">
+          👍 <span id="voteSummaryUp">0</span>
+        </span>
+        <span class="vs-thumb vs-down" aria-label="readers who didn't like this">
+          👎 <span id="voteSummaryDown">0</span>
+        </span>
       </div>
       <!-- Polish v2: post-read "Did you like it?" inline prompt. Shown ONLY
            when wasRead && the kid hasn't voted yet. Two big thumbs in a
@@ -3838,20 +3869,23 @@ function refreshInteractiveBits() {
 
   document.getElementById("upCount").textContent = counts.up;
   document.getElementById("downCount").textContent = counts.down;
-  // Polish v2: rating moved from a pill to an unobtrusive note under
-  // the blurb. modalRating still gets its value (hidden) so existing
-  // code that reads .innerHTML doesn't crash; the visible footnote
-  // shows the same info in a calmer tone.
+  // Polish v2: modalRating + modalRatingNote are both hidden but their
+  // values get populated so any code that reads them doesn't blow up.
   document.getElementById("modalRating").innerHTML = `${pct}% loved · ${total} ratings`;
   const ratingNote = document.getElementById("modalRatingNote");
   if (ratingNote) {
-    if (total > 0) {
-      ratingNote.textContent = `${pct}% of ${total} reader${total === 1 ? "" : "s"} liked this`;
-      ratingNote.style.display = "";
-    } else {
-      ratingNote.textContent = "";
-      ratingNote.style.display = "none";
-    }
+    // Polish v3.2: kept permanently hidden — superseded by #voteSummary.
+    ratingNote.textContent = "";
+    ratingNote.style.display = "none";
+  }
+  // Polish v3.2: populate the running thumbs summary that sits under
+  // the action row. Hidden until there's at least one vote — empty
+  // "👍 0  👎 0" on every fresh book reads as "no one likes this."
+  const voteSum = document.getElementById("voteSummary");
+  if (voteSum) {
+    document.getElementById("voteSummaryUp").textContent = counts.up;
+    document.getElementById("voteSummaryDown").textContent = counts.down;
+    voteSum.style.display = (counts.up + counts.down) > 0 ? "flex" : "none";
   }
 
   document.getElementById("voteUp").classList.toggle("active",   myVote === "up");
@@ -4093,32 +4127,52 @@ document.getElementById("readToggle").addEventListener("click", async () => {
   }
 });
 
-// Polish v2: hover-speak on the Start button. When TTS is enabled,
-// hovering (or focusing) the button speaks its label so a K-2 kid
-// who can't decode the word "Start" still knows what it does. Uses
-// the browser SpeechSynthesis path for speed — no roundtrip cost
-// for a one-word tooltip. Throttled so a kid moving the mouse over
-// it repeatedly doesn't queue up a chain of utterances.
+// Polish v2 → v3.2: hover-speak on the Start button.
+//
+// v2 used raw SpeechSynthesisUtterance for one-word low-latency. Two
+// problems surfaced in preview testing:
+//   1. The label was read straight from btn.textContent, which is
+//      "📖 Read this one" — screen-reader synth voices announce 📖
+//      as "open book". The kid heard "open book, read this one".
+//   2. SpeechSynthesisUtterance is the browser fallback voice, which
+//      reads as robotic next to the OpenAI cloud voice the rest of
+//      the app uses.
+//
+// v3.2 fix:
+//   1. Strip emoji + non-letter glyphs out of the label before speaking.
+//   2. Route through speak() — the helper that hits /api/tts (OpenAI
+//      cloud voice, cached via Redis) and only falls back to the
+//      browser synth if the cloud path is unreachable.
+//
+// speak() handles its own cancellation, so we don't need the manual
+// speechSynthesis.cancel() anymore. Throttle stays so rapid hovers
+// don't queue a chain of utterances.
 (function wireStartHoverSpeak() {
   const btn = document.getElementById("startReading");
-  if (!btn || !("speechSynthesis" in window)) return;
+  if (!btn) return;
   let lastHoverAt = 0;
-  const HOVER_COOLDOWN_MS = 1200; // ignore rapid re-hovers
-  const speakStart = () => {
-    if (!ttsOn) return; // only when the kid has TTS turned on
+  const HOVER_COOLDOWN_MS = 1200;
+  // Strip emoji/symbols/leading punctuation but keep letters, digits,
+  // spaces, and basic word marks (apostrophe, hyphen). The regex
+  // targets the Symbol-Other Unicode class which is where the picto-
+  // graphic emoji live; the trim mops up any leading/trailing spaces.
+  const cleanLabel = (raw) => String(raw || "")
+    .replace(/\p{Extended_Pictographic}/gu, "")
+    .replace(/[\p{S}\p{So}]/gu, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const speakHover = () => {
+    if (!ttsOn) return;
     const now = Date.now();
     if (now - lastHoverAt < HOVER_COOLDOWN_MS) return;
     lastHoverAt = now;
-    try { window.speechSynthesis.cancel(); } catch {}
-    // Read the visible label so "Start" / "Read this one" / "Day 3"
-    // all get announced correctly depending on the current state.
-    const label = (btn.textContent || "Start").trim();
-    const u = new SpeechSynthesisUtterance(label);
-    u.rate = 0.95; u.pitch = 1.05;
-    window.speechSynthesis.speak(u);
+    const label = cleanLabel(btn.textContent) || "Start";
+    try { speak(label); } catch (err) {
+      console.warn("[hover-speak] speak() failed", err);
+    }
   };
-  btn.addEventListener("mouseenter", speakStart);
-  btn.addEventListener("focus", speakStart);
+  btn.addEventListener("mouseenter", speakHover);
+  btn.addEventListener("focus", speakHover);
 })();
 
 // "I'm reading this" — declares the active in-progress book (#16). One
