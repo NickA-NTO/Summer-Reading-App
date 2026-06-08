@@ -2148,6 +2148,14 @@
             title="Admin: clear all my state for this book so I can retake the quiz/retell">
             🔄 Reset for me
           </button>
+          <!-- Admin: skip the 15-min "Take the Quiz" cooldown for this
+               book. We back-date currentlyReading.startedAt by the full
+               cooldown window so the existing unlock-on-elapsed path
+               fires naturally — no special-case branch in the gate. -->
+          <button class="modal-admin-item" id="adminSkipWait" type="button"
+            title="Admin: skip the 15-min wait before the quiz unlocks for this book">
+            🔓 Skip wait
+          </button>
         </div>
       </div>
     </div>
@@ -3952,6 +3960,19 @@ function refreshInteractiveBits() {
   if (adminMenu) {
     adminMenu.style.display = state.session?.isAdmin ? "block" : "none";
   }
+  // "🔓 Skip wait" is only meaningful when (a) this book is the active
+  // read AND (b) the 15-min cooldown is still running. Hide it
+  // otherwise so the popover doesn't show a no-op action.
+  const skipWaitBtn = document.getElementById("adminSkipWait");
+  if (skipWaitBtn) {
+    const activeRead = state.session?.currentlyReading;
+    const isActiveBook = activeRead?.bookId === id;
+    const startedAt = Number(activeRead?.startedAt) || 0;
+    const elapsed = startedAt ? Date.now() - startedAt : Infinity;
+    const stillWaiting = isActiveBook && elapsed < QUIZ_AVAILABLE_DELAY_MS;
+    skipWaitBtn.style.display =
+      state.session?.isAdmin && stillWaiting ? "" : "none";
+  }
 
   document.getElementById("upCount").textContent = counts.up;
   document.getElementById("downCount").textContent = counts.down;
@@ -4851,6 +4872,38 @@ document.getElementById("adminResetBook").addEventListener("click", async (e) =>
     btn.textContent = "✗ Reset failed";
     setTimeout(() => { btn.textContent = origLabel; btn.disabled = false; }, 2000);
   }
+});
+
+// Admin: skip the 15-min "Take the Quiz" wait for this book.
+// Pre-launch (v3.x) we removed the silent admin auto-bypass because
+// admins needed to SEE the greyed-out state kids see during QA. This
+// button restores explicit control: tap to backdate
+// currentlyReading.startedAt by QUIZ_AVAILABLE_DELAY_MS so the gate
+// at refreshInteractiveBits flips through its existing unlock path.
+// Purely client-side — admins are doing this for testing within the
+// current page load. Refresh re-reads server state and re-arms the
+// timer; tap Skip wait again if needed. Visible only when (a) this
+// book is the active read AND (b) the wait is still in effect (no
+// point showing a button that does nothing).
+document.getElementById("adminSkipWait").addEventListener("click", (e) => {
+  e.stopPropagation();
+  if (!activeBookId) return;
+  if (!state.session?.isAdmin) return;
+  const active = state.session?.currentlyReading;
+  if (!active || active.bookId !== activeBookId) return;
+  // Backdate by the full cooldown + a 5s buffer so we're firmly past
+  // the threshold even on slow clocks.
+  active.startedAt = Date.now() - QUIZ_AVAILABLE_DELAY_MS - 5000;
+  // Close the popover and re-render so the gate re-evaluates.
+  const pop = document.getElementById("modalAdminPopover");
+  if (pop) pop.setAttribute("hidden", "");
+  refreshInteractiveBits();
+  // Tiny acknowledgement on the button (the popover is now closed so
+  // this only shows if the kid re-opens, which is fine).
+  const btn = e.currentTarget;
+  const orig = btn.textContent;
+  btn.textContent = "✓ Unlocked";
+  setTimeout(() => { btn.textContent = orig; }, 1500);
 });
 
 /* ---------- 12. Header scroll + user menu ---------- */
