@@ -511,6 +511,11 @@ function quizSchemaFor(_style) {
 const QuizSchema = quizSchemaFor();
 
 // QC reviewer schema — a structured rubric for each question.
+// #60 — adds a `safety` score (0-10) alongside accuracy. The QC pass
+// now flags age-inappropriate content (violence, scary imagery,
+// adult themes, religious / political content, identity-based
+// commentary) BEFORE the question reaches a kid. Drops anything
+// below SAFETY_MIN_SCORE (separate threshold from accuracy).
 const QCSchema = z.object({
   reviews: z.array(
     z.object({
@@ -523,6 +528,17 @@ const QCSchema = z.object({
         .describe(
           "0 = clearly wrong or references something not in the book; " +
             "10 = unambiguously answerable from the canonical summary."
+        ),
+      safety: z
+        .number()
+        .int()
+        .min(0)
+        .max(10)
+        .describe(
+          "0 = age-inappropriate (violence, scary imagery for the target " +
+            "grade, sexual content, slurs, religious/political " +
+            "commentary, identity-based statements); " +
+            "10 = unambiguously safe for the target grade."
         ),
       issues: z
         .array(z.string())
@@ -550,7 +566,11 @@ const QCSchema = z.object({
 //     literal-recall guidance via GRADE_GUIDANCE.PK so questions stay
 //     age-appropriate. Cache namespace bump invalidates all v7 emergent
 //     pools, forcing them to regenerate as 12-question pools on next request.
-const SCHEMA_VERSION = 8;
+// v9: #60 — QC reviewer now scores SAFETY alongside accuracy. Questions
+//     with safety < QC_MIN_SAFETY (7) are dropped. Bump invalidates all
+//     v8 pools so existing cached questions get re-reviewed under the
+//     new safety axis on next request.
+const SCHEMA_VERSION = 9;
 // Exported alias so api/activity.js can build the same cache key when it
 // validates a quiz_submit. Kept as a renamed export so the local const can
 // be reassigned independently if we ever split client / server schemas.
@@ -604,6 +624,15 @@ const QC_MODEL  = "claude-opus-4-5";
 
 // QC accuracy threshold. Anything below this gets dropped from the pool.
 const QC_MIN_ACCURACY = 7;
+// #60 — safety threshold. Independent of accuracy. A question can be
+// 10/10 accurate ("How does the wolf eat the pigs?") and still be
+// content-safety inappropriate for K-2. 7 is intentionally close to the
+// accuracy bar so we drop borderline cases for kid audiences without
+// being so strict that the QC reviewer flags every mild conflict
+// (which would gut the catalog of any books with stakes).
+const QC_MIN_SAFETY = 7;
+// SCHEMA_VERSION bump below to invalidate cached quizzes generated
+// before the safety filter shipped.
 // Minimum survivors — below this, the pool is unusable and we fail
 // rather than serving a tiny quiz. Uniform across all books now that
 // emergent has been retired.
@@ -814,8 +843,9 @@ async function qcAndFilter(book, studentGrade, questions) {
       schema: QCSchema,
       system:
         "You are a strict reading-comprehension QC reviewer for an " +
-        "elementary-school reading app. Your job: catch hallucinations and " +
-        "inaccuracies in AI-generated quiz questions.\n\n" +
+        "elementary-school reading app (Kindergarten through Grade 8, " +
+        "though most readers are K-3). You score TWO axes per question.\n\n" +
+        "AXIS 1 — ACCURACY (0-10). Catch hallucinations and inaccuracies. " +
         "For each question, verify it against the canonical plot summary. " +
         "Score 0-10:\n" +
         "  10 = unambiguously answerable from the summary; correct answer is " +
@@ -826,7 +856,26 @@ async function qcAndFilter(book, studentGrade, questions) {
         "unanswerable from the summary\n\n" +
         "Be skeptical. If a question references a character name, number, " +
         "color, action, or event you can't find in the summary, score it LOW. " +
-        "Don't pad scores to be nice — accuracy matters more than volume.",
+        "Don't pad scores to be nice — accuracy matters more than volume.\n\n" +
+        "AXIS 2 — SAFETY (0-10). The student is in Grade " +
+        `${studentGrade} (most readers K-3). Score for AGE-APPROPRIATENESS:\n` +
+        "  10 = unambiguously safe for the target grade\n" +
+        "   7 = workable but borderline (e.g., the book has stakes — a wolf, " +
+        "a chase — and the question references them at an age-appropriate " +
+        "level)\n" +
+        "   4 = marginal: explicit references to violence/death the book " +
+        "treats lightly, fearful imagery without the book's context, or " +
+        "language that reads as gratuitously frightening\n" +
+        "   0 = inappropriate for the target grade: explicit violence, " +
+        "gore, sexual content, slurs, religious/political commentary, " +
+        "identity-based statements, self-harm references, or distractors " +
+        "that introduce content not in the book.\n\n" +
+        "Score safety SEPARATELY from accuracy. A question can be perfectly " +
+        "accurate to the book and still be flagged unsafe if the framing " +
+        "is wrong for the grade. Most K-2 books are fine — only flag when " +
+        "the question (not just the book) introduces age-inappropriate content. " +
+        "If the book itself is age-appropriate and the question references " +
+        "the canonical plot at an appropriate level, score safety HIGH.",
       prompt:
         `Book: "${book.title}" by ${book.author}\n` +
         `Grade level (calibration target): ${studentGrade}\n\n` +
@@ -856,12 +905,21 @@ async function qcAndFilter(book, studentGrade, questions) {
       survivors.push(questions[i]);
       continue;
     }
-    if (r.accuracy >= QC_MIN_ACCURACY) {
+    // #60 — drop on EITHER accuracy or safety below threshold.
+    // Safety field is optional on legacy QC responses (the model may
+    // omit it during the rollout window) — treat missing as 10/clean
+    // so we don't accidentally gut every cached pool.
+    const safetyScore = Number.isInteger(r.safety) ? r.safety : 10;
+    const passes = r.accuracy >= QC_MIN_ACCURACY &&
+                   safetyScore >= QC_MIN_SAFETY;
+    if (passes) {
       survivors.push(questions[i]);
     } else {
       dropped.push({
         idx: i,
         accuracy: r.accuracy,
+        safety: safetyScore,
+        reason: r.accuracy < QC_MIN_ACCURACY ? "accuracy" : "safety",
         issues: r.issues || [],
         question: questions[i].q,
       });
@@ -871,7 +929,7 @@ async function qcAndFilter(book, studentGrade, questions) {
   if (dropped.length > 0) {
     console.log(
       `[quiz_qc] ${book.title} grade=${studentGrade}: kept ${survivors.length}/${questions.length}`,
-      dropped.map((d) => `Q${d.idx}(${d.accuracy})`).join(", ")
+      dropped.map((d) => `Q${d.idx}(acc=${d.accuracy}/safe=${d.safety}/${d.reason})`).join(", ")
     );
   }
 
