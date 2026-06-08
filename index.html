@@ -3207,7 +3207,21 @@ function cancelSpeech() {
     currentTtsAudio = null;
   }
   if (window.speechSynthesis) speechSynthesis.cancel();
+  // Abort any in-flight TTS fetch so its response can't land late and
+  // start a stale clip. The seq bump is belt-and-braces: any pending
+  // speak() that captured an earlier mySeq will fail every mySeq check
+  // it runs, so play-rejection fallback paths to speakBrowser() won't
+  // narrate stale text after the user has moved on.
+  if (_ttsAbortController) {
+    try { _ttsAbortController.abort(); } catch {}
+    _ttsAbortController = null;
+  }
+  _ttsSeq++;
 }
+// Module-scoped AbortController so cancelSpeech can kill the in-flight
+// fetch initiated by the current speak() call. Reset on every new
+// speak() call so each request has its own signal.
+let _ttsAbortController = null;
 // Sequence token for in-flight TTS requests. Click-twice-during-fetch
 // races (Agent 1 + the tour-speaker overlap from this round's QC):
 // the Polly fetch can be 200-800ms; a second click during that window
@@ -3227,6 +3241,11 @@ async function speak(text, opts = {}) {
 
   cancelSpeech();
   const mySeq = ++_ttsSeq;
+  // Per-call AbortController so a later cancelSpeech() can drop the
+  // in-flight fetch rather than letting the response land and fire
+  // a stale audio start.
+  _ttsAbortController = new AbortController();
+  const myAbort = _ttsAbortController;
 
   // Skip API call if we already know the budget is gone — go straight to browser
   if (ttsBudgetReached) {
@@ -3237,7 +3256,7 @@ async function speak(text, opts = {}) {
   try {
     const r = await fetch(
       `/api/tts?voice=${encodeURIComponent(voice)}&text=${encodeURIComponent(t)}`,
-      { credentials: "same-origin" }
+      { credentials: "same-origin", signal: myAbort.signal }
     );
     // Bail out if a newer speak() call superseded us during the fetch.
     if (mySeq !== _ttsSeq) return;
