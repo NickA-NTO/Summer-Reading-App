@@ -72,6 +72,17 @@ export default async function handler(req, res) {
   // GET  /api/auth/me?action=export      → JSON dump (download)
   // POST /api/auth/me?action=delete      → wipes server-side state
   const action = new URL(req.url, `http://${req.headers.host}`).searchParams.get("action");
+  if (action === "export" || action === "delete") {
+    // #19 audit follow-up: tight rate limit on the self-data endpoints.
+    // Export returns full PII; delete is irreversible. 5/hour bucket
+    // covers legitimate retry but blocks an exfil/abuse flood.
+    const { checkRateLimit, send429, LIMITS } = await import("../../lib/rate-limit.js");
+    const rl = await checkRateLimit({
+      email: session.email, bucket: "selfData",
+      max: LIMITS.selfData.max, windowSec: LIMITS.selfData.windowSec,
+    });
+    if (!rl.ok) return send429(res, rl);
+  }
   if (action === "export" && req.method === "GET") {
     const result = await exportUserData(session.email);
     if (!result.ok) {

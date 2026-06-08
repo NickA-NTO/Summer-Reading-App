@@ -955,6 +955,17 @@ export default async function handler(req, res) {
     if (!rl.ok) return send429(res, rl);
   }
 
+  // #19 audit follow-up: reject writes for tombstoned emails (race
+  // with concurrent /api/auth/me?action=delete). quiz_submit writes
+  // to multiple per-user keys; this gate stops the resurrection.
+  {
+    const { isTombstoned } = await import("../lib/session.js");
+    if (await isTombstoned(session.email)) {
+      res.statusCode = 410;
+      return res.end(JSON.stringify({ error: "account_deleted" }));
+    }
+  }
+
   const url = new URL(req.url, `http://${req.headers.host}`);
   const bookId = url.searchParams.get("bookId");
 

@@ -12,7 +12,7 @@
 //       reading time, the XP is either held for admin review or partially
 //       reduced. Manual "I read this" reads skip fraud detection entirely.
 
-import { verifySession, parseCookies, isAdmin, displayName } from "../lib/session.js";
+import { verifySession, parseCookies, isAdmin, displayName, isTombstoned } from "../lib/session.js";
 import { resolveVisibleTracks, trackForBook } from "../lib/tracks.js";
 import {
   recordRead,
@@ -141,6 +141,14 @@ export default async function handler(req, res) {
       max: LIMITS.activity.max, windowSec: LIMITS.activity.windowSec,
     });
     if (!rl.ok) return send429(res, rl);
+  }
+
+  // #19 audit follow-up: reject writes for tombstoned (just-deleted)
+  // emails so a concurrent in-flight tab can't re-create per-user keys
+  // milliseconds after /api/auth/me?action=delete completes.
+  if (await isTombstoned(session.email)) {
+    res.statusCode = 410; // Gone
+    return res.end(JSON.stringify({ error: "account_deleted" }));
   }
 
   // Parse body (Vercel doesn't auto-parse for raw functions)

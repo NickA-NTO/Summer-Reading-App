@@ -125,6 +125,19 @@ export default async function handler(req, res) {
     if (!session) return json(res, 401, { error: "unauthenticated" });
     if (!isAdmin(session.email)) return json(res, 403, { error: "forbidden" });
     authedEmail = session.email;
+    // #19 audit follow-up: cap admin route abuse. A compromised admin
+    // token shouldn't be able to pound cache-bust / timeback-sync /
+    // user-diag in a tight loop. Cron path is exempt — it hits with
+    // a bearer token, not a session cookie.
+    const { checkRateLimit, send429, LIMITS } = await import("../../lib/rate-limit.js");
+    const rl = await checkRateLimit({
+      email: session.email, bucket: "admin",
+      max: LIMITS.admin.max, windowSec: LIMITS.admin.windowSec,
+    });
+    if (!rl.ok) {
+      send429(res, rl);
+      return;
+    }
   }
 
   // ============================ users ============================
