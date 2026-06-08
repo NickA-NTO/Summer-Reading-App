@@ -2415,9 +2415,7 @@
     </div>
     <h2 class="onb-title" id="tooSoonTitle">Have you finished the book?</h2>
     <p class="onb-sub" id="tooSoonBody">
-      You just started reading this. You'll only earn XP if you've actually
-      finished — quizzes taken too soon are held for review and won't count
-      toward the leaderboard until then.
+      You just started reading this. Are you sure you've finished?
     </p>
     <div class="onb-actions">
       <button class="onb-skip" id="tooSoonCancel" type="button">📖 Keep reading</button>
@@ -5066,16 +5064,17 @@ function showTooSoonWarning(gapMs, onProceed) {
     const m = Math.max(1, Math.round(gapMs / 60_000));
     elapsed = `${m} minute${m === 1 ? "" : "s"} ago`;
   }
-  // K-decodable copy (Agent 1 caught the prior verbose version slipping
-  // through). Same string used for visible text + TTS so the kid hears
-  // what they see. The "elapsed" insertion stays short — "X seconds ago"
-  // or "X minutes ago" both decode fine.
+  // Same string for visible text + TTS so the kid hears what they see.
+  // Friendlier copy: drop the "really read the book" line — it reads
+  // as accusatory before the kid has done anything. Just check in, no
+  // implication of cheating. Server still holds XP for too-soon
+  // quizzes, that's where the actual gate lives.
   body.textContent =
-    `You started this ${elapsed}. You only get XP if you really read the book.`;
+    `You started this ${elapsed}. Are you sure you've finished?`;
   overlay.classList.add("open");
   const ttsText =
     `Did you finish the book? You started this ${elapsed}. ` +
-    `You only get XP if you really read the book.`;
+    `Are you sure you've finished?`;
   // Speak it aloud once on open if TTS is on so emergent readers hear it.
   if (typeof speak === "function") {
     try { speak(ttsText); } catch {}
@@ -5086,7 +5085,12 @@ function showTooSoonWarning(gapMs, onProceed) {
       try { speak(ttsText); } catch {}
     }
   };
+  // Polish: cancel any in-flight TTS on dismissal — both "Keep reading"
+  // and "Yes, I finished it" used to leave Shimmer reading the rest of
+  // the prompt out loud after the overlay closed. cancelSpeech handles
+  // both the cloud-TTS <audio> and the browser-synth fallback.
   const cleanup = () => {
+    try { cancelSpeech(); } catch {}
     overlay.classList.remove("open");
     document.getElementById("tooSoonCancel").removeEventListener("click", onCancel);
     document.getElementById("tooSoonProceed").removeEventListener("click", onYes);
