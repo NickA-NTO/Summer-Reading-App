@@ -332,17 +332,10 @@
   }
   .filter-popover[hidden] { display: none; }
 
-  /* ===== Polish v2: book modal cleanup =====
-     Demoted Amazon link: was a full-size button with text. Now icon-only
-     so it doesn't compete with primary read/quiz actions. Still visible,
-     still functional, just smaller. */
-  .amazon-mini {
-    padding: 8px 10px !important;
-    font-size: 16px !important;
-    opacity: .65;
-    transition: opacity .15s;
-  }
-  .amazon-mini:hover { opacity: 1; }
+  /* Polish v2 (revised): the icon-only .amazon-mini style was removed —
+     user feedback said the cart-only icon wasn't clear to parents.
+     Amazon link is now full-text ("🛒 Get this book") again, sitting
+     next to a fresh read-aloud speaker button in the action row. */
 
   /* Post-read "Did you like it?" inline prompt. Replaces the always-on
      vote up/down buttons — kids only see it after marking the book
@@ -1983,7 +1976,11 @@
       <div>
         <h2 class="modal-title">
           <span id="modalTitleText"></span>
-          <button class="speak-mini" id="speakTitle">🔊 Title</button>
+          <!-- Polish v2: removed the inline "🔊 Title" mini speaker.
+               A dedicated read-aloud button (#speakTitle) now lives
+               in the action row next to the Amazon link and reads
+               title + blurb in one tap. The ID is kept so existing
+               handlers wire to the new button instead. -->
         </h2>
         <p class="modal-author" id="modalAuthor"></p>
         <!-- Polish v2: pills reduced from 4 to 2.
@@ -2047,10 +2044,22 @@
              so totals show in the rating footnote above. -->
         <button class="icon-btn up"   id="voteUp" disabled style="display:none">👍 <span id="upCount">0</span></button>
         <button class="icon-btn down" id="voteDown" disabled style="display:none">👎 <span id="downCount">0</span></button>
-        <!-- Polish v2: Amazon demoted to a small icon-only link. Tooltip
-             still tells parents what it does. -->
-        <a class="icon-btn amazon amazon-mini" id="amazonLink" target="_blank" rel="noopener noreferrer"
-           title="Buy on Amazon">🛒</a>
+        <!-- Polish v2 (revised): read-aloud speaker sits right next to
+             the Amazon link. Reads "<title>. <blurb>" in one tap so a
+             K-2 kid can hear the book described without finding a
+             buried button in the title bar. Keeps the #speakTitle ID
+             that existing handlers wire to. -->
+        <button class="icon-btn" id="speakTitle" type="button"
+                title="Read the title and book description aloud"
+                aria-label="Read the title and book description aloud">
+          🔊 Read aloud
+        </button>
+        <!-- Polish v2 (revised): cart icon + "Get this book" copy. Was
+             icon-only in the first pass; user feedback said the icon
+             alone wasn't clear enough to parents browsing alongside
+             their kids. -->
+        <a class="icon-btn amazon" id="amazonLink" target="_blank" rel="noopener noreferrer"
+           title="Open this book on Amazon">🛒 Get this book</a>
       </div>
       <!-- Polish v2: post-read "Did you like it?" inline prompt. Shown ONLY
            when wasRead && the kid hasn't voted yet. Two big thumbs in a
@@ -3357,42 +3366,46 @@ function renderStats() {
 }
 
 /* ---------- 8. Hero billboard ---------- */
+// Polish v2: when the kid has a currentlyReading book set, the hero
+// becomes "Continue reading: <that book>" — keeps the active read
+// in the prime spot. Also replaces the dedicated "Keep Reading" row
+// in renderRows() so there's just ONE place that surfaces the active
+// book. Falls back to the rotating Pick of the Week when no active.
 function renderHero() {
-  // Rotating featured picks — one well-loved book per track so the
-  // visibleTracks filter below has something to land on for every grade.
-  // Order is mostly aesthetic (mix of authors / cover colors); the
-  // rotation cycles every 6h via the modulo on Date.now().
-  const FAVORITES = [
-    "e02", // Mo Willems — Beginning Readers
-    "k01", // Hungry Caterpillar — K
-    "k04", // Goldilocks — K
-    "a07", // Where the Wild Things Are — Grade 1
-    "a03", // Frog and Toad — Grade 1
-    "b07", // Fantastic Mr. Fox — Grade 2
-    "b01", // Three Little Pigs — Grade 2
-    "c01", // Magic Tree House — Grade 3
-    "c05", // Charlotte's Web — Grade 3
-  ];
-  // #39 — filter the rotation by the kid's visibleTracks so a G3 student
-  // doesn't see a K picture book as the Pick of the Week (and vice versa).
-  // Server is the source of truth for visibleTracks (working grade ±1 by
-  // default, with admin overrides). If the session hasn't landed yet, or
-  // nothing in FAVORITES matches their tracks, fall through to the full
-  // list so the hero still has SOMETHING rather than being blank.
-  const visible = state.session?.visibleTracks;
-  const allowed = Array.isArray(visible) ? new Set(visible) : null;
-  const candidates = allowed
-    ? FAVORITES.filter((id) => allowed.has(BOOK_BY_ID[id]?.categoryId))
-    : FAVORITES;
-  const favorites = candidates.length > 0 ? candidates : FAVORITES;
-  const idx = Math.floor((Date.now() / (1000*60*60*6)) % favorites.length);
-  featuredBook = BOOK_BY_ID[favorites[idx]];
+  const activeBookId = state.session?.currentlyReading?.bookId || null;
+  const activeBook = activeBookId ? BOOK_BY_ID[activeBookId] : null;
+  let eyebrowText;
+
+  if (activeBook) {
+    // Continue-reading mode.
+    featuredBook = activeBook;
+    eyebrowText = `CONTINUE READING · ${activeBook.category || ""}`;
+  } else {
+    // Rotating Pick of the Week — one well-loved book per track so the
+    // visibleTracks filter below has something to land on for every grade.
+    const FAVORITES = [
+      "e02", "k01", "k04",
+      "a07", "a03",
+      "b07", "b01",
+      "c01", "c05",
+    ];
+    // #39 — filter by visibleTracks so a G3 kid doesn't see a K book.
+    const visible = state.session?.visibleTracks;
+    const allowed = Array.isArray(visible) ? new Set(visible) : null;
+    const candidates = allowed
+      ? FAVORITES.filter((id) => allowed.has(BOOK_BY_ID[id]?.categoryId))
+      : FAVORITES;
+    const favorites = candidates.length > 0 ? candidates : FAVORITES;
+    const idx = Math.floor((Date.now() / (1000*60*60*6)) % favorites.length);
+    featuredBook = BOOK_BY_ID[favorites[idx]];
+    eyebrowText = `PICK OF THE WEEK · ${featuredBook.category}`;
+  }
 
   const counts = effectiveCounts(featuredBook.id);
   const total = counts.up + counts.down;
   const pct = total ? Math.round((counts.up / total) * 100) : 0;
 
-  document.getElementById("heroEyebrow").textContent = `PICK OF THE WEEK · ${featuredBook.category}`;
+  document.getElementById("heroEyebrow").textContent = eyebrowText;
   document.getElementById("heroTitle").textContent = featuredBook.title;
   const heroBadge = gradeBadgeLabel(featuredBook);
   document.getElementById("heroMeta").innerHTML = `
@@ -3438,12 +3451,18 @@ function renderRows() {
   const root = document.getElementById("rows");
   root.innerHTML = "";
 
+  // Polish v2: when the kid has an active read, the hero already shows
+  // "Continue reading: <book>" — the dedicated "Keep Reading" row was
+  // duplicating that signal. Render the row ONLY when the hero is in
+  // Pick-of-the-Week mode (no active read), and only with books the
+  // kid has already finished (no overlap with the active book).
+  const hasActiveRead = !!state.session?.currentlyReading?.bookId;
   const readIds = Object.keys(state.data.read);
-  if (readIds.length) {
+  if (!hasActiveRead && readIds.length) {
     const recent = readIds.map(id => BOOK_BY_ID[id]).filter(Boolean).slice(-12).reverse();
     if (recent.length) root.appendChild(buildRow({
       id: "recent", title: "Keep Reading",
-      sub: "Books you've read", icon: "📖",
+      sub: "Books you've finished", icon: "📖",
       books: recent,
     }, true /* isRecent — skip progress meter */));
   }
@@ -3967,6 +3986,34 @@ document.getElementById("readToggle").addEventListener("click", async () => {
   }
 });
 
+// Polish v2: hover-speak on the Start button. When TTS is enabled,
+// hovering (or focusing) the button speaks its label so a K-2 kid
+// who can't decode the word "Start" still knows what it does. Uses
+// the browser SpeechSynthesis path for speed — no roundtrip cost
+// for a one-word tooltip. Throttled so a kid moving the mouse over
+// it repeatedly doesn't queue up a chain of utterances.
+(function wireStartHoverSpeak() {
+  const btn = document.getElementById("startReading");
+  if (!btn || !("speechSynthesis" in window)) return;
+  let lastHoverAt = 0;
+  const HOVER_COOLDOWN_MS = 1200; // ignore rapid re-hovers
+  const speakStart = () => {
+    if (!ttsOn) return; // only when the kid has TTS turned on
+    const now = Date.now();
+    if (now - lastHoverAt < HOVER_COOLDOWN_MS) return;
+    lastHoverAt = now;
+    try { window.speechSynthesis.cancel(); } catch {}
+    // Read the visible label so "Start" / "Read this one" / "Day 3"
+    // all get announced correctly depending on the current state.
+    const label = (btn.textContent || "Start").trim();
+    const u = new SpeechSynthesisUtterance(label);
+    u.rate = 0.95; u.pitch = 1.05;
+    window.speechSynthesis.speak(u);
+  };
+  btn.addEventListener("mouseenter", speakStart);
+  btn.addEventListener("focus", speakStart);
+})();
+
 // "I'm reading this" — declares the active in-progress book (#16). One
 // book in progress at a time per student; switching prompts to confirm.
 document.getElementById("startReading").addEventListener("click", async () => {
@@ -4489,15 +4536,17 @@ async function speakWithFeedback(button, text, opts = {}) {
   }
 }
 
-// Single read-aloud button at the top — reads title + author + blurb in
-// one tap. Replaces the old separate "Read blurb aloud" button so a K
-// kid only has to find ONE speaker. Author included so a kid who can't
-// decode the small author line still gets it.
+// Polish v2: the "Read aloud" speaker now lives in the action row next
+// to the Amazon button (the old "🔊 Title" speaker on the title was
+// removed — it felt redundant against the per-row "Speak" buttons).
+// Reads title + blurb in one tap so a K kid who can't decode either
+// still gets the whole pitch. Author is intentionally dropped — the
+// user wants the blurb pacing, not a "By Foo." interruption.
 document.getElementById("speakTitle").addEventListener("click", (e) => {
   if (!activeBookId) return;
   const b = BOOK_BY_ID[activeBookId];
   if (!b) return;
-  const fullText = `${b.title}. By ${b.author}. ${b.blurb}`;
+  const fullText = `${b.title}. ${b.blurb}`;
   speakWithFeedback(e.currentTarget, fullText, { force: true });
 });
 
