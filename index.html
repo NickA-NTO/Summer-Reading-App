@@ -5304,24 +5304,35 @@ function startAttempt() {
   // attempt. The auto-speak after each question render hits the cache
   // instead of a cold synth. Strings must match renderQuizQuestion's
   // speakText exactly or the cache won't hit.
-  const letters = ["A", "B", "C", "D"];
   for (const q of quizState.questions) {
-    // Use ": " instead of ". " between the letter label and the option
-  // text — tts-1 treats "A. apples. B. oranges." as "A apples B oranges"
-  // and drops every other letter (user saw "A apples oranges C pears
-  // plums" — B and D skipped). The colon forces the letter to be
-  // pronounced as a standalone label.
-  // Phrasing: "Option A is apples. Option B is oranges. ..." rather
-  // than "A: apples. B: oranges. ..." — kid-test feedback was that
-  // tts-1 was running the letter into the option word and sometimes
-  // skipping the letter entirely. The "Option X is Y" form makes
-  // the letter grammatically required (so tts-1 can't drop it) and
-  // gives the kid a natural beat between letter and answer text.
-  // Ellipsis between question and first option for extra pause.
-  const speakText = `${q.q} ... ${q.options.map((o, i) => `Option ${letters[i]} is ${o}.`).join(" ")}`;
-    prewarmTts(speakText);
+    prewarmTts(buildQuizSpeakText(q));
   }
   renderQuizQuestion();
+}
+
+// Single source of truth for the quiz question + options speak text.
+// Both the prewarm (in startAttempt) and the live speak (in
+// renderQuizQuestion + the "Hear it" button) use this, so the cache
+// hits and there's no place for the two strings to drift apart.
+//
+// Phrasing rules locked in over multiple kid-test iterations:
+//   • "Option A is …" not "A: …" — tts-1 sometimes drops the
+//     letter when it runs into the option word. Making the letter
+//     grammatically required keeps it audible.
+//   • Period + double newline between question and first option,
+//     plus a framing "Now, here are your choices." beat. The
+//     original `${q.q} ... ${options}` formatting compressed
+//     question→option1 to a near-zero gap on tts-1 (the ellipsis
+//     wasn't honored as a real pause). Kid testers reported the
+//     run-on as sounding "double speed". Double newline + framing
+//     phrase gives ~1 second of natural breath.
+//   • Period after each option keeps the cadence between A→B→C→D.
+function buildQuizSpeakText(q) {
+  const letters = ["A", "B", "C", "D"];
+  const opts = q.options
+    .map((o, i) => `Option ${letters[i]} is ${o}.`)
+    .join("\n\n");
+  return `${q.q}\n\nNow, here are your choices.\n\n${opts}`;
 }
 
 function closeQuiz() {
@@ -5359,22 +5370,10 @@ function renderQuizQuestion() {
   const q = quizState.questions[i];
   setQuizProgress(i);
   const letters = ["A", "B", "C", "D"];
-  // Single canonical text for the speak helper — used by both the
-  // manual button and the auto-speak below so they always read the
-  // same thing.
-  // Use ": " instead of ". " between the letter label and the option
-  // text — tts-1 treats "A. apples. B. oranges." as "A apples B oranges"
-  // and drops every other letter (user saw "A apples oranges C pears
-  // plums" — B and D skipped). The colon forces the letter to be
-  // pronounced as a standalone label.
-  // Phrasing: "Option A is apples. Option B is oranges. ..." rather
-  // than "A: apples. B: oranges. ..." — kid-test feedback was that
-  // tts-1 was running the letter into the option word and sometimes
-  // skipping the letter entirely. The "Option X is Y" form makes
-  // the letter grammatically required (so tts-1 can't drop it) and
-  // gives the kid a natural beat between letter and answer text.
-  // Ellipsis between question and first option for extra pause.
-  const speakText = `${q.q} ... ${q.options.map((o, i) => `Option ${letters[i]} is ${o}.`).join(" ")}`;
+  // Single source of truth for the spoken text — see buildQuizSpeakText
+  // for the phrasing rationale. Same string the prewarm fired against
+  // so the audio path hits the cache, not a cold synth.
+  const speakText = buildQuizSpeakText(q);
   document.getElementById("quizContent").innerHTML = `
     <h3 class="quiz-question">
       <span>${escapeHtml(q.q)}</span>
