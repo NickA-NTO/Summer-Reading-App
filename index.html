@@ -332,6 +332,99 @@
   }
   .filter-popover[hidden] { display: none; }
 
+  /* ===== Polish v2: book modal cleanup =====
+     Demoted Amazon link: was a full-size button with text. Now icon-only
+     so it doesn't compete with primary read/quiz actions. Still visible,
+     still functional, just smaller. */
+  .amazon-mini {
+    padding: 8px 10px !important;
+    font-size: 16px !important;
+    opacity: .65;
+    transition: opacity .15s;
+  }
+  .amazon-mini:hover { opacity: 1; }
+
+  /* Post-read "Did you like it?" inline prompt. Replaces the always-on
+     vote up/down buttons — kids only see it after marking the book
+     read, so pre-read kids aren't asked to rate something they haven't
+     experienced. Two big thumbs in a single row. */
+  .like-prompt {
+    display: flex; align-items: center; gap: 12px;
+    margin: 10px 0 0;
+    padding: 12px 16px;
+    background: rgba(20,184,166,.08);
+    border: 1px solid rgba(20,184,166,.30);
+    border-radius: 12px;
+  }
+  .like-prompt-q {
+    flex: 1;
+    font-size: 14px; font-weight: 600; color: var(--ink);
+  }
+  .like-prompt-btn {
+    background: var(--panel); color: var(--ink);
+    border: 1px solid var(--line); border-radius: 999px;
+    padding: 8px 16px; font-size: 14px; font-weight: 600;
+    cursor: pointer; font-family: inherit;
+    transition: background .15s, border-color .15s, color .15s, transform .05s;
+  }
+  .like-prompt-btn:hover { transform: translateY(-1px); }
+  .like-prompt-btn.like-up:hover {
+    background: rgba(34,197,94,.18); border-color: var(--good); color: var(--good);
+  }
+  .like-prompt-btn.like-down:hover {
+    background: rgba(248,113,113,.18); border-color: var(--bad); color: var(--bad);
+  }
+  .like-prompt-btn.voted {
+    background: var(--accent); border-color: var(--accent); color: #fff;
+    cursor: default; transform: none;
+  }
+  .like-prompt-btn:disabled:not(.voted) { opacity: .35; cursor: default; }
+
+  /* Admin ⋯ menu in the modal corner — tucks the "Reset for me" tool
+     (and future admin actions) so it doesn't bloat the action row.
+     Position: absolute relative to .modal, sits left of the close ✕. */
+  .modal-admin-menu {
+    position: absolute; top: 14px; right: 56px;
+    z-index: 2;
+  }
+  .modal-admin-trigger {
+    width: 32px; height: 32px;
+    background: rgba(168,85,247,.18); color: #a78bfa;
+    border: 1px solid rgba(168,85,247,.45);
+    border-radius: 999px;
+    font-size: 18px; font-weight: 700; line-height: 1;
+    cursor: pointer; font-family: inherit;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .modal-admin-trigger:hover { background: rgba(168,85,247,.32); color: #fff; }
+  .modal-admin-popover {
+    position: absolute; top: calc(100% + 6px); right: 0;
+    background: var(--bg-2); border: 1px solid var(--line);
+    border-radius: 10px; padding: 6px; min-width: 200px;
+    box-shadow: 0 12px 32px rgba(0,0,0,.5);
+    z-index: 4;
+  }
+  .modal-admin-popover[hidden] { display: none; }
+  .modal-admin-item {
+    display: block; width: 100%; text-align: left;
+    padding: 10px 12px;
+    background: transparent; color: var(--ink);
+    border: none; border-radius: 8px;
+    font-family: inherit; font-size: 14px; font-weight: 500;
+    cursor: pointer;
+    transition: background .12s;
+  }
+  .modal-admin-item:hover { background: rgba(168,85,247,.18); color: #a78bfa; }
+
+  /* Polish v2: level-warning banner — bumped visual weight so it
+     doesn't blend into the action row below. Higher contrast border,
+     subtle drop shadow. */
+  .level-warning {
+    background: rgba(245,158,11,.12);
+    border: 1.5px solid rgba(245,158,11,.55);
+    box-shadow: 0 4px 14px rgba(245,158,11,.08);
+  }
+
   .avatar-wrap {
     display: flex; align-items: center; gap: 8px;
     cursor: pointer; position: relative;
@@ -1893,11 +1986,30 @@
           <button class="speak-mini" id="speakTitle">🔊 Title</button>
         </h2>
         <p class="modal-author" id="modalAuthor"></p>
+        <!-- Polish v2: pills reduced from 4 to 2.
+             Grade + XP stay (most decision-relevant).
+             Category is visible in the row header above — dropped here.
+             Rating moved below the blurb as a small footnote. -->
         <div class="modal-row1">
           <span class="pill" id="modalGrade">—</span>
-          <span class="pill cat" id="modalCat">—</span>
-          <span class="pill xp" id="modalXp" title="Estimated XP you'll earn for passing the quiz on the first try. Retakes earn less.">— XP</span>
-          <span class="pill" id="modalRating">—</span>
+          <!-- modalCat kept hidden so existing JS doesn't throw on null -->
+          <span class="pill cat" id="modalCat" style="display:none">—</span>
+          <span class="pill xp" id="modalXp" title="What you can earn for finishing this book (reading + quiz + retell).">— XP</span>
+          <!-- modalRating kept hidden; same reason -->
+          <span class="pill" id="modalRating" style="display:none">—</span>
+        </div>
+      </div>
+      <!-- Polish v2: admin ⋯ menu tucked in the corner. Hidden for students,
+           inline-flex for admin. Houses Reset-for-me + future admin tools
+           so the action row stays clean. -->
+      <div class="modal-admin-menu" id="modalAdminMenu" style="display:none">
+        <button class="modal-admin-trigger" id="modalAdminTrigger"
+                type="button" aria-label="Admin tools" title="Admin tools">⋯</button>
+        <div class="modal-admin-popover" id="modalAdminPopover" hidden>
+          <button class="modal-admin-item" id="adminResetBook" type="button"
+            title="Admin: clear all my state for this book so I can retake the quiz/retell">
+            🔄 Reset for me
+          </button>
         </div>
       </div>
     </div>
@@ -1913,27 +2025,44 @@
           style="margin-left:8px;flex-shrink:0">🔊</button>
       </div>
       <p class="blurb" id="modalBlurb"></p>
-      <p class="xp-explain" id="modalXpExplain"></p>
+      <!-- Polish v2: the verbose XP explainer paragraph is gone. The pill
+           above tells the kid the XP target in one glance. modalXpExplain
+           kept hidden so existing JS doesn't throw. -->
+      <p class="xp-explain" id="modalXpExplain" style="display:none"></p>
+      <!-- Polish v2: rating footnote — was a 4th pill at the top. Lives
+           here under the blurb where it's an informational signal, not
+           a metadata pill competing for attention. -->
+      <div class="modal-rating-note" id="modalRatingNote"
+           style="display:none;color:var(--muted);font-size:12px;margin:4px 0 0"></div>
       <div class="actions">
         <button class="icon-btn reading" id="startReading" style="display:none" title="Start reading this book">📖 Start</button>
+        <!-- Polish v2: ＋ Done is hidden for quiz books (every book has a
+             quiz; the only XP path is via the quiz + retell). JS still
+             references it; visibility is controlled by refreshInteractiveBits. -->
         <button class="icon-btn read" id="readToggle" title="Mark this book as read">＋ Done</button>
         <button class="icon-btn quiz" id="quizBtn" style="display:none">📝 Take the Quiz</button>
-        <button class="icon-btn up"   id="voteUp" disabled>👍 <span id="upCount">0</span></button>
-        <button class="icon-btn down" id="voteDown" disabled>👎 <span id="downCount">0</span></button>
-        <!-- Read-aloud "blurb" button removed — the top-of-modal 🔊 Title
-             button now reads title + author + blurb in one tap so K kids
-             aren't choosing between two speakers. -->
-        <a class="icon-btn amazon" id="amazonLink" target="_blank" rel="noopener noreferrer">🛒 Buy on Amazon</a>
-        <!-- Admin-only: reset every per-(admin, bookId) state so we can
-             redo the quiz + retell flow from scratch. Hidden for students. -->
-        <button class="icon-btn" id="adminResetBook"
-          style="display:none;background:rgba(168,85,247,.18);color:#a78bfa;
-                 border:1px solid rgba(168,85,247,.45)"
-          title="Admin: clear all my state for this book so I can retake the quiz/retell">
-          🔄 Reset for me
-        </button>
+        <!-- Polish v2: vote buttons hidden by default. After the kid has
+             read the book, the "Did you like it?" inline prompt below
+             collects votes instead. JS still updates upCount/downCount
+             so totals show in the rating footnote above. -->
+        <button class="icon-btn up"   id="voteUp" disabled style="display:none">👍 <span id="upCount">0</span></button>
+        <button class="icon-btn down" id="voteDown" disabled style="display:none">👎 <span id="downCount">0</span></button>
+        <!-- Polish v2: Amazon demoted to a small icon-only link. Tooltip
+             still tells parents what it does. -->
+        <a class="icon-btn amazon amazon-mini" id="amazonLink" target="_blank" rel="noopener noreferrer"
+           title="Buy on Amazon">🛒</a>
       </div>
-      <div class="note" id="votedOnly">Tap "Done" to leave a vote or comment.</div>
+      <!-- Polish v2: post-read "Did you like it?" inline prompt. Shown ONLY
+           when wasRead && the kid hasn't voted yet. Two big thumbs in a
+           single line — kid picks one, vote registers, prompt disappears. -->
+      <div class="like-prompt" id="likePrompt" style="display:none">
+        <span class="like-prompt-q">Did you like it?</span>
+        <button class="like-prompt-btn like-up" id="likePromptUp"
+                type="button" aria-label="I liked this book">👍 Yes</button>
+        <button class="like-prompt-btn like-down" id="likePromptDown"
+                type="button" aria-label="I didn't like this book">👎 No</button>
+      </div>
+      <div class="note" id="votedOnly">Tap "Done" to leave a comment.</div>
       <div class="comments">
         <h3>What other readers said</h3>
         <ul class="comment-list" id="commentList"></ul>
@@ -2404,8 +2533,19 @@ const CLIENT_WCPM = {
   PK: 15, K: 30, "1": 60, "2": 100, "3": 110, "4": 130, "5": 140,
   "6": 150, "7": 150, "8": 150, "9": 155, "10": 155, "11": 160, "12": 160,
 };
-const CLIENT_QUIZ_TIME_FULL_MIN = 3;
-const CLIENT_QUIZ_TIME_EMERGENT_MIN = 2;
+// Polish v2: align client estimate with server. Server uses 5 min for
+// the standard 5-question quiz and 3 min for the 3-question emergent
+// quiz (lib/xp.js QUIZ_MIN_PER_QUESTION * questions). Previous client
+// values (3 / 2) were stale and showed ~2 fewer XP than the kid
+// actually earned. Drift audit item closed.
+const CLIENT_QUIZ_TIME_FULL_MIN = 5;
+const CLIENT_QUIZ_TIME_EMERGENT_MIN = 3;
+// Retell time + both-clean ratio (#9). Client mirrors lib/xp.js so the
+// pill in the book modal shows the FULL XP a kid can earn if they ace
+// both the quiz and the retell. Anything less than both-clean lands
+// at a lower ratio (1.15, 1.00, 0.55, etc.) — see OUTCOME_RATIOS.
+const CLIENT_RETELL_TIME_MIN = 3;
+const CLIENT_BOTH_CLEAN_RATIO = 1.30;
 const WORD_COUNTS = {
   // Beginning Readers (emergent quiz style — uses 2-min quiz allowance)
   e01: 220, e02: 200, e03: 240, e04: 250, e05: 220,
@@ -2433,7 +2573,12 @@ function expectedXp(bookId, workingGrade) {
   // Matches the `quizStyle: "emergent"` flag on lib/books.js entries.
   const emergent = String(bookId || "").startsWith("e");
   const quizMin = emergent ? CLIENT_QUIZ_TIME_EMERGENT_MIN : CLIENT_QUIZ_TIME_FULL_MIN;
-  return Math.max(1, Math.floor(wc / wcpm + quizMin));
+  // Polish v2: pill shows the BOTH-CLEAN total — the XP a kid earns
+  // for acing quiz + retell on the first attempt. Anything less lands
+  // at a lower OUTCOME_RATIO server-side. Showing the max keeps
+  // motivation honest without enumerating penalty branches.
+  const totalMin = wc / wcpm + quizMin + CLIENT_RETELL_TIME_MIN;
+  return Math.max(1, Math.floor(CLIENT_BOTH_CLEAN_RATIO * totalMin));
 }
 // Usborne books inherit their parent CATEGORIES row id, but as a belt-and-
 // suspenders fallback we can derive grade from the u01..u09 range too.
@@ -3464,27 +3609,20 @@ function openBook(id) {
   document.getElementById("modalAuthor").textContent = "By " + book.author;
   const badgeText = gradeBadgeLabel(book);
   document.getElementById("modalGrade").textContent = badgeText || "—";
+  // Polish v2: modalCat + modalRating pills hidden — kept in DOM so the
+  // assignments here don't blow up, but display:none in the markup.
   document.getElementById("modalCat").textContent = book.category;
   document.getElementById("modalBlurb").textContent = book.blurb;
-  // Expected XP — based on the kid's working grade. Helps them decide
-  // whether a book is worth their summer time. ✨ matches the stats-strip
-  // and quiz-success XP styling. The caption under the blurb explains
-  // what the pill represents in plain language (tooltips on the pill
-  // get missed on mobile).
+  // Expected XP — based on the kid's working grade. The pill now shows
+  // the BOTH-CLEAN total (full quiz + retell first try). The verbose
+  // explainer paragraph is gone — the pill carries the message.
   const xp = expectedXp(book.id, state.session?.grade || "K");
   const xpEl = document.getElementById("modalXp");
-  const xpExplainEl = document.getElementById("modalXpExplain");
   if (xp > 0) {
     xpEl.textContent = `✨ ~${xp} XP`;
     xpEl.style.display = "";
-    // K-decodable: short sentence, no jargon ("estimated", "retake").
-    // "Pass the quiz" + "get" are sight-word friendly.
-    xpExplainEl.innerHTML =
-      `<strong>✨ ~${xp} XP</strong> — pass the quiz to earn XP!`;
-    xpExplainEl.style.display = "";
   } else {
     xpEl.style.display = "none";
-    xpExplainEl.style.display = "none";
   }
 
   // Below-level warning: if the book's grade is lower than the student's
@@ -3594,14 +3732,30 @@ function refreshInteractiveBits() {
   // Admin-only "Reset for me" button (#admin override). Hidden for
   // students — flipped to inline-flex on every refresh because the
   // modal may be reused across books.
-  const adminResetBtn = document.getElementById("adminResetBook");
-  if (adminResetBtn) {
-    adminResetBtn.style.display = state.session?.isAdmin ? "inline-flex" : "none";
+  // Polish v2: admin ⋯ menu visibility. The container holds the reset
+  // button + future admin tools; show the trigger for admin only.
+  const adminMenu = document.getElementById("modalAdminMenu");
+  if (adminMenu) {
+    adminMenu.style.display = state.session?.isAdmin ? "block" : "none";
   }
 
   document.getElementById("upCount").textContent = counts.up;
   document.getElementById("downCount").textContent = counts.down;
+  // Polish v2: rating moved from a pill to an unobtrusive note under
+  // the blurb. modalRating still gets its value (hidden) so existing
+  // code that reads .innerHTML doesn't crash; the visible footnote
+  // shows the same info in a calmer tone.
   document.getElementById("modalRating").innerHTML = `${pct}% loved · ${total} ratings`;
+  const ratingNote = document.getElementById("modalRatingNote");
+  if (ratingNote) {
+    if (total > 0) {
+      ratingNote.textContent = `${pct}% of ${total} reader${total === 1 ? "" : "s"} liked this`;
+      ratingNote.style.display = "";
+    } else {
+      ratingNote.textContent = "";
+      ratingNote.style.display = "none";
+    }
+  }
 
   document.getElementById("voteUp").classList.toggle("active",   myVote === "up");
   document.getElementById("voteDown").classList.toggle("active", myVote === "down");
@@ -3724,14 +3878,27 @@ function refreshInteractiveBits() {
 
   const note = document.getElementById("votedOnly");
   if (wasRead) {
-    note.textContent = "Thanks for reading! Leave a thumbs up or down and a quick review.";
+    // Polish v2: the "thumbs" hint is no longer needed — the like-prompt
+    // below makes that affordance obvious. Just thank the kid.
+    note.textContent = "Thanks for reading! Leave a review below.";
     note.style.color = "var(--good)";
   } else if (hasQuiz) {
-    note.textContent = "Pass the quiz to unlock voting and comments.";
+    note.textContent = "Pass the quiz to unlock comments.";
     note.style.color = "var(--accent-2)";
   } else {
-    note.textContent = `Tap "Done" to leave a vote or review.`;
+    note.textContent = `Tap "Done" to leave a review.`;
     note.style.color = "var(--muted)";
+  }
+
+  // Polish v2: "Did you like it?" inline prompt. Shows only after the
+  // kid is wasRead AND hasn't voted yet. Once they vote it disappears
+  // (rating note above still surfaces the running %). Vote state
+  // routes through the existing /api/comments vote pipeline via the
+  // hidden #voteUp/#voteDown buttons.
+  const likePrompt = document.getElementById("likePrompt");
+  if (likePrompt) {
+    const showLike = wasRead && !myVote;
+    likePrompt.style.display = showLike ? "flex" : "none";
   }
 
   renderComments();
@@ -3969,6 +4136,46 @@ async function markBookAsRead(bookId, attemptNum, submitAnswers) {
 
 document.getElementById("voteUp").addEventListener("click",   () => castVote("up"));
 document.getElementById("voteDown").addEventListener("click", () => castVote("down"));
+
+// Polish v2: "Did you like it?" inline prompt buttons. Route through
+// the existing castVote() path so server-side recording stays uniform.
+// After voting, refreshInteractiveBits hides the prompt (myVote is now
+// truthy) and the rating note above shows updated percentages.
+(function wireLikePrompt() {
+  const up   = document.getElementById("likePromptUp");
+  const down = document.getElementById("likePromptDown");
+  if (!up || !down) return;
+  up.addEventListener("click", () => {
+    if (!activeBookId) return;
+    castVote("up");
+    up.classList.add("voted");
+  });
+  down.addEventListener("click", () => {
+    if (!activeBookId) return;
+    castVote("down");
+    down.classList.add("voted");
+  });
+})();
+
+// Polish v2: admin ⋯ menu in the modal corner. Trigger opens a small
+// popover next to it containing the Reset-for-me action (and any
+// future admin tools we tuck here). Outside-click closes.
+(function wireAdminMenu() {
+  const trig = document.getElementById("modalAdminTrigger");
+  const pop  = document.getElementById("modalAdminPopover");
+  if (!trig || !pop) return;
+  trig.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const isOpen = !pop.hasAttribute("hidden");
+    if (isOpen) pop.setAttribute("hidden", "");
+    else        pop.removeAttribute("hidden");
+  });
+  document.addEventListener("click", (e) => {
+    if (!pop.contains(e.target) && e.target !== trig) {
+      pop.setAttribute("hidden", "");
+    }
+  });
+})();
 function castVote(kind) {
   if (!activeBookId) return;
   if (!state.data.read[activeBookId]) return;
