@@ -1205,6 +1205,7 @@
 
   .quiz-result {
     text-align: center; padding: 12px 0;
+    position: relative;
   }
   .quiz-result .emoji { font-size: 64px; line-height: 1; margin-bottom: 12px; }
   .quiz-result h3 { font-size: 28px; font-weight: 800; margin: 0 0 8px; letter-spacing: -0.02em; }
@@ -1216,6 +1217,59 @@
   }
   .quiz-result .actions {
     justify-content: center; gap: 10px; flex-wrap: wrap;
+  }
+  /* Polish v3 (Pass celebration): the pass screen used to be a generic
+     "Great reading! 🎉 4/5 right" with no visual reward. The kid just
+     answered 5 questions correctly — this is the highest-emotion micro
+     screen in the app and deserved one. Three light additions:
+       1. Pop-in animation on the emoji (scale 0 → 1.15 → 1, bounce).
+       2. Radial glow behind the score chip with the accent color so
+          it reads as "achievement unlocked" not "stats panel."
+       3. Score chip is bigger + uses the accent gradient on pass.
+     Strictly CSS — no library, no confetti, no extra DOM. Honors
+     prefers-reduced-motion. */
+  .quiz-result.pass .emoji {
+    font-size: 80px;
+    animation: quizPassPop .6s cubic-bezier(.34,1.56,.64,1) both;
+  }
+  .quiz-result.pass .score {
+    padding: 12px 22px;
+    font-size: 16px;
+    color: #fff;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    border: none;
+    box-shadow: 0 10px 30px rgba(37,99,235,.45);
+    position: relative;
+  }
+  .quiz-result.pass .score::before {
+    content: ""; position: absolute; inset: -40px;
+    background: radial-gradient(closest-side, rgba(94,234,212,.22), transparent 70%);
+    z-index: -1; border-radius: 50%;
+    animation: quizPassGlow 1.8s ease-out both;
+  }
+  .quiz-result.pass h3 {
+    background: linear-gradient(90deg, #fff, #c4b5fd);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+  @keyframes quizPassPop {
+    0%   { transform: scale(0)    rotate(-8deg); opacity: 0; }
+    60%  { transform: scale(1.18) rotate(4deg);  opacity: 1; }
+    100% { transform: scale(1)    rotate(0);     opacity: 1; }
+  }
+  @keyframes quizPassGlow {
+    0%   { transform: scale(.4); opacity: 0; }
+    50%  { transform: scale(1);  opacity: 1; }
+    100% { transform: scale(1.3); opacity: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .quiz-result.pass .emoji,
+    .quiz-result.pass .score::before {
+      animation: none !important;
+    }
+    .quiz-result.pass .emoji { transform: none; }
   }
   /* Quiz "Something doesn't look right" report flow */
   .quiz-report-row {
@@ -5488,32 +5542,40 @@ async function finishQuiz() {
     // XP after both halves finish (via /api/tutor finalize). Show a
     // brief congrats + auto-transition so the kid doesn't tap "Done"
     // and walk away thinking they've earned XP they haven't yet.
+    // Polish v3 (Pass celebration): markup wears the `.pass` modifier
+    // so the emoji pops + the score chip gets the accent gradient and
+    // a soft glow. Copy tightened: "You nailed it!" reads as earned
+    // reward, "Great reading!" read as generic praise. The pivot line
+    // to retell is also rewritten — "One more thing — tell me about
+    // it!" reads as an invitation, not a chore.
     const passTts =
-      `Great reading! You got ${score} out of ${total} right. ` +
-      `Now let's talk about the book.`;
+      `You nailed it! You got ${score} out of ${total} right. ` +
+      `One more thing — tell me about the book.`;
     document.getElementById("quizContent").innerHTML = `
-      <div class="quiz-result" style="position:relative">
+      <div class="quiz-result pass">
         ${quizResultSpeakBtn("quizResultSpeak")}
         <div class="emoji">🎉</div>
-        <h3>Great reading!</h3>
-        <div class="score">You got ${score} / ${total} right</div>
+        <h3>You nailed it!</h3>
+        <div class="score">${score} / ${total} right</div>
         <p style="font-size:15px;color:var(--muted);margin:14px 0 4px">
-          Now let's talk about the book…
+          One more thing — tell me about it!
         </p>
         <p style="font-size:12px;color:var(--muted);margin:0">
-          (XP awards after the talk.)
+          XP unlocks after the talk.
         </p>
       </div>`;
     wireQuizResultTTS("quizResultSpeak", passTts);
-    // Auto-transition to retell after a brief beat so the kid sees
-    // the score, hears the TTS, then flows in. ~1.8 s tuned for K-2
-    // (long enough to read, short enough to feel "instant").
+    // Auto-transition to retell after a brief beat. Polish v3 bumped
+    // 1.8s → 2.4s — the pass-celebration emoji pop + glow animation
+    // takes ~600ms to land; the previous 1.8s window cut off the
+    // glow before it peaked. 2.4s lets the kid see the score chip
+    // bloom fully, hear "You nailed it!", then flow into retell.
     setTimeout(() => {
       if (!quizState.bookId) return;
       const bid = quizState.bookId;
       closeQuiz();
       openRetell(bid);
-    }, 1800);
+    }, 2400);
     return;
   }
 
