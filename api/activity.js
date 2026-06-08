@@ -52,6 +52,7 @@ import { QUIZ_BOOKS, QUIZ_SCHEMA_VERSION, getCachedQuizPool } from "./quiz.js";
 import { trackError, trackEvent } from "../lib/observability.js";
 import { classifyComment } from "../lib/moderation.js";
 import { holdComment } from "../lib/store.js";
+import { checkRateLimit, send429, LIMITS } from "../lib/rate-limit.js";
 
 // Load the user's profile from Redis. Returns null if missing or on error.
 async function loadProfile(email) {
@@ -129,6 +130,17 @@ export default async function handler(req, res) {
   if (!session) {
     res.statusCode = 401;
     return res.end(JSON.stringify({ error: "unauthenticated" }));
+  }
+
+  // #82 per-email rate limit. Activity covers reads, votes, comments,
+  // open events, fraud flag writes — high-volume but cheap. Cap is
+  // generous (180/min ≈ 3/sec) but blocks an automated flood.
+  {
+    const rl = await checkRateLimit({
+      email: session.email, bucket: "activity",
+      max: LIMITS.activity.max, windowSec: LIMITS.activity.windowSec,
+    });
+    if (!rl.ok) return send429(res, rl);
   }
 
   // Parse body (Vercel doesn't auto-parse for raw functions)

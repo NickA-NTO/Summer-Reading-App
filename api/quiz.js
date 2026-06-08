@@ -29,6 +29,7 @@ import {
   redis,
 } from "../lib/store.js";
 import { normalizeGrade } from "../lib/xp.js";
+import { checkRateLimit, send429, LIMITS } from "../lib/rate-limit.js";
 import { clusterAndExtractConsensus } from "../lib/quiz-validator.js";
 import {
   resolveVisibleTracks,
@@ -886,6 +887,18 @@ export default async function handler(req, res) {
   if (!session) {
     res.statusCode = 401;
     return res.end(JSON.stringify({ error: "unauthenticated" }));
+  }
+
+  // #82 per-email rate limit. Quiz fetch / submit are cheap individually
+  // (Redis lookup + small AI call on miss) but uncapped they're the
+  // easiest route to drain Anthropic budget. 30/min covers a kid
+  // grinding both attempts on multiple books per minute.
+  {
+    const rl = await checkRateLimit({
+      email: session.email, bucket: "quiz",
+      max: LIMITS.quiz.max, windowSec: LIMITS.quiz.windowSec,
+    });
+    if (!rl.ok) return send429(res, rl);
   }
 
   const url = new URL(req.url, `http://${req.headers.host}`);

@@ -47,6 +47,7 @@ import { resolveVisibleTracks, trackForBook } from "../lib/tracks.js";
 import { getBook } from "../lib/books.js";
 import { normalizeGrade, pointsForBook, xpForReadingSession, outcomeCode } from "../lib/xp.js";
 import { trackError, trackEvent } from "../lib/observability.js";
+import { checkRateLimit, send429, LIMITS } from "../lib/rate-limit.js";
 import {
   TUTOR_QUESTION_COUNT,
   hasOpenAI,
@@ -145,6 +146,22 @@ export default async function handler(req, res) {
   const session = await verifySession(cookies.rs_session, secret);
   if (!session) {
     return json(res, 401, { error: "unauthenticated" });
+  }
+
+  // #82 per-email rate limit. The retell uses OpenAI for transcription
+  // + LLM follow-ups — the most expensive per-call route in the app.
+  // Tight cap so a compromised account can't grind it.
+  {
+    const rl = await checkRateLimit({
+      email: session.email, bucket: "tutor",
+      max: LIMITS.tutor.max, windowSec: LIMITS.tutor.windowSec,
+    });
+    if (!rl.ok) {
+      res.setHeader("Retry-After", String(rl.retryAfter));
+      return json(res, 429, {
+        error: "rate_limited", retryAfter: rl.retryAfter, limit: rl.max,
+      });
+    }
   }
 
   if (!hasOpenAI()) {
