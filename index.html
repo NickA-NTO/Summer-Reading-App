@@ -1895,7 +1895,7 @@
     <div class="tts-control">
       <button id="ttsSwitch" class="tts-icon-btn" type="button"
               role="switch" aria-checked="false"
-              aria-label="Text to speech support off"
+              aria-label="Text to speech off"
               title="Tap to turn read-aloud on or off">🔊</button>
       <button id="ttsVoiceBtn" class="tts-voice-chev" type="button"
               aria-label="Change voice" title="Change the read-aloud voice">▾</button>
@@ -4021,8 +4021,11 @@ function refreshInteractiveBits() {
     note.textContent = "Thanks for reading! Leave a review below.";
     note.style.color = "var(--good)";
   } else if (hasQuiz) {
-    note.textContent = "Pass the quiz to unlock comments.";
-    note.style.color = "var(--accent-2)";
+    // Polish v3.3: dropped "Pass the quiz to unlock comments." — the
+    // greyed-out comment input + disabled Post button already convey
+    // the locked state. The extra line read as scolding.
+    note.textContent = "";
+    note.style.color = "var(--muted)";
   } else {
     note.textContent = `Tap "Done" to leave a review.`;
     note.style.color = "var(--muted)";
@@ -5868,9 +5871,12 @@ function _positionFloatingPopover(anchorEl, popoverEl, { align = "right" } = {})
     // read the post-toggle state.
     setTimeout(() => {
       const on = btn.getAttribute("aria-checked") === "true";
+      // Polish v3.3: dropped "support" — kids parsed it as a separate
+      // word ("text-to-speech support... is on?"). Plain "Text to
+      // speech on/off" reads as a state, not a feature flag.
       const phrase = on
-        ? "Text to speech support on"
-        : "Text to speech support off";
+        ? "Text to speech on"
+        : "Text to speech off";
       btn.setAttribute("aria-label", phrase);
       btn.title = phrase;
       // force:true bypasses the "if !ttsOn don't speak" guard so the
