@@ -157,17 +157,8 @@
   }
   .spacer { flex: 1; }
 
-  /* TTS toggle switch */
-  .tts-wrap {
-    display: flex; align-items: center; gap: 9px;
-    font-size: 11px; color: var(--muted);
-    user-select: none;
-    background: rgba(255,255,255,.04);
-    padding: 6px 10px 6px 12px;
-    border: 1px solid var(--line);
-    border-radius: 999px;
-  }
-  .tts-wrap .lbl { font-weight: 600; letter-spacing: 0.02em; font-size: 12px; color: #c4cde0; }
+  /* (Phase 3 cleanup: dropped the .tts-wrap pill shape — replaced by
+     .tts-control + the icon-only ttsSwitch in Polish v1.) */
   .switch {
     position: relative; width: 38px; height: 22px;
     background: #303a4d; border-radius: 999px;
@@ -213,10 +204,6 @@
     background: transparent; border: none; color: inherit; font-weight: 700;
     margin-left: 10px; cursor: pointer; font-size: 16px;
   }
-
-  /* Polish v1: help button removed — replay-tour lives in the avatar
-     menu. Keeping the .help-btn rule unused in case we revive it
-     later, but the markup is gone. */
 
   /* ===== Polish v1: TTS control (compact) =====
      Old shape was a wide rounded pill with a label + dropdown + toggle.
@@ -953,12 +940,9 @@
     color: #fff; border-color: transparent;
     box-shadow: 0 6px 16px var(--accent-glow);
   }
-  .speak-mini {
-    background: transparent; border: 1px solid var(--line);
-    color: var(--muted); padding: 4px 10px; border-radius: 999px;
-    font-size: 11px; font-weight: 500;
-  }
-  .speak-mini:hover { color: var(--ink); border-color: var(--line-2); }
+  /* (Phase 3 cleanup: dropped .speak-mini — was the old in-modal title
+     speaker, replaced first by the action-row speaker, then by the
+     .tour-speak above-the-blurb icon in Polish v3.) */
   .note { font-size: 12px; color: var(--muted); margin-bottom: 18px; }
 
   .comments h3 {
@@ -1145,11 +1129,8 @@
     letter-spacing: -0.01em; line-height: 1.25;
     display: flex; align-items: flex-start; gap: 10px;
   }
-  .quiz-question .speak-mini { flex-shrink: 0; margin-top: 4px; }
   /* In-quiz "hear the question" button — sized for emergent readers.
-     The most important button on the quiz screen for a K/G1 student;
-     the previous .speak-mini variant was a 24×30px pill that vanished
-     next to the question text. Now full-width-ish below the question. */
+     The most important button on the quiz screen for a K/G1 student. */
   .quiz-hear {
     display: inline-flex; align-items: center; gap: 10px;
     background: rgba(20,184,166,.14); color: #5eead4;
@@ -2068,13 +2049,6 @@
         <div class="ic" style="background:rgba(245,158,11,.16);color:#fbbf24">🏆</div>
         <span class="v" id="statRank">—</span><span id="statRankLabel">rank</span>
       </div>
-      <div class="stat" id="statReadingWrap" style="display:none;cursor:pointer" title="Open this book">
-        <div class="ic" style="background:rgba(20,184,166,.16);color:#5eead4">📖</div>
-        <div style="display:flex;flex-direction:column;line-height:1.15">
-          <span class="v" id="statReadingTitle" style="font-size:13px">—</span>
-          <span id="statReadingMeta" style="font-size:11px;color:var(--muted)">—</span>
-        </div>
-      </div>
     </div>
     <!-- Filter row — wraps the existing grade + genre dropdowns in a
          popover so they don't take up header space by default. IDs
@@ -2154,11 +2128,7 @@
              Rating moved below the blurb as a small footnote. -->
         <div class="modal-row1">
           <span class="pill" id="modalGrade">—</span>
-          <!-- modalCat kept hidden so existing JS doesn't throw on null -->
-          <span class="pill cat" id="modalCat" style="display:none">—</span>
           <span class="pill xp" id="modalXp" title="What you can earn for finishing this book (reading + quiz + retell).">— XP</span>
-          <!-- modalRating kept hidden; same reason -->
-          <span class="pill" id="modalRating" style="display:none">—</span>
         </div>
       </div>
       <!-- Polish v2: admin ⋯ menu tucked in the corner. Hidden for students,
@@ -2199,18 +2169,6 @@
                 aria-label="Read the title and book description aloud">🔊</button>
       </div>
       <p class="blurb" id="modalBlurb"></p>
-      <!-- Polish v2: the verbose XP explainer paragraph is gone. The pill
-           above tells the kid the XP target in one glance. modalXpExplain
-           kept hidden so existing JS doesn't throw. -->
-      <p class="xp-explain" id="modalXpExplain" style="display:none"></p>
-      <!-- Polish v3.2: the "X% of N readers liked this" footnote is gone.
-           Percentages read as judgement on the kid's pending choice. A
-           running thumbs total below the action row (see #voteSummary)
-           shows the same crowd signal in a less loaded form. Element
-           kept in the DOM (display:none) so any stale JS reference
-           doesn't throw on a missing node. -->
-      <div class="modal-rating-note" id="modalRatingNote"
-           style="display:none;color:var(--muted);font-size:12px;margin:4px 0 0"></div>
       <div class="actions">
         <button class="icon-btn reading" id="startReading" style="display:none" title="Start reading this book">📖 Start</button>
         <!-- Polish v2: ＋ Done is hidden for quiz books (every book has a
@@ -3022,7 +2980,11 @@ function defaultData() {
    rs_session cookie. We fetch the verified user from /api/auth/me. */
 
 document.getElementById("signout").addEventListener("click", () => {
-  if (window.speechSynthesis) speechSynthesis.cancel();
+  // Kill BOTH speech paths on signout — same parity as closeModal,
+  // not just the browser SpeechSynthesis fallback. A cloud-TTS audio
+  // element mid-play would otherwise keep narrating after the page
+  // navigates to /api/auth/logout.
+  try { cancelSpeech(); } catch {}
   location.href = "/api/auth/logout";
 });
 
@@ -3531,18 +3493,6 @@ function renderStats() {
   // `streak` local variable + computeStreak helper for future use
   // (e.g., if we ever add a real streak feature back).
 
-  // Polish v3: the "Now reading: <title> · day X · stuck?" chip used to
-  // sit next to XP and Rank. Removed — it duplicated the hero (which
-  // shows the active book front-and-centre via #76) and the alarm copy
-  // was anxiety-inducing for kids ("⚠️ stuck?"). The active read still
-  // surfaces in the hero and in the book modal; the underlying alarm
-  // threshold logic on the server is untouched. Keep the DOM element
-  // hidden so any stray code paths don't throw on a missing node.
-  const wrap = document.getElementById("statReadingWrap");
-  if (wrap) {
-    wrap.style.display = "none";
-    wrap.onclick = null;
-  }
 }
 
 /* ---------- 8. Hero billboard ---------- */
@@ -3723,25 +3673,15 @@ function buildRow(cat, isRecent) {
     <div class="scroller-wrap"><div class="scroller" id="row-${cat.id}"></div></div>
   `;
   const scroller = row.querySelector(".scroller");
-  cat.books.forEach((book, i) => scroller.appendChild(buildCard(book, i === 0 && !isRecent)));
+  cat.books.forEach((book) => scroller.appendChild(buildCard(book)));
   return row;
 }
 
-function buildCard(book, isHot) {
-  // Polish v3 (Phase 3): card simplification.
-  //  - Dropped the "★ Top pick" first-card badge (it was position-based,
-  //    not meaningful — the Hero already promotes the actual top pick).
-  //  - Dropped the always-on XP pill (now lives in the hover overlay).
-  //  - Dropped the per-card 👍/👎 vote tallies in the hover overlay; the
-  //    full vote summary lives in the book modal where it has context.
-  //    Hover overlay now shows: title + XP chip.
-  //  - Kept the grade pill (primary scan signal) and the green "✓ Read"
-  //    badge (a kid's earned mark — never hide that).
-  //
-  // `isHot` is still accepted for API compatibility but no longer renders
-  // a separate badge; we keep the parameter so callers don't have to
-  // change. If we revive a "top pick" treatment later, hook it back in.
-  void isHot;
+function buildCard(book) {
+  // Phase 3 card: grade pill (top-right) + cover + hover overlay
+  // (title + XP chip) + "✓ Read" badge when finished. The "★ Top pick"
+  // first-card badge was dropped in Phase 3 polish; vote tallies live
+  // in the book modal where they have context.
   const wasRead = !!state.data.read[book.id];
   const card = document.createElement("article");
   card.className = "card";
@@ -3789,7 +3729,11 @@ function buildCard(book, isHot) {
 }
 
 function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+  // null/undefined → "" (not the string "null" / "undefined"). Phase 3
+  // cleanup folded the duplicate escapeHTML in the achievements module
+  // into this one — it had the null guard, this one didn't.
+  return String(s == null ? "" : s).replace(/[&<>"']/g,
+    m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
 }
 function escapeAttr(s) { return escapeHtml(s); }
 
@@ -3838,9 +3782,6 @@ function openBook(id) {
   document.getElementById("modalAuthor").textContent = "By " + book.author;
   const badgeText = gradeBadgeLabel(book);
   document.getElementById("modalGrade").textContent = badgeText || "—";
-  // Polish v2: modalCat + modalRating pills hidden — kept in DOM so the
-  // assignments here don't blow up, but display:none in the markup.
-  document.getElementById("modalCat").textContent = book.category;
   document.getElementById("modalBlurb").textContent = book.blurb;
   // Expected XP — based on the kid's working grade. The pill now shows
   // the BOTH-CLEAN total (full quiz + retell first try). The verbose
@@ -3939,20 +3880,14 @@ function clearQuizCountdown() {
     _quizCountdownInterval = null;
   }
 }
-function formatCountdown(msRemaining) {
-  const totalSec = Math.max(0, Math.ceil(msRemaining / 1000));
-  const m = Math.floor(totalSec / 60);
-  const s = totalSec % 60;
-  return `${m}:${String(s).padStart(2, "0")}`;
-}
+// (Phase 3 cleanup: removed formatCountdown — the live "Quiz in 12:34"
+// label was dropped in favor of the static "🔒 Finish the book" lock.)
 
 function refreshInteractiveBits() {
   const id = activeBookId;
   const wasRead = !!state.data.read[id];
   const myVote  = state.data.votes[id];
   const counts  = effectiveCounts(id);
-  const total = counts.up + counts.down;
-  const pct = total ? Math.round(counts.up/total*100) : 0;
 
   // Reset any countdown from a previous modal open — we'll re-arm it
   // below if the new book is in its 15-min waiting window.
@@ -3970,18 +3905,9 @@ function refreshInteractiveBits() {
 
   document.getElementById("upCount").textContent = counts.up;
   document.getElementById("downCount").textContent = counts.down;
-  // Polish v2: modalRating + modalRatingNote are both hidden but their
-  // values get populated so any code that reads them doesn't blow up.
-  document.getElementById("modalRating").innerHTML = `${pct}% loved · ${total} ratings`;
-  const ratingNote = document.getElementById("modalRatingNote");
-  if (ratingNote) {
-    // Polish v3.2: kept permanently hidden — superseded by #voteSummary.
-    ratingNote.textContent = "";
-    ratingNote.style.display = "none";
-  }
-  // Polish v3.2: populate the running thumbs summary that sits under
-  // the action row. Hidden until there's at least one vote — empty
-  // "👍 0  👎 0" on every fresh book reads as "no one likes this."
+  // Running thumbs summary that sits under the action row. Hidden
+  // until there's at least one vote — empty "👍 0 👎 0" reads as
+  // "no one likes this."
   const voteSum = document.getElementById("voteSummary");
   if (voteSum) {
     document.getElementById("voteSummaryUp").textContent = counts.up;
@@ -3989,8 +3915,9 @@ function refreshInteractiveBits() {
     voteSum.style.display = (counts.up + counts.down) > 0 ? "flex" : "none";
   }
 
-  document.getElementById("voteUp").classList.toggle("active",   myVote === "up");
-  document.getElementById("voteDown").classList.toggle("active", myVote === "down");
+  // (Phase 3 cleanup: dropped the .active toggle on #voteUp/#voteDown —
+  // those buttons are display:none; the visible vote affordance is the
+  // post-read #likePrompt below. `myVote` is still used by that flow.)
 
   // If a quiz is available for this book, show "Take the Quiz" and hide the
   // direct "I read this" button. Once they pass, the read state is set and
@@ -6004,11 +5931,12 @@ function _positionFloatingPopover(anchorEl, popoverEl, { align = "right" } = {})
         : "Text to speech off";
       btn.setAttribute("aria-label", phrase);
       btn.title = phrase;
-      // force:true bypasses the "if !ttsOn don't speak" guard so the
-      // off announcement still plays. Use the browser fallback for
-      // speed — bypasses the OpenAI roundtrip for this one-shot.
+      // Kill any in-flight cloud-TTS clip first (cancelSpeech handles
+      // both currentTtsAudio and the synth) so the off-announce isn't
+      // overlapped by a stale clip. Then queue the browser-synth one-
+      // shot — fast enough that the OpenAI roundtrip isn't worth it.
       if ("speechSynthesis" in window) {
-        try { window.speechSynthesis.cancel(); } catch {}
+        try { cancelSpeech(); } catch {}
         const u = new SpeechSynthesisUtterance(phrase);
         u.rate = 0.95; u.pitch = 1.0;
         window.speechSynthesis.speak(u);
@@ -6079,8 +6007,8 @@ function renderAchievements() {
     return `
       <div class="ach-card ${isUnlocked ? "unlocked" : "locked"}" data-id="${a.id}">
         <span class="ach-icon">${icon}</span>
-        <div class="ach-name">${escapeHTML(name)}</div>
-        <div class="ach-desc">${escapeHTML(desc)}</div>
+        <div class="ach-name">${escapeHtml(name)}</div>
+        <div class="ach-desc">${escapeHtml(desc)}</div>
         ${bar}
         ${date}
       </div>
@@ -6137,11 +6065,9 @@ function formatUnlockDate(ts) {
   } catch { return ""; }
 }
 
-function escapeHTML(s) {
-  return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
-  }[c]));
-}
+// (Phase 3 cleanup: removed local escapeHTML duplicate — the global
+// escapeHtml (lowercase) at the top of the script handles every
+// caller, including null/undefined inputs.)
 
 // Toast notification — slides in from the bottom-right when a new
 // achievement unlocks. Auto-dismisses after 4 seconds. Stacks if
@@ -6156,8 +6082,8 @@ function showAchievementToast(ach) {
     <div class="at-icon">${ach.icon || "🏆"}</div>
     <div>
       <div class="at-eyebrow">Achievement Unlocked</div>
-      <div class="at-name">${escapeHTML(ach.name || "Badge")}</div>
-      <div class="at-desc">${escapeHTML(ach.desc || "")}</div>
+      <div class="at-name">${escapeHtml(ach.name || "Badge")}</div>
+      <div class="at-desc">${escapeHtml(ach.desc || "")}</div>
     </div>
   `;
   stack.appendChild(el);
