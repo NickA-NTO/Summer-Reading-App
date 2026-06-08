@@ -260,19 +260,45 @@
     transition: background .15s, color .15s;
   }
   .tts-voice-chev:hover { background: rgba(255,255,255,.06); color: var(--ink); }
+  /* position:fixed so the popover escapes any parent overflow:hidden
+     and floats over EVERYTHING (header, hero, modals below). Position
+     is computed in JS from the chevron's bounding rect. */
   .tts-popover {
-    position: absolute; top: calc(100% + 8px); right: 0;
+    position: fixed;
     background: var(--bg-2); border: 1px solid var(--line);
     border-radius: 12px; padding: 12px;
     box-shadow: 0 12px 40px rgba(0,0,0,.5);
-    min-width: 220px; z-index: 30;
+    min-width: 240px; z-index: 9999;
   }
   .tts-popover[hidden] { display: none; }
   .tts-popover-label {
     font-size: 11px; font-weight: 600; color: var(--muted);
     letter-spacing: .06em; text-transform: uppercase;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
   }
+  /* Voice option buttons inside the popover — clearer than a nested
+     <select>, easier to tap on touch. One per voice. */
+  .tts-voice-option {
+    display: flex; align-items: center; gap: 10px;
+    width: 100%; padding: 10px 12px;
+    background: transparent; color: var(--ink);
+    border: 1px solid transparent; border-radius: 10px;
+    font-family: inherit; font-size: 14px; font-weight: 500;
+    cursor: pointer; text-align: left;
+    transition: background .12s, border-color .12s;
+  }
+  .tts-voice-option:hover {
+    background: rgba(255,255,255,.05);
+    border-color: var(--line);
+  }
+  .tts-voice-option.selected {
+    background: rgba(37,99,235,.18);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .tts-voice-option .v-emoji { font-size: 16px; line-height: 1; }
+  .tts-voice-option .v-name { font-weight: 600; }
+  .tts-voice-option .v-desc { color: var(--muted); font-size: 12px; margin-left: auto; }
 
   /* ===== Polish v1: collapsed filter button + popover =====
      Was: two side-by-side dropdowns visible at all times. Now: a
@@ -294,18 +320,17 @@
     background: var(--accent); color: #fff; border-color: var(--accent);
   }
   .filter-toggle-icon { font-size: 14px; line-height: 1; }
+  /* position:fixed so the popover escapes any parent overflow and
+     floats over EVERYTHING. JS sets top/left from the button rect. */
   .filter-popover {
-    position: absolute; top: calc(100% + 8px); right: 0;
+    position: fixed;
     background: var(--bg-2); border: 1px solid var(--line);
     border-radius: 12px; padding: 12px;
     box-shadow: 0 12px 40px rgba(0,0,0,.5);
     display: flex; flex-direction: column; gap: 10px;
-    min-width: 240px; z-index: 30;
+    min-width: 260px; z-index: 9999;
   }
   .filter-popover[hidden] { display: none; }
-  /* chip-row needs to be relatively positioned now so the popover
-     anchors correctly under the Filter button. */
-  #chipRow { position: relative; }
 
   .avatar-wrap {
     display: flex; align-items: center; gap: 8px;
@@ -1710,20 +1735,45 @@
     <div class="tts-control">
       <button id="ttsSwitch" class="tts-icon-btn" type="button"
               role="switch" aria-checked="false"
-              aria-label="Toggle read aloud"
+              aria-label="Text to speech support off"
               title="Tap to turn read-aloud on or off">🔊</button>
       <button id="ttsVoiceBtn" class="tts-voice-chev" type="button"
               aria-label="Change voice" title="Change the read-aloud voice">▾</button>
-      <div id="ttsPopover" class="tts-popover" hidden>
-        <div class="tts-popover-label">Voice</div>
-        <select id="voicePicker" class="voice-picker" aria-label="Choose a voice">
-          <option value="nova">🌟 Nova (warm, energetic)</option>
-          <option value="shimmer">✨ Shimmer (gentle)</option>
-          <option value="coral">🪸 Coral (very warm)</option>
-          <option value="ash">🌳 Ash (warm male)</option>
-          <option value="fable">📖 Fable (read-aloud)</option>
-        </select>
-      </div>
+    </div>
+    <!-- Voice popover lives outside .tts-control so its overflow:hidden
+         doesn't clip it. Position is set by JS to anchor under the
+         chevron. Kept the hidden <select id="voicePicker"> so existing
+         onchange handlers fire when a voice button below is clicked. -->
+    <select id="voicePicker" class="voice-picker" aria-label="Choose a voice"
+            style="display:none">
+      <option value="nova">🌟 Nova (warm, energetic)</option>
+      <option value="shimmer">✨ Shimmer (gentle)</option>
+      <option value="coral">🪸 Coral (very warm)</option>
+      <option value="ash">🌳 Ash (warm male)</option>
+      <option value="fable">📖 Fable (read-aloud)</option>
+    </select>
+    <div id="ttsPopover" class="tts-popover" hidden role="dialog" aria-label="Choose a voice">
+      <div class="tts-popover-label">Voice</div>
+      <button class="tts-voice-option" data-voice="nova">
+        <span class="v-emoji">🌟</span><span class="v-name">Nova</span>
+        <span class="v-desc">warm, energetic</span>
+      </button>
+      <button class="tts-voice-option" data-voice="shimmer">
+        <span class="v-emoji">✨</span><span class="v-name">Shimmer</span>
+        <span class="v-desc">gentle</span>
+      </button>
+      <button class="tts-voice-option" data-voice="coral">
+        <span class="v-emoji">🪸</span><span class="v-name">Coral</span>
+        <span class="v-desc">very warm</span>
+      </button>
+      <button class="tts-voice-option" data-voice="ash">
+        <span class="v-emoji">🌳</span><span class="v-name">Ash</span>
+        <span class="v-desc">warm male</span>
+      </button>
+      <button class="tts-voice-option" data-voice="fable">
+        <span class="v-emoji">📖</span><span class="v-name">Fable</span>
+        <span class="v-desc">read-aloud</span>
+      </button>
     </div>
     <!-- Polish v1: dropped the standalone "?" help button. The avatar
          menu already has "🎬 Replay intro tour" which does the same
@@ -5213,51 +5263,140 @@ document.getElementById("menuReplayTour").addEventListener("click", (e) => {
   startOnboarding();
 });
 
+// Generic floating-popover positioner — anchors a position:fixed
+// popover under an anchor element, right-aligned by default, clamped
+// to the viewport. Used by the TTS voice popover + the Filter
+// popover so both float over everything and don't get clipped by
+// parent overflow:hidden.
+function _positionFloatingPopover(anchorEl, popoverEl, { align = "right" } = {}) {
+  const r = anchorEl.getBoundingClientRect();
+  const gap = 8;
+  // Show first so we can measure width (it's display:none when hidden).
+  popoverEl.style.visibility = "hidden";
+  popoverEl.removeAttribute("hidden");
+  const w = popoverEl.offsetWidth;
+  let left;
+  if (align === "right") {
+    left = r.right - w;
+  } else {
+    left = r.left;
+  }
+  // Clamp to viewport with an 8px margin on either side.
+  left = Math.max(8, Math.min(left, window.innerWidth - w - 8));
+  popoverEl.style.left = `${left}px`;
+  popoverEl.style.top  = `${r.bottom + gap}px`;
+  popoverEl.style.visibility = "";
+}
+
 // Polish v1: TTS voice popover. Chevron beside the speaker icon opens
-// a small popover with the voice picker. Tapping anywhere outside
-// closes it.
+// a popover listing the 5 voices. Tap a voice → updates the hidden
+// <select id="voicePicker"> + fires its change event (which the
+// existing handler picks up + persists to the server).
 (function wireTtsPopover() {
   const chev = document.getElementById("ttsVoiceBtn");
   const pop  = document.getElementById("ttsPopover");
-  if (!chev || !pop) return;
+  const sel  = document.getElementById("voicePicker");
+  if (!chev || !pop || !sel) return;
+
+  function syncSelectedVisuals() {
+    const current = sel.value;
+    pop.querySelectorAll(".tts-voice-option").forEach((btn) => {
+      btn.classList.toggle("selected", btn.dataset.voice === current);
+    });
+  }
+
+  function openPopover() {
+    syncSelectedVisuals();
+    _positionFloatingPopover(chev, pop, { align: "right" });
+  }
+  function closePopover() {
+    pop.setAttribute("hidden", "");
+  }
+
   chev.addEventListener("click", (e) => {
     e.stopPropagation();
-    const open = !pop.hasAttribute("hidden");
-    if (open) {
-      pop.setAttribute("hidden", "");
-    } else {
-      pop.removeAttribute("hidden");
-    }
+    const isOpen = !pop.hasAttribute("hidden");
+    if (isOpen) closePopover(); else openPopover();
   });
-  // Close on outside click.
+
+  // Voice option buttons — set the select value, fire change, close.
+  pop.querySelectorAll(".tts-voice-option").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const v = btn.dataset.voice;
+      if (!v) return;
+      sel.value = v;
+      sel.dispatchEvent(new Event("change", { bubbles: true }));
+      syncSelectedVisuals();
+      closePopover();
+    });
+  });
+
+  // Close on outside click / Escape / scroll / resize.
   document.addEventListener("click", (e) => {
-    if (!pop.contains(e.target) && e.target !== chev) {
-      pop.setAttribute("hidden", "");
-    }
+    if (!pop.contains(e.target) && e.target !== chev) closePopover();
   });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closePopover();
+  });
+  window.addEventListener("scroll", closePopover, true);
+  window.addEventListener("resize", closePopover);
 })();
 
-// Polish v1: Filter popover. The grade + genre dropdowns no longer
-// sit visible in the header — they live in a popover that opens
-// when the kid taps the Filter button.
+// Polish v1: Filter popover with proper anchored positioning.
 (function wireFilterPopover() {
   const btn = document.getElementById("filterToggle");
   const pop = document.getElementById("filterPopover");
   if (!btn || !pop) return;
   function setOpen(open) {
     btn.setAttribute("aria-expanded", open ? "true" : "false");
-    if (open) pop.removeAttribute("hidden");
+    if (open) _positionFloatingPopover(btn, pop, { align: "right" });
     else      pop.setAttribute("hidden", "");
   }
   btn.addEventListener("click", (e) => {
     e.stopPropagation();
     setOpen(pop.hasAttribute("hidden"));
   });
-  // Close on outside click. Don't close on clicks INSIDE the popover —
-  // <select> dropdowns fire click events on the document when they
-  // open native pickers on some browsers, so we'd lose state.
   document.addEventListener("click", (e) => {
     if (!pop.contains(e.target) && e.target !== btn) setOpen(false);
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") setOpen(false);
+  });
+  window.addEventListener("scroll", () => setOpen(false), true);
+  window.addEventListener("resize", () => setOpen(false));
+})();
+
+// Polish v1: TTS toggle announces its new state when toggled, so a
+// K-2 kid who can't read the button still hears confirmation. Speaks
+// via the existing speak() helper (forced because the kid just turned
+// it ON — even if it WAS off, this turn-on announce is the user
+// gesture that grants playback permission). The aria-label is also
+// kept in sync for screen readers.
+(function wireTtsStateAnnounce() {
+  const btn = document.getElementById("ttsSwitch");
+  if (!btn) return;
+  btn.addEventListener("click", () => {
+    // The existing toggle handler runs FIRST and flips ttsOn +
+    // aria-checked. We schedule the announce on the next tick so we
+    // read the post-toggle state.
+    setTimeout(() => {
+      const on = btn.getAttribute("aria-checked") === "true";
+      const phrase = on
+        ? "Text to speech support on"
+        : "Text to speech support off";
+      btn.setAttribute("aria-label", phrase);
+      btn.title = phrase;
+      // force:true bypasses the "if !ttsOn don't speak" guard so the
+      // off announcement still plays. Use the browser fallback for
+      // speed — bypasses the OpenAI roundtrip for this one-shot.
+      if ("speechSynthesis" in window) {
+        try { window.speechSynthesis.cancel(); } catch {}
+        const u = new SpeechSynthesisUtterance(phrase);
+        u.rate = 0.95; u.pitch = 1.0;
+        window.speechSynthesis.speak(u);
+      }
+    }, 0);
   });
 })();
 
@@ -6163,14 +6302,25 @@ const TOUR_STEPS = [
     body: "A new book is here. Tap it to look.",
   },
   {
+    // Polish v1: stats now show XP + currently-reading only.
     selector: "#statsRow",
-    title: "Your stats",
-    body: "This is your XP. Read books to get more.",
+    title: "Your XP",
+    body: "Read books to earn XP. The book you're working on shows here too.",
   },
   {
-    selector: "#chipRow",
+    // Polish v1: was two visible dropdowns; now a single Filter button
+    // that opens a popover with grade + genre.
+    selector: "#filterToggle",
     title: "Find a book",
-    body: "Tap here to find books for your grade or topic.",
+    body: "Tap Filter to pick books for your grade or topic.",
+  },
+  {
+    // Polish v1: NEW step — the TTS controls were the noisiest area of
+    // the old header. Now a kid-friendly speaker icon + a small chevron
+    // for changing voices.
+    selector: "#ttsSwitch",
+    title: "Read aloud",
+    body: "Tap the speaker to hear words read. Tap the tiny arrow next to it to pick a different voice.",
   },
   {
     selector: "#navLeaderboard",
