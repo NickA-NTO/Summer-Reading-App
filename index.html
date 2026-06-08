@@ -214,22 +214,98 @@
     margin-left: 10px; cursor: pointer; font-size: 16px;
   }
 
-  /* Discoverable "?" button in the header — re-runs the intro tour for
-     anyone (kids who skipped, admins doing QA, returning users). */
-  .help-btn {
-    width: 32px; height: 32px; border-radius: 999px;
-    background: rgba(20,184,166,.18); color: #5eead4;
-    border: 1px solid rgba(20,184,166,.45);
-    font-weight: 700; font-size: 16px; line-height: 1;
+  /* Polish v1: help button removed — replay-tour lives in the avatar
+     menu. Keeping the .help-btn rule unused in case we revive it
+     later, but the markup is gone. */
+
+  /* ===== Polish v1: TTS control (compact) =====
+     Old shape was a wide rounded pill with a label + dropdown + toggle.
+     New shape is a single speaker-icon button (toggles on/off via the
+     existing #ttsSwitch JS) with a small chevron next to it that opens
+     a popover containing the voice picker. */
+  .tts-control {
+    position: relative;
+    display: inline-flex; align-items: stretch;
+    background: rgba(255,255,255,.04);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .tts-icon-btn {
+    width: 38px; height: 32px;
+    background: transparent; color: var(--muted);
+    border: none; padding: 0;
     cursor: pointer; font-family: inherit;
+    font-size: 16px; line-height: 1;
     display: inline-flex; align-items: center; justify-content: center;
-    margin-right: 4px;
-    transition: background-color .15s, transform .05s, color .15s;
+    transition: background .15s, color .15s;
   }
-  .help-btn:hover {
-    background: rgba(20,184,166,.32); color: #fff;
+  .tts-icon-btn:hover { background: rgba(255,255,255,.06); color: var(--ink); }
+  .tts-icon-btn[aria-checked="true"] {
+    background: var(--accent); color: #fff;
   }
-  .help-btn:active { transform: scale(.95); }
+  .tts-icon-btn[aria-checked="true"]:hover {
+    background: var(--accent-3); color: #fff;
+  }
+  .tts-icon-btn:focus-visible {
+    outline: 2px solid var(--accent-2); outline-offset: 2px;
+  }
+  .tts-voice-chev {
+    width: 22px; height: 32px;
+    background: transparent; color: var(--muted);
+    border: none; border-left: 1px solid var(--line);
+    padding: 0; cursor: pointer; font-family: inherit;
+    font-size: 11px;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: background .15s, color .15s;
+  }
+  .tts-voice-chev:hover { background: rgba(255,255,255,.06); color: var(--ink); }
+  .tts-popover {
+    position: absolute; top: calc(100% + 8px); right: 0;
+    background: var(--bg-2); border: 1px solid var(--line);
+    border-radius: 12px; padding: 12px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.5);
+    min-width: 220px; z-index: 30;
+  }
+  .tts-popover[hidden] { display: none; }
+  .tts-popover-label {
+    font-size: 11px; font-weight: 600; color: var(--muted);
+    letter-spacing: .06em; text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  /* ===== Polish v1: collapsed filter button + popover =====
+     Was: two side-by-side dropdowns visible at all times. Now: a
+     single "Filter" button that opens a popover containing both. */
+  .filter-toggle-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(255,255,255,.04);
+    border: 1px solid var(--line); border-radius: 999px;
+    padding: 6px 14px;
+    color: var(--muted); font-size: 13px; font-weight: 500;
+    cursor: pointer; font-family: inherit;
+    transition: background .15s, color .15s, border-color .15s;
+  }
+  .filter-toggle-btn:hover {
+    background: rgba(255,255,255,.07); color: var(--ink);
+    border-color: var(--line-2);
+  }
+  .filter-toggle-btn[aria-expanded="true"] {
+    background: var(--accent); color: #fff; border-color: var(--accent);
+  }
+  .filter-toggle-icon { font-size: 14px; line-height: 1; }
+  .filter-popover {
+    position: absolute; top: calc(100% + 8px); right: 0;
+    background: var(--bg-2); border: 1px solid var(--line);
+    border-radius: 12px; padding: 12px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.5);
+    display: flex; flex-direction: column; gap: 10px;
+    min-width: 240px; z-index: 30;
+  }
+  .filter-popover[hidden] { display: none; }
+  /* chip-row needs to be relatively positioned now so the popover
+     anchors correctly under the Filter button. */
+  #chipRow { position: relative; }
 
   .avatar-wrap {
     display: flex; align-items: center; gap: 8px;
@@ -1614,7 +1690,10 @@
   <div class="nav">
     <div class="brand-wrap">
       <div class="brand-mark">α</div>
-      <div class="brand"><span>Alpha Summer Reading</span><span class="sub">ALPHA SCHOOL</span></div>
+      <!-- Polish v1: dropped the "ALPHA SCHOOL" subtitle. Brand row reads
+           "Alpha Summer Reading" only — the alpha mark already carries
+           the school association visually. -->
+      <div class="brand"><span>Alpha Summer Reading</span></div>
     </div>
     <nav class="nav-links">
       <a href="#" class="active">Home</a>
@@ -1622,18 +1701,33 @@
       <a href="#" id="navAchievements">🎖️ Achievements</a>
     </nav>
     <div class="spacer"></div>
-    <div class="tts-wrap" title="Read text aloud">
-      <span class="lbl">Text to Speech</span>
-      <select id="voicePicker" class="voice-picker" aria-label="Choose a voice">
-        <option value="nova">🌟 Nova (warm, energetic)</option>
-        <option value="shimmer">✨ Shimmer (gentle)</option>
-        <option value="coral">🪸 Coral (very warm)</option>
-        <option value="ash">🌳 Ash (warm male)</option>
-        <option value="fable">📖 Fable (read-aloud)</option>
-      </select>
-      <button id="ttsSwitch" class="switch" role="switch" aria-checked="false" aria-label="Toggle text to speech"></button>
+    <!-- Polish v1: TTS controls collapsed. Was: "Text to Speech" label +
+         voice dropdown + toggle switch (3 widgets). Now: speaker icon
+         button (toggle) + tiny chevron that opens a popover containing
+         the voice picker. K-2 kids who just want to turn TTS on tap
+         once. Voice change is one tap deeper. Existing #ttsSwitch and
+         #voicePicker IDs kept so wired handlers still fire. -->
+    <div class="tts-control">
+      <button id="ttsSwitch" class="tts-icon-btn" type="button"
+              role="switch" aria-checked="false"
+              aria-label="Toggle read aloud"
+              title="Tap to turn read-aloud on or off">🔊</button>
+      <button id="ttsVoiceBtn" class="tts-voice-chev" type="button"
+              aria-label="Change voice" title="Change the read-aloud voice">▾</button>
+      <div id="ttsPopover" class="tts-popover" hidden>
+        <div class="tts-popover-label">Voice</div>
+        <select id="voicePicker" class="voice-picker" aria-label="Choose a voice">
+          <option value="nova">🌟 Nova (warm, energetic)</option>
+          <option value="shimmer">✨ Shimmer (gentle)</option>
+          <option value="coral">🪸 Coral (very warm)</option>
+          <option value="ash">🌳 Ash (warm male)</option>
+          <option value="fable">📖 Fable (read-aloud)</option>
+        </select>
+      </div>
     </div>
-    <button id="helpBtn" class="help-btn" type="button" title="Replay intro tour" aria-label="Replay intro tour">?</button>
+    <!-- Polish v1: dropped the standalone "?" help button. The avatar
+         menu already has "🎬 Replay intro tour" which does the same
+         thing. -->
     <div class="avatar-wrap" id="avatarWrap">
       <div class="avatar" id="avatar">?</div>
       <span class="caret">▼</span>
@@ -1656,18 +1750,24 @@
   <button id="ttsBudgetDismiss" aria-label="Dismiss">×</button>
 </div>
 
-<!-- ============ Stats / category strip (differentiator) ============ -->
+<!-- ============ Stats / filter strip ============ -->
+<!-- Polish v1: previously 5 metric chips (XP / books / reviews / rank /
+     currently reading). Books + reviews + rank are now hidden from the
+     header — they live on the leaderboard page and achievements modal
+     where they have full context. Stats kept here: XP and the active
+     read (both action-relevant). Filters collapsed into a single
+     "Filter" button that opens a popover with grade + genre. -->
 <div class="stats-strip">
   <div class="stats-inner">
-    <!-- Stats group — independent target for tour step 2. Holds only
-         the XP/books/reviews/streak/rank/reading chips. -->
     <div class="stats-row" id="statsRow">
       <div class="stat" id="statPointsWrap" style="display:none">
         <div class="ic" style="background:rgba(139,92,246,.16);color:#a78bfa">✨</div>
         <span class="v" id="statPoints">0</span><span>XP</span>
       </div>
-      <div class="stat"><div class="ic">📚</div><span class="v" id="statRead">0</span><span>books read</span></div>
-      <div class="stat"><div class="ic">💬</div><span class="v" id="statComments">0</span><span>reviews</span></div>
+      <!-- Hidden via display:none — values still updated by renderStats
+           so the leaderboard + achievements modal can reuse them. -->
+      <div class="stat" style="display:none"><div class="ic">📚</div><span class="v" id="statRead">0</span><span>books read</span></div>
+      <div class="stat" style="display:none"><div class="ic">💬</div><span class="v" id="statComments">0</span><span>reviews</span></div>
       <div class="stat" id="statRankWrap" style="display:none">
         <div class="ic" style="background:rgba(245,158,11,.16);color:#fbbf24">🏆</div>
         <span class="v" id="statRank">—</span><span id="statRankLabel">rank</span>
@@ -1680,21 +1780,31 @@
         </div>
       </div>
     </div>
-    <!-- Compact right-aligned filter dropdowns (#20). Tour step 3
-         targets #chipRow which now contains the two select menus. -->
+    <!-- Filter row — wraps the existing grade + genre dropdowns in a
+         popover so they don't take up header space by default. IDs
+         #filterGrade and #filterGenre kept so existing onchange
+         handlers still fire. -->
     <div class="chip-row" id="chipRow">
-      <label class="filter-select-wrap" title="Jump to a grade">
-        <span class="filter-select-label">📚 Grade</span>
-        <select class="filter-select" id="filterGrade" aria-label="Filter by grade">
-          <option value="">— Pick a grade —</option>
-        </select>
-      </label>
-      <label class="filter-select-wrap" title="Jump to a genre">
-        <span class="filter-select-label">🎭 Genre</span>
-        <select class="filter-select" id="filterGenre" aria-label="Filter by genre">
-          <option value="">— Pick a topic —</option>
-        </select>
-      </label>
+      <button id="filterToggle" class="filter-toggle-btn" type="button"
+              aria-label="Open filters" aria-expanded="false"
+              title="Filter books by grade or genre">
+        <span class="filter-toggle-icon">⚙</span>
+        <span class="filter-toggle-label">Filter</span>
+      </button>
+      <div id="filterPopover" class="filter-popover" hidden>
+        <label class="filter-select-wrap" title="Jump to a grade">
+          <span class="filter-select-label">📚 Grade</span>
+          <select class="filter-select" id="filterGrade" aria-label="Filter by grade">
+            <option value="">— Pick a grade —</option>
+          </select>
+        </label>
+        <label class="filter-select-wrap" title="Jump to a genre">
+          <span class="filter-select-label">🎭 Genre</span>
+          <select class="filter-select" id="filterGenre" aria-label="Filter by genre">
+            <option value="">— Pick a topic —</option>
+          </select>
+        </label>
+      </div>
     </div>
   </div>
 </div>
@@ -2611,7 +2721,9 @@ function refreshChosenVoice() {
 // Primary is the Polly voice (selected by the kid in the dropdown);
 // browser voice is only a fallback if the cloud TTS endpoint fails.
 function updateTtsTooltip() {
-  const wrap = document.querySelector(".tts-wrap");
+  // Polish v1: .tts-wrap renamed .tts-control. Tooltip lands on the
+  // icon button instead so hovering the speaker shows the voice + status.
+  const wrap = document.querySelector(".tts-control") || document.getElementById("ttsSwitch");
   if (!wrap) return;
   const pollyLabel = VOICE_LABELS[chosenPollyVoice] || chosenPollyVoice;
   const browserLabel = chosenVoice ? chosenVoice.name : "browser default";
@@ -5093,17 +5205,61 @@ document.getElementById("menuAdmin").addEventListener("click", (e) => {
 // anyone who just wants to see it again. Re-runs the same flow that
 // the first-run logic does. finishOnboarding() at the end re-marks
 // tourCompleted: true (idempotent), so this is safe to invoke repeatedly.
-// Two entry points: the header "?" button (discoverable) and the menu
-// item under the avatar (canonical).
+// Single entry point now under the avatar menu (the header "?" button
+// was dropped in the polish v1 pass — duplicate affordance).
 document.getElementById("menuReplayTour").addEventListener("click", (e) => {
   e.stopPropagation();
   document.getElementById("userMenu").classList.remove("open");
   startOnboarding();
 });
-document.getElementById("helpBtn").addEventListener("click", (e) => {
-  e.stopPropagation();
-  startOnboarding();
-});
+
+// Polish v1: TTS voice popover. Chevron beside the speaker icon opens
+// a small popover with the voice picker. Tapping anywhere outside
+// closes it.
+(function wireTtsPopover() {
+  const chev = document.getElementById("ttsVoiceBtn");
+  const pop  = document.getElementById("ttsPopover");
+  if (!chev || !pop) return;
+  chev.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const open = !pop.hasAttribute("hidden");
+    if (open) {
+      pop.setAttribute("hidden", "");
+    } else {
+      pop.removeAttribute("hidden");
+    }
+  });
+  // Close on outside click.
+  document.addEventListener("click", (e) => {
+    if (!pop.contains(e.target) && e.target !== chev) {
+      pop.setAttribute("hidden", "");
+    }
+  });
+})();
+
+// Polish v1: Filter popover. The grade + genre dropdowns no longer
+// sit visible in the header — they live in a popover that opens
+// when the kid taps the Filter button.
+(function wireFilterPopover() {
+  const btn = document.getElementById("filterToggle");
+  const pop = document.getElementById("filterPopover");
+  if (!btn || !pop) return;
+  function setOpen(open) {
+    btn.setAttribute("aria-expanded", open ? "true" : "false");
+    if (open) pop.removeAttribute("hidden");
+    else      pop.setAttribute("hidden", "");
+  }
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    setOpen(pop.hasAttribute("hidden"));
+  });
+  // Close on outside click. Don't close on clicks INSIDE the popover —
+  // <select> dropdowns fire click events on the document when they
+  // open native pickers on some browsers, so we'd lose state.
+  document.addEventListener("click", (e) => {
+    if (!pop.contains(e.target) && e.target !== btn) setOpen(false);
+  });
+})();
 
 // ── Achievements modal wiring (#24) ──────────────────────────────────
 // Catalog + unlocked map are loaded into state.session by /api/auth/me
