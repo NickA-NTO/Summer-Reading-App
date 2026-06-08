@@ -704,14 +704,19 @@
   }
 
   /* =================== Rows =================== */
+  /* Polish v3 (Phase 3): calmer row metrics + tighter type to match the
+     overall Netflix-blue feel without piling on visual noise. Row gap
+     bumped slightly so each shelf has more breathing room; titles a
+     touch bigger with tighter tracking for that streaming-platform
+     editorial header look. */
   main { position: relative; z-index: 1; padding-bottom: 80px; }
-  .row { max-width: 1600px; margin: 0 auto; padding: 28px 40px 0; scroll-margin-top: 130px; }
+  .row { max-width: 1600px; margin: 0 auto; padding: 32px 40px 0; scroll-margin-top: 130px; }
   .row-head {
-    display: flex; align-items: center; gap: 14px; margin-bottom: 14px;
+    display: flex; align-items: center; gap: 12px; margin-bottom: 12px;
   }
   .row-title {
-    font-size: 20px; font-weight: 700; margin: 0;
-    letter-spacing: -0.015em;
+    font-size: 22px; font-weight: 700; margin: 0;
+    letter-spacing: -0.025em;
   }
   .row-sub { color: var(--muted); font-size: 13px; }
   .row-progress {
@@ -733,7 +738,7 @@
   .scroller {
     display: grid; grid-auto-flow: column;
     grid-auto-columns: clamp(150px, 14vw, 210px);
-    gap: 14px;
+    gap: 16px;
     overflow-x: auto; overflow-y: visible;
     padding: 10px 4px 30px;
     scroll-snap-type: x mandatory;
@@ -752,7 +757,9 @@
     border: 1px solid var(--line);
   }
   .card:hover {
-    transform: translateY(-6px);
+    /* Polish v3: tighter lift — -6px felt jumpy when scanning a row, -4px
+       reads as a subtle response without bouncing the layout. */
+    transform: translateY(-4px);
     box-shadow: 0 20px 40px rgba(0,0,0,.55), 0 0 0 1px rgba(37,99,235,.4);
     z-index: 5;
   }
@@ -786,9 +793,13 @@
   }
   .badge.read { background: rgba(70,211,105,.95); box-shadow: 0 4px 12px rgba(70,211,105,.35); }
   .badge.hot  { background: var(--warm); box-shadow: 0 4px 12px rgba(245,158,11,.35); }
-  /* Right-aligned pill stack: grade + XP. Always shown (independent of
-     the status badge in the top-left). Stacked vertically with a 4px gap
-     so both fit even on the narrowest card sizes. */
+  /* Polish v3 (Phase 3): the always-on grade + XP pill stack in the
+     top-right was double-tagging every card. Now only the grade pill
+     stays always-on (it's the primary scan signal — "is this on my
+     level?"). XP moves into the hover overlay where it answers the
+     "what do I get for finishing this?" question only AT the moment
+     the kid is deciding. Drops the visual weight of every card on
+     the browse surface by ~half. */
   .card-pills {
     position: absolute; top: 8px; right: 8px; z-index: 2;
     display: flex; flex-direction: column; gap: 4px;
@@ -808,10 +819,6 @@
     border: 1px solid rgba(255,255,255,.12);
     color: #c9d8ff;
   }
-  .card-pill.xp {
-    background: linear-gradient(180deg, #8b5cf6, #6d28d9);
-    box-shadow: 0 4px 10px rgba(139,92,246,.4);
-  }
   .card-info {
     position: absolute; left: 0; right: 0; bottom: 0;
     background: linear-gradient(180deg, transparent, rgba(0,0,0,.95) 60%);
@@ -821,12 +828,20 @@
     pointer-events: none;
   }
   .card-info .t { font-size: 13px; font-weight: 700; line-height: 1.2; margin: 0; }
-  .card-info .stats {
-    margin-top: 6px; display: flex; gap: 10px;
-    font-size: 11px; color: #c5cee0;
+  /* Polish v3: XP chip rendered inside the hover overlay (replaces the
+     always-on .card-pill.xp + the per-card 👍/👎 vote tallies that used
+     to live here). Vote tallies still surface in the book modal where
+     they have full context; on the browse surface they were noise. */
+  .card-info .xp-chip {
+    margin-top: 8px;
+    display: inline-block;
+    font-size: 11px; font-weight: 700;
+    letter-spacing: 0.04em;
+    padding: 3px 9px; border-radius: 999px;
+    color: #fff;
+    background: linear-gradient(180deg, #8b5cf6, #6d28d9);
+    box-shadow: 0 4px 10px rgba(139,92,246,.4);
   }
-  .card-info .stats .up   { color: var(--good); }
-  .card-info .stats .down { color: var(--bad); }
 
   /* =================== Modal =================== */
   .modal-backdrop {
@@ -3511,13 +3526,16 @@ function renderRows() {
     root.appendChild(buildRow(cat));
   });
 
-  // Section divider before browse-by-topic
+  // Section divider before browse-by-topic. Polish v3 (Phase 3): calmer
+  // styling — smaller letter-spacing, lighter weight, no top border. The
+  // grade-rows + genre-rows distinction matters but doesn't need a
+  // billboard heading screaming at the kid mid-scroll.
   const divider = document.createElement("div");
-  divider.style.cssText = "max-width:1600px;margin:30px auto 0;padding:0 40px";
+  divider.style.cssText = "max-width:1600px;margin:36px auto 0;padding:0 40px";
   divider.innerHTML = `
-    <div style="border-top:1px solid var(--line);padding-top:22px">
-      <h2 style="margin:0 0 4px;font-size:14px;font-weight:600;color:var(--muted);
-                 letter-spacing:0.12em;text-transform:uppercase">
+    <div style="padding-top:8px">
+      <h2 style="margin:0;font-size:12px;font-weight:600;color:var(--muted);
+                 letter-spacing:0.06em;text-transform:uppercase">
         Browse by topic
       </h2>
     </div>`;
@@ -3532,21 +3550,42 @@ function renderRows() {
 }
 
 function buildRow(cat, isRecent) {
+  // Polish v3 (Phase 3): row head is calmer.
+  //  - Progress bar only renders once the kid has at least 1 read in the
+  //    row. Empty "0 / 12" bars on a fresh login read as "you've done
+  //    nothing"; hiding until first read flips the tone to "look what
+  //    you've started." Genre rows still don't show progress (the same
+  //    book appears across multiple genres, so the count would be
+  //    misleading).
+  //  - Subtitle (cat.sub) only renders when it adds context beyond the
+  //    title. Grade rows often had subs that just restated the title
+  //    ("Books at grade K" under "Grade K") — dropped via the dedupe
+  //    check below.
   const row = document.createElement("section");
   row.className = "row";
   row.id = `section-${cat.id}`;
   const total = cat.books.length;
   const done = cat.books.filter(b => state.data.read[b.id]).length;
-  const progressHtml = isRecent ? "" : `
+  const showProgress = !isRecent && done > 0 && total > 0;
+  const progressHtml = showProgress ? `
     <div class="row-progress">
       <span>${done} / ${total}</span>
-      <div class="bar"><i style="width:${total ? (done/total*100) : 0}%"></i></div>
-    </div>`;
+      <div class="bar"><i style="width:${(done/total*100)}%"></i></div>
+    </div>` : "";
+  // Drop the subtitle when it's just restating the title (case-insensitive
+  // substring match on the title's first word as a cheap dedupe).
+  const subText = cat.sub || "";
+  const titleFirstWord = String(cat.title || "").split(/\s+/)[0]?.toLowerCase() || "";
+  const subIsRedundant = titleFirstWord &&
+    subText.toLowerCase().includes(titleFirstWord);
+  const subHtml = (subText && !subIsRedundant)
+    ? `<span class="row-sub">${escapeHtml(subText)}</span>`
+    : "";
   row.innerHTML = `
     <div class="row-head">
       ${cat.icon ? `<span style="font-size:18px">${cat.icon}</span>` : ""}
-      <h2 class="row-title">${cat.title}</h2>
-      ${cat.sub ? `<span class="row-sub">${cat.sub}</span>` : ""}
+      <h2 class="row-title">${escapeHtml(cat.title)}</h2>
+      ${subHtml}
       ${progressHtml}
     </div>
     <div class="scroller-wrap"><div class="scroller" id="row-${cat.id}"></div></div>
@@ -3557,25 +3596,32 @@ function buildRow(cat, isRecent) {
 }
 
 function buildCard(book, isHot) {
-  const counts = effectiveCounts(book.id);
+  // Polish v3 (Phase 3): card simplification.
+  //  - Dropped the "★ Top pick" first-card badge (it was position-based,
+  //    not meaningful — the Hero already promotes the actual top pick).
+  //  - Dropped the always-on XP pill (now lives in the hover overlay).
+  //  - Dropped the per-card 👍/👎 vote tallies in the hover overlay; the
+  //    full vote summary lives in the book modal where it has context.
+  //    Hover overlay now shows: title + XP chip.
+  //  - Kept the grade pill (primary scan signal) and the green "✓ Read"
+  //    badge (a kid's earned mark — never hide that).
+  //
+  // `isHot` is still accepted for API compatibility but no longer renders
+  // a separate badge; we keep the parameter so callers don't have to
+  // change. If we revive a "top pick" treatment later, hook it back in.
+  void isHot;
   const wasRead = !!state.data.read[book.id];
   const card = document.createElement("article");
   card.className = "card";
   card.setAttribute("tabindex", "0");
   card.setAttribute("data-book-id", book.id);
   card.setAttribute("aria-label", `${book.title} by ${book.author}`);
-  // Top-left status badge: Read > Top pick > (none).
-  // Top-right pill stack: grade + XP, always shown so kids see both the
-  // level signal and the kid-specific XP this book is worth.
   const xp = expectedXp(book.id, state.session?.grade || "K");
   const gradeLabel = gradeBadgeLabel(book);
-  const statusBadge = wasRead
-    ? `<div class="badge read">✓ Read</div>`
-    : (isHot ? `<div class="badge hot">★ Top pick</div>` : "");
+  const statusBadge = wasRead ? `<div class="badge read">✓ Read</div>` : "";
   const cornerPills =
     `<div class="card-pills">` +
       (gradeLabel ? `<span class="card-pill grade">${escapeHtml(gradeLabel)}</span>` : "") +
-      (xp > 0 ? `<span class="card-pill xp">✨ ${xp} XP</span>` : "") +
     `</div>`;
   const badge = statusBadge + cornerPills;
   // Skip the OpenLibrary <img> entirely when we know there's no cover —
@@ -3595,15 +3641,13 @@ function buildCard(book, isHot) {
            <div class="fb-author">${escapeHtml(book.author)}</div>
          </div>
        </div>`;
+  const xpChip = xp > 0 ? `<span class="xp-chip">✨ ${xp} XP</span>` : "";
   card.innerHTML = `
     ${badge}
     ${coverHtml}
     <div class="card-info">
       <p class="t">${escapeHtml(book.title)}</p>
-      <div class="stats">
-        <span class="up">👍 ${counts.up}</span>
-        <span class="down">👎 ${counts.down}</span>
-      </div>
+      ${xpChip}
     </div>
   `;
   const open = () => openBook(book.id);
