@@ -630,6 +630,12 @@
     flex-wrap: wrap;
   }
   .hero-meta strong { color: var(--ink); font-weight: 600; }
+  /* Polish v3 (Hero pass): XP chip in the meta strip. Same purple
+     accent as the catalog card hover XP chip so kids learn one shape
+     = one meaning across surfaces. */
+  .hero-meta .hero-xp {
+    color: #c4b5fd; font-weight: 700; letter-spacing: 0.04em;
+  }
   .dot-sep { width: 3px; height: 3px; background: var(--muted-2); border-radius: 50%; }
   .hero p.blurb-text {
     margin: 0; max-width: 520px;
@@ -2038,9 +2044,14 @@
       <h1 id="heroTitle">—</h1>
       <div class="hero-meta" id="heroMeta">—</div>
       <p class="blurb-text" id="heroBlurb">—</p>
+      <!-- Polish v3 (Hero pass): CTA copy aligned with the rest of the
+           app. "Read More" implied "scroll for more text" and mismatched
+           the modal's verbs (#56). "Take a look" is action-led and
+           pairs with the modal opening as the expected outcome.
+           "Listen" → "Hear the blurb" — explicit about WHAT it reads. -->
       <div class="hero-actions">
-        <button class="btn btn-primary" id="heroOpen">📖  Read More</button>
-        <button class="btn btn-secondary" id="heroSpeak">🔊  Listen</button>
+        <button class="btn btn-primary" id="heroOpen">📖  Take a look</button>
+        <button class="btn btn-secondary" id="heroSpeak">🔊  Hear the blurb</button>
       </div>
     </div>
     <div class="hero-visual">
@@ -3498,22 +3509,32 @@ function renderHero() {
     eyebrowText = `PICK OF THE WEEK · ${featuredBook.category}`;
   }
 
-  const counts = effectiveCounts(featuredBook.id);
-  const total = counts.up + counts.down;
-  const pct = total ? Math.round((counts.up / total) * 100) : 0;
-
+  // Polish v3 (Hero pass): dropped "X% loved this · 👍 N" from the
+  // meta. Same reason we pulled the percentage off the modal — it
+  // reads as judgement on a book the kid hasn't chosen yet. Meta is
+  // now just author + grade badge. The modal still shows the running
+  // 👍 / 👎 total below the action row for the curious. We also
+  // surface the expected XP here so the meta strip carries a
+  // genuinely useful decision signal.
+  const xp = expectedXp(featuredBook.id, state.session?.grade || "K");
   document.getElementById("heroEyebrow").textContent = eyebrowText;
   document.getElementById("heroTitle").textContent = featuredBook.title;
   const heroBadge = gradeBadgeLabel(featuredBook);
   document.getElementById("heroMeta").innerHTML = `
     <strong>${escapeHtml(featuredBook.author)}</strong>
     ${heroBadge ? `<span class="dot-sep"></span><span>${escapeHtml(heroBadge)}</span>` : ""}
-    <span class="dot-sep"></span>
-    <span>${pct}% loved this</span>
-    <span class="dot-sep"></span>
-    <span>👍 ${counts.up}</span>
+    ${xp > 0 ? `<span class="dot-sep"></span><span class="hero-xp">✨ ${xp} XP</span>` : ""}
   `;
-  document.getElementById("heroBlurb").textContent = featuredBook.blurb;
+  // Polish v3 (Hero pass): blurb capped at ~200 chars + ellipsis. Some
+  // catalog blurbs run 400+ chars and pushed the CTAs below the fold
+  // on shorter laptop screens. The full text is one tap away in the
+  // modal (which has full-height scrolling).
+  const rawBlurb = String(featuredBook.blurb || "");
+  const HERO_BLURB_MAX = 200;
+  const heroBlurbText = rawBlurb.length > HERO_BLURB_MAX
+    ? rawBlurb.slice(0, HERO_BLURB_MAX).replace(/\s+\S*$/, "") + "…"
+    : rawBlurb;
+  document.getElementById("heroBlurb").textContent = heroBlurbText;
 
   // Hero cover (real image, with gradient fallback)
   const cover = document.getElementById("heroCover");
