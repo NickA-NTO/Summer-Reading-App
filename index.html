@@ -3755,6 +3755,27 @@ function escapeHtml(s) {
   return String(s == null ? "" : s).replace(/[&<>"']/g,
     m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
 }
+
+// #47 — peer-facing name shaping. "Sarah Alsford" → "Sarah A.". Mirrors
+// the server-side displayName() in lib/session.js so comments rendered
+// from local state still get the redaction even if the data was
+// captured before the server-side write fix. Belt-and-braces.
+function displayName(raw) {
+  const s = String(raw == null ? "" : raw).trim();
+  if (!s) return "Reader";
+  if (/^\S+ [A-Z]\.$/.test(s)) return s;
+  const localPart = s.includes("@") ? s.split("@")[0] : s;
+  const cleaned = localPart.replace(/[._\-]+/g, " ").trim();
+  const parts = cleaned.split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "Reader";
+  if (parts.length === 1) {
+    const w = parts[0];
+    return w.charAt(0).toUpperCase() + w.slice(1);
+  }
+  const first = parts[0];
+  const last = parts[parts.length - 1];
+  return `${first.charAt(0).toUpperCase()}${first.slice(1).toLowerCase()} ${last.charAt(0).toUpperCase()}.`;
+}
 function escapeAttr(s) { return escapeHtml(s); }
 
 /* ---------- 10. Detail modal ---------- */
@@ -4104,10 +4125,13 @@ function renderComments() {
         const pendingBadge = c.pending
           ? ` <span style="background:rgba(245,158,11,.18);color:#fbbf24;border:1px solid rgba(245,158,11,.4);border-radius:999px;padding:1px 7px;font-size:10px;font-weight:600;margin-left:6px;vertical-align:middle">Pending check</span>`
           : "";
+        // #47 read-side redaction. Belt-and-braces: even if a legacy
+        // comment was stored before the displayName-on-write fix
+        // landed, the rendered output is still masked to "First L."
         return `
           <li class="comment">
             <div class="who-c">
-              <span>${escapeHtml(c.name)}</span><span class="dot"></span><span>${timeAgo(c.ts)}</span>${pendingBadge}
+              <span>${escapeHtml(displayName(c.name))}</span><span class="dot"></span><span>${timeAgo(c.ts)}</span>${pendingBadge}
             </div>
             <div>${escapeHtml(c.text)}</div>
           </li>`;
@@ -4677,7 +4701,11 @@ async function postComment() {
   // "Pending check" badge and a future admin-approve cycle can confirm.
   state.data.comments[activeBookId] = state.data.comments[activeBookId] || [];
   state.data.comments[activeBookId].push({
-    name: state.session.name,
+    // #47 — store the redacted form ("Sarah A.") not the full name.
+    // Peers of this kid don't need to see the last name, and on this
+    // device only THEY can see their own local comments anyway, but
+    // future "approve into shared feed" paths will read this field.
+    name: displayName(state.session.name),
     text,
     ts: Date.now(),
     pending: serverVerdict.verdict === "review",

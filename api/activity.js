@@ -12,7 +12,7 @@
 //       reading time, the XP is either held for admin review or partially
 //       reduced. Manual "I read this" reads skip fraud detection entirely.
 
-import { verifySession, parseCookies, isAdmin } from "../lib/session.js";
+import { verifySession, parseCookies, isAdmin, displayName } from "../lib/session.js";
 import { resolveVisibleTracks, trackForBook } from "../lib/tracks.js";
 import {
   recordRead,
@@ -272,7 +272,13 @@ export default async function handler(req, res) {
       try {
         await holdComment({
           email: session.email,
-          name: session.name || session.email.split("@")[0],
+          // #47 — redact at write. Full name only flows through the
+          // session cookie; comments queue stores the peer-facing
+          // "First L." form so any moderation UI that surfaces this
+          // queue can't accidentally leak the last name. Admins who
+          // need full-name attribution can dereference via the email
+          // field (admin-only path).
+          name: displayName(session.name || session.email.split("@")[0]),
           bookId,
           text,
           reason: verdict.reason,

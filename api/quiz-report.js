@@ -1,7 +1,7 @@
 // Submitted by a kid (or anyone authenticated) to flag a quiz question as
 // bad. Stored for admin review at /admin → Flagged Questions.
 
-import { verifySession, parseCookies } from "../lib/session.js";
+import { verifySession, parseCookies, displayName } from "../lib/session.js";
 import { saveQuizReport } from "../lib/store.js";
 import { getCachedQuizPool } from "./quiz.js";
 import { normalizeGrade } from "../lib/xp.js";
@@ -107,7 +107,10 @@ export default async function handler(req, res) {
     reason,
     note,
     reportedByEmail: session.email,
-    reportedByName: session.name,
+    // #47 — redact at write. Admins can still look up the full name
+    // via the email field. The flagged-questions queue UI shows the
+    // peer-facing form by default.
+    reportedByName: displayName(session.name),
   });
 
   if (!result.ok) {
