@@ -2985,6 +2985,26 @@ document.getElementById("signout").addEventListener("click", () => {
   // element mid-play would otherwise keep narrating after the page
   // navigates to /api/auth/logout.
   try { cancelSpeech(); } catch {}
+  // Fix #48 — shared-Chromebook PII leak. Schools cycle the same device
+  // through many kids; cookies clear server-side via /api/auth/logout
+  // but localStorage doesn't. Without this, the next kid who signs in
+  // could inherit the prior kid's cached reads / quiz state / voice
+  // pref via the rs.data.<email> bucket. We wipe ALL rs.* keys on
+  // signout — every kid starts from a clean slate after a logout.
+  // (Server is authoritative for reads/XP/etc., so wiping localStorage
+  // costs nothing — the next /api/auth/me will rehydrate.)
+  try {
+    const toRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && (k.startsWith("rs.") || k.startsWith("rs_"))) {
+        toRemove.push(k);
+      }
+    }
+    toRemove.forEach((k) => localStorage.removeItem(k));
+  } catch {
+    // localStorage access can throw in privacy modes — silent OK.
+  }
   location.href = "/api/auth/logout";
 });
 
