@@ -98,7 +98,7 @@ export default async function handler(req, res) {
       timestamp: new Date().toISOString(),
       latencyMs: Date.now() - start,
       checks,
-      schemaVersions: { quiz: 9 },
+      schemaVersions: { quiz: 10 },
       build: {
         commit: wantCommit ? (process.env.VERCEL_GIT_COMMIT_SHA || null) : null,
         region: process.env.VERCEL_REGION || null,

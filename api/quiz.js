@@ -100,8 +100,19 @@ export const QUIZ_BOOKS = {
     author: "Dr. Seuss",
     grade: "PK",
     quizStyle: "emergent",
+    // Rewritten — the previous summary contained two hallucinations:
+    //   • "They have a fight with a fish called Ned" — no such scene
+    //     in the book. The "Ned" character is from Dr. Seuss's HOP ON
+    //     POP ("Red, Ned, Ted and Ed in bed"), not One Fish Two Fish.
+    //     The AI quiz generator faithfully turned the hallucination
+    //     into a real quiz question, which is how it shipped.
+    //   • Some "the narrator looks for a hop" and similar phrasings
+    //     were also drift from Hop on Pop content.
+    // This version sticks to canonical, verifiable content from the
+    // actual book and uses cautious language elsewhere so the AI
+    // generator can't extrapolate fake scenes.
     summary:
-      "A book of short rhymes about counting and color. The narrator describes fish: one fish, two fish, red fish, blue fish. Then they meet many silly creatures: a fish with a little car, a fish with a winking eye, a fish from far away. They have a fight with a fish called Ned. They go on a ride with Mike on his bike — Mike has ten legs and Mike pedals while they sit. They visit Mr. Gump and his seven-hump Wump. They use his humps to ride. They put their cold feet on the Zeep at night to warm them up. They look for a hop. They have a Yink that likes to wink and drink pink ink. The whole book is full of silly invented creatures with rhyming names.",
+      "A counting and rhyming picture book by Dr. Seuss. The narrator counts and describes many colorful fish: one fish, two fish, red fish, blue fish; black fish, blue fish, old fish, new fish. Some fish are sad, some are glad, some are bad. Some fish have a little star and some have a little car. The book then shows a parade of silly invented creatures with rhyming names: a fish with one hump and a fish with many humps; the Wump with seven humps that you can ride; Mike, who has many legs and pedals his bike while others sit on top of him; the Yink, who likes to wink and drink pink ink; the Yop on top; the Zans that brush their teeth; a Yeps and Yops; Clark, who never goes to school; a Wump with seven humps named Mr. Gump. The narrator and the children put their cold feet on the Zeep at bedtime to keep them warm. The book uses simple short rhyming words and pairs them on each page so early readers can sound them out. There is no single plot — it is a parade of silly creatures with rhyming names doing silly things, page by page.",
   },
   e08: {
     title: "Biscuit",
@@ -566,7 +577,11 @@ const QCSchema = z.object({
 //     with safety < QC_MIN_SAFETY (7) are dropped. Bump invalidates all
 //     v8 pools so existing cached questions get re-reviewed under the
 //     new safety axis on next request.
-const SCHEMA_VERSION = 9;
+// v10: Canonical summary for e07 (One Fish Two Fish) rewritten to
+//      remove a hallucination ("fight with a fish called Ned" — that
+//      content is from Hop on Pop, not this book). Bump forces a fresh
+//      pool generation so the bad quiz question is purged.
+const SCHEMA_VERSION = 10;
 // Exported alias so api/activity.js can build the same cache key when it
 // validates a quiz_submit. Kept as a renamed export so the local const can
 // be reassigned independently if we ever split client / server schemas.

@@ -5182,6 +5182,24 @@ function saveQuizCooldown(until, flagCount) {
 async function openQuiz(bookId) {
   const book = BOOK_BY_ID[bookId];
   if (!book) return;
+
+  // Anti-cheat: if there's a saved mid-attempt for THIS book (kid
+  // exited via ✕ and is re-opening), resume from where they were.
+  // Without this they could close-and-reopen to re-roll the random
+  // 5-of-12 picks until they got questions they recognised.
+  // Resume covers both in-session (quizState in memory) and across
+  // a page refresh (localStorage). Cleared on quiz pass/fail.
+  const resumed = loadQuizProgress(bookId);
+  if (resumed) {
+    Object.assign(quizState, resumed);
+    document.getElementById("quizBookTitle").textContent = `Quiz · ${book.title}`;
+    document.getElementById("quizOverlay").classList.add("open");
+    document.body.style.overflow = "hidden";
+    setQuizProgress(quizState.idx);
+    renderQuizQuestion();
+    return;
+  }
+
   quizState.bookId = bookId;
   quizState.pool = null;
   quizState.questions = null;
@@ -5510,6 +5528,9 @@ function answerQuestion(choice) {
     poolIdx: q.poolIdx,
     chosen: q.originalIndices[choice],
   });
+  // Persist progress so a close-and-reopen resumes here instead of
+  // re-rolling the random question selection.
+  saveQuizProgress();
 
   // Visual feedback: neutral "you tapped this" highlight, no red/green.
   // The kid learns their score at the end of the quiz (server-graded).
@@ -5522,6 +5543,7 @@ function answerQuestion(choice) {
   setTimeout(() => {
     if (quizState.idx + 1 < quizState.questions.length) {
       quizState.idx++;
+      saveQuizProgress();
       renderQuizQuestion();
     } else {
       finishQuiz();
@@ -5529,9 +5551,74 @@ function answerQuestion(choice) {
   }, 700); // shorter delay — no per-question reveal to read
 }
 
+// Anti-cheat: persist mid-attempt quiz state per book so the kid can't
+// close-and-reopen to re-roll the random question selection. Stored
+// per-email under "rs.quiz.<email>.<bookId>" (matches the rest of our
+// localStorage namespace so the logout wipe in #48 also clears it).
+// Cleared on finishQuiz so completed attempts don't linger.
+function _quizProgressKey(bookId) {
+  const email = state?.session?.email || "anon";
+  return `rs.quiz.${email.toLowerCase()}.${bookId}`;
+}
+function saveQuizProgress() {
+  if (!quizState.bookId || !Array.isArray(quizState.questions)) return;
+  // Don't save if we haven't started yet (idx 0 + 0 answers = "fresh"
+  // and re-rolling the pool on reopen is fine; the kid hasn't seen
+  // anything yet, so there's nothing to game).
+  if (quizState.idx === 0 && quizState.answers.length === 0) return;
+  try {
+    localStorage.setItem(_quizProgressKey(quizState.bookId), JSON.stringify({
+      bookId:     quizState.bookId,
+      style:      quizState.style,
+      idx:        quizState.idx,
+      score:      quizState.score,
+      answers:    quizState.answers,
+      questions:  quizState.questions, // includes shuffled options + poolIdx
+      pool:       quizState.pool,
+      attemptNum: quizState.attemptNum,
+      seenQTexts: quizState.seenQTexts,
+      ts:         Date.now(),
+    }));
+  } catch {
+    // localStorage failure (privacy mode, quota) is non-fatal — the
+    // in-memory quizState still resumes within the same page load.
+  }
+}
+function loadQuizProgress(bookId) {
+  try {
+    const raw = localStorage.getItem(_quizProgressKey(bookId));
+    if (!raw) return null;
+    const saved = JSON.parse(raw);
+    if (saved?.bookId !== bookId) return null;
+    if (!Array.isArray(saved.questions) || !saved.questions.length) return null;
+    if (typeof saved.idx !== "number" || saved.idx >= saved.questions.length) {
+      // Already at the end → no resume; treat as stale.
+      clearQuizProgress(bookId);
+      return null;
+    }
+    // Stale-after-24h guard so a kid who comes back a day later
+    // doesn't get a creaky resume instead of a fresh attempt.
+    if (typeof saved.ts === "number" && Date.now() - saved.ts > 86_400_000) {
+      clearQuizProgress(bookId);
+      return null;
+    }
+    return saved;
+  } catch {
+    return null;
+  }
+}
+function clearQuizProgress(bookId) {
+  try { localStorage.removeItem(_quizProgressKey(bookId)); } catch {}
+}
+
 async function finishQuiz() {
   const total = questionsPerAttempt(quizState.style);
   setQuizProgress(total);
+
+  // Attempt has completed — clear the saved-progress key so the next
+  // openQuiz call starts fresh (and the retry path on fail picks new
+  // random questions normally).
+  clearQuizProgress(quizState.bookId);
 
   // 1d.1 — Record the attempt and save seen question texts for rotation.
   const rec = getAttemptRecord(quizState.bookId);
