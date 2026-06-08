@@ -391,13 +391,9 @@ export const QUIZ_BOOKS = {
   },
 
   /* ---------- Usborne Young Reading Series 1 — Grade 2 ---------- */
-  u07: {
-    title: "The Wizard of Oz",
-    author: "L. Frank Baum (Usborne)",
-    grade: "2",
-    summary:
-      "Dorothy lives on a farm in Kansas with her Auntie Em, Uncle Henry, and her little dog Toto. A great tornado picks up their farmhouse and drops it in the magical land of Oz, crushing and killing the Wicked Witch of the East and freeing the Munchkins who lived under her power. The Good Witch of the North gives Dorothy the dead witch's silver slippers and tells her to follow the Yellow Brick Road to the Emerald City, where the great Wizard might help her get home. Along the Yellow Brick Road Dorothy meets a Scarecrow who wants a brain, a Tin Woodman who wants a heart, and a Cowardly Lion who wants courage. They travel together through dangers: a field of enchanted poppies that put Dorothy and the Lion to sleep, flying monkeys controlled by the Wicked Witch of the West, and a terrifying dark castle. The Wicked Witch of the West, who wants the silver slippers, captures Dorothy. Dorothy throws a bucket of water on her to put out the fire and accidentally melts the witch. When they reach the Wizard they discover he is an ordinary man hiding behind a curtain who can do no real magic. He sends them away with words: he gives the Scarecrow a diploma, the Tin Man a heart-shaped clock, the Lion a medal for courage. Dorothy learns she can use the silver slippers to go home by clicking her heels three times and saying 'There's no place like home.' She wakes up in Kansas, safe with her family.",
-  },
+  // u07 Wizard of Oz removed pre-V1 (#80) — couldn't verify a US Amazon-
+  // sold ISBN. Canonical summary lived here; re-add along with the
+  // catalog entry + lib/books.js metadata when a real US ISBN is sourced.
   u08: {
     title: "Rapunzel",
     author: "Susanna Davidson (Usborne)",
