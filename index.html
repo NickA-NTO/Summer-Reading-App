@@ -2924,7 +2924,8 @@ function amazonUrl(book) {
 const DATA_KEY = email => "rs.data." + email.toLowerCase();
 // Bump this when the catalog changes — returning users get fresh seeded
 // counts instead of orphaned data tied to deleted book IDs.
-const DATA_VERSION = 2;
+// v3: stripped fake comments + upvote seed data (#46).
+const DATA_VERSION = 3;
 
 function loadData(email) {
   try {
@@ -2941,37 +2942,21 @@ function loadData(email) {
 function saveData(email, data) { localStorage.setItem(DATA_KEY(email), JSON.stringify(data)); }
 
 function defaultData() {
+  // #46 — fake comments + upvote counts removed before launch.
+  // Previously seeded with fictional kid reviews ("Marco (Gr K): I
+  // counted all the fruits!") and inflated up/down tallies so the
+  // catalog wouldn't look empty on day 1. Real kids would have
+  // eventually noticed names they didn't recognize from their
+  // class. Both fields now start empty; comments accumulate as kids
+  // actually post them, and counts come from real votes (effective
+  // counts gracefully handles missing entries as 0/0).
   return {
     version: DATA_VERSION,
     read: {},
     votes: {},
     streakDays: [],         // YYYY-MM-DD strings of days a book was marked read
-    comments: {
-      k01: [{ name: "Marco (Gr K)",  text: "I counted all the fruits at the end!",     ts: Date.now()-10800000 }],
-      k06: [{ name: "Sara (Gr K)",   text: "The Gruffalo is scary AND so funny.",      ts: Date.now()-86400000 }],
-      k02: [{ name: "Ava (Gr K)",    text: "Thing 1 and Thing 2 make me laugh.",       ts: Date.now()-21600000 }],
-      a07: [{ name: "Avery (Gr 1)",  text: "The wild things are my favorite.",         ts: Date.now()-172800000 }],
-      a03: [{ name: "Ben (Gr 1)",    text: "Frog and Toad are the best friends ever.", ts: Date.now()-43200000 }],
-      a06: [{ name: "Lila (Gr 1)",   text: "I made a dot too! Mine was purple.",       ts: Date.now()-7200000  }],
-      b07: [{ name: "Owen (Gr 2)",   text: "Mr. Fox tricked them all. So cool.",       ts: Date.now()-3600000  }],
-      b01: [{ name: "Kai (Gr 2)",    text: "I felt kinda bad for the wolf actually.",  ts: Date.now()-25200000 }],
-      b06: [{ name: "Nora (Gr 2)",   text: "I want to make buttered toast now.",       ts: Date.now()-14400000 }],
-    },
-    counts: {
-      // Grade K
-      k01: { up: 412, down: 5 }, k02: { up: 356, down: 8 }, k03: { up: 198, down: 3 },
-      k04: { up: 142, down: 4 }, k05: { up: 88,  down: 2 }, k06: { up: 284, down: 4 },
-      k07: { up: 176, down: 3 }, k08: { up: 248, down: 6 },
-      // Grade 1
-      a01: { up: 187, down: 3 }, a02: { up: 96,  down: 2 }, a03: { up: 221, down: 3 },
-      a04: { up: 124, down: 5 }, a05: { up: 142, down: 4 }, a06: { up: 165, down: 2 },
-      a07: { up: 312, down: 8 }, a08: { up: 78,  down: 2 }, a09: { up: 156, down: 4 },
-      a10: { up: 134, down: 6 }, a11: { up: 104, down: 3 },
-      // Grade 2
-      b01: { up: 198, down: 6 }, b02: { up: 121, down: 1 }, b03: { up: 162, down: 2 },
-      b04: { up: 84,  down: 1 }, b05: { up: 145, down: 1 }, b06: { up: 174, down: 2 },
-      b07: { up: 263, down: 4 }, b09: { up: 153, down: 6 },
-    },
+    comments: {},
+    counts: {},
   };
 }
 
