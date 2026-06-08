@@ -5338,16 +5338,32 @@ function openReportDialog(q) {
       dialog.querySelectorAll("button").forEach((b) => (b.disabled = true));
       btn.textContent = "Sending…";
       try {
+        // Fix #62: markedCorrect was `q.answer`, but the client never
+        // sees the answer key (stripped in #28). The payload was
+        // always {markedCorrect: undefined} → JSON dropped it →
+        // moderators saw no marked-correct in the admin queue. Send
+        // poolIdx instead; the server looks up the canonical answer
+        // from the cached pool using bookId + grade + poolIdx and
+        // records the original (un-shuffled) options + markedCorrect
+        // as ground truth. Also send the kid's tap so admins can see
+        // exactly which option triggered the "this is wrong" report.
         await fetch("/api/quiz-report", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "same-origin",
           body: JSON.stringify({
             bookId: quizState.bookId,
+            poolIdx: q.poolIdx,
             question: q.q,
             options: q.options,
-            markedCorrect: q.answer,
+            // Kid's tapped option (shuffled idx) → original idx via
+            // originalIndices, so the report row carries a stable
+            // pointer into the pool's options array.
+            chosenOriginalIdx: Number.isInteger(quizState.lastChosenIdx)
+              ? q.originalIndices?.[quizState.lastChosenIdx] ?? null
+              : null,
             studentGrade: state?.session?.grade || null,
+            ageGrade: state?.session?.ageGrade || null,
             reason,
           }),
         });
@@ -5368,6 +5384,11 @@ function openReportDialog(q) {
 
 function answerQuestion(choice) {
   const q = quizState.questions[quizState.idx];
+  // Stash the kid's most-recent shuffled-index tap so the quiz-report
+  // dialog (#62 fix) can pass `chosenOriginalIdx` to the server.
+  // Without this, "🚩 Tell us this is wrong" submitted with no kid-
+  // chose-X context and the admin moderation queue couldn't reproduce.
+  quizState.lastChosenIdx = choice;
   // Record the kid's tap as { poolIdx, chosen } where chosen is the
   // ORIGINAL (un-shuffled) option index. The server grades against the
   // canonical pool, so we send the canonical index. No `correct` flag —
@@ -6612,11 +6633,26 @@ function renderQuizReports(reports) {
   };
   const letters = ["A", "B", "C", "D"];
   const items = reports.map((r) => {
+    // Fix #62: render BOTH the catalog-marked correct answer AND the
+    // kid's tap so admins can see exactly which option triggered the
+    // "this is wrong" report. chosenOriginalIdx is the new field —
+    // legacy reports without it just show the marked-correct row.
     const marked = letters[r.markedCorrect] || "?";
-    const optionsHtml = (r.options || []).map((opt, i) => `
-      <li style="${i === r.markedCorrect ? "color:var(--good);font-weight:600" : "color:var(--muted)"}">
-        ${letters[i]}) ${escapeHtml(opt)}${i === r.markedCorrect ? " ← marked correct" : ""}
-      </li>`).join("");
+    const chosenIdx = Number.isInteger(r.chosenOriginalIdx)
+      ? r.chosenOriginalIdx
+      : null;
+    const optionsHtml = (r.options || []).map((opt, i) => {
+      const isMarked = i === r.markedCorrect;
+      const isChosen = i === chosenIdx;
+      let style = "color:var(--muted)";
+      if (isMarked) style = "color:var(--good);font-weight:600";
+      else if (isChosen) style = "color:var(--warm);font-weight:600";
+      const tags = [];
+      if (isMarked) tags.push(" ← marked correct");
+      if (isChosen && !isMarked) tags.push(" ← kid tapped this");
+      if (isChosen && isMarked) tags.push(" (kid tapped this — agreed)");
+      return `<li style="${style}">${letters[i]}) ${escapeHtml(opt)}${tags.join("")}</li>`;
+    }).join("");
     return `
       <div class="report-card" data-report-id="${escapeAttr(r.id)}">
         <div class="rc-head">
