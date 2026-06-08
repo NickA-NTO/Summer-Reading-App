@@ -2377,11 +2377,19 @@
 <div class="onb-overlay" id="onbVoiceOverlay" role="dialog" aria-modal="true">
   <div class="onb-card">
     <div class="onb-eyebrow">Step 1 of 2 · Pick your voice</div>
-    <h2 class="onb-title">Hi! Pick a voice to read to you.</h2>
+    <!-- Polish v3.4: copy corrected — the app reads UI text (titles,
+         tips, button labels, blurbs) not full books. "Read to you"
+         was misleading. -->
+    <h2 class="onb-title">Hi! Pick a voice for read-aloud help.</h2>
     <p class="onb-sub">Tap a card to hear it speak. Pick the one you like best — you can change it later.</p>
     <div class="onb-voice-grid" id="onbVoiceGrid"></div>
     <div class="onb-actions">
-      <button class="onb-skip" id="onbVoiceSkip" type="button">Skip for now</button>
+      <!-- Polish v3.4: "Skip for now" implied "maybe later" but actually
+           kept emergent-reader TTS defaults on. Renamed to a clear opt-
+           out — clicking turns TTS off and persists the manual choice.
+           Picker is also skipped entirely for working grade 3+ (see
+           startOnboarding) so older kids never see this button. -->
+      <button class="onb-skip" id="onbVoiceSkip" type="button">No read-aloud</button>
       <button class="onb-next" id="onbVoiceNext" type="button" disabled>Next →</button>
     </div>
   </div>
@@ -6615,14 +6623,22 @@ function friendlyDate(ts) {
 // Completion of either path POSTs tourCompleted: true so we don't show
 // it again on later sign-ins.
 
+// Polish v3.4: Fable was in the header voice popover but missing from
+// the first-run picker. Added so kids see the same five voices in both
+// places. Order roughly: brightest → warmest.
 const ONB_VOICES = [
   { id: "nova",    emoji: "🌟", label: "Nova"    },
   { id: "shimmer", emoji: "✨", label: "Shimmer" },
   { id: "coral",   emoji: "🪸", label: "Coral"   },
+  { id: "fable",   emoji: "📖", label: "Fable"   },
   { id: "ash",     emoji: "🌳", label: "Ash"     },
 ];
+// Polish v3.4: preview line corrected — TTS reads titles/blurbs/tips,
+// it doesn't read along the book itself. "Read along with you" set the
+// wrong expectation for kids who then asked why it wouldn't follow a
+// physical book they were holding.
 const ONB_PREVIEW_TEXT =
-  "Hi! I'll read along with you. Pick a voice you like.";
+  "Hi! I can read titles and tips out loud. Pick a voice you like.";
 
 let _onbSelectedVoice = null;
 let _onbPreviewAudio = null;
@@ -6630,6 +6646,19 @@ let _onbPreviewAudio = null;
 function startOnboarding() {
   const overlay = document.getElementById("onbVoiceOverlay");
   if (!overlay) return;
+  // Polish v3.4: kids reading at working grade 3+ can decode the UI
+  // without read-aloud help. Skip the voice picker entirely and jump
+  // straight to the spotlight tour. They can still flip TTS on via the
+  // header toggle if they want — picker isn't gone, just not forced in
+  // their face during onboarding.
+  const grade = String(state.session?.grade || "K").toUpperCase();
+  const gradeNum = grade === "PK" ? -1 : (grade === "K" ? 0 : Number(grade) || 0);
+  if (gradeNum >= 3) {
+    // Skip the picker, leave TTS at whatever the bootstrap default set
+    // (which is OFF for grade 2+), and run the spotlight tour next.
+    setTimeout(() => startTour(), 50);
+    return;
+  }
   const grid = document.getElementById("onbVoiceGrid");
   grid.innerHTML = ONB_VOICES.map((v) => `
     <button class="onb-voice" data-voice="${v.id}" type="button">
@@ -6663,6 +6692,21 @@ function startOnboarding() {
   document.getElementById("onbVoiceSkip").onclick = () => {
     onbCleanupAudio();
     overlay.classList.remove("open");
+    // Polish v3.4: "No read-aloud" is a real opt-out — kill any in-
+    // flight TTS, flip the header switch off, and persist the manual
+    // choice so the emergent-reader auto-enable (PK/K/Gr1) doesn't
+    // turn it back on next login.
+    try { cancelSpeech(); } catch {}
+    ttsOn = false;
+    const sw = document.getElementById("ttsSwitch");
+    if (sw) {
+      sw.setAttribute("aria-checked", "false");
+      sw.classList.remove("on");
+    }
+    if (state?.data) {
+      state.data.ttsManualToggle = true;
+      try { saveData(state.session.email, state.data); } catch {}
+    }
     finishOnboarding(/* skipped */ true);
   };
   document.getElementById("onbVoiceNext").onclick = () => {
@@ -6682,8 +6726,10 @@ function startOnboarding() {
     if ("speechSynthesis" in window) {
       try {
         window.speechSynthesis.cancel();
+        // Polish v3.4: same copy as the modal title — "read books to
+        // you" misled kids about what TTS actually does.
         const u = new SpeechSynthesisUtterance(
-          "Hi! Pick a voice to read books to you. Tap a face to hear it speak."
+          "Hi! Pick a voice for read-aloud help. Tap a face to hear it speak."
         );
         u.rate = 0.95;
         u.pitch = 1.05;
