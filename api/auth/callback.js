@@ -8,7 +8,7 @@ import {
   signSession,
   parseCookies,
   serializeCookie,
-  decodeIdToken,
+  verifyGoogleIdToken,
 } from "../../lib/session.js";
 import { recordLogin } from "../../lib/store.js";
 
@@ -71,11 +71,19 @@ export default async function handler(req, res) {
 
   if (!tokens.id_token) return redirect(res, "/?auth_error=no_id_token");
 
+  // #58 — verify the Google id_token's signature against Google's JWKS
+  // and validate iss/aud/exp/iat. Previously we decoded the payload
+  // unchecked on the assumption that the channel was authenticated by
+  // our client_secret-protected token exchange — which is mostly true
+  // but doesn't defend against bugs that ever accept an id_token from
+  // an untrusted source (e.g., a future client-side path). Defense in
+  // depth: verify every time.
   let payload;
   try {
-    payload = decodeIdToken(tokens.id_token);
-  } catch {
-    return redirect(res, "/?auth_error=invalid_id_token");
+    payload = await verifyGoogleIdToken(tokens.id_token, clientId);
+  } catch (err) {
+    const code = String(err?.message || "invalid_id_token");
+    return redirect(res, `/?auth_error=${encodeURIComponent(code)}`);
   }
 
   // Hard domain enforcement — accept the user if EITHER the `hd` claim
