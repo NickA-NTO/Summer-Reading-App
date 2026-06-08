@@ -452,6 +452,41 @@
     padding: 10px 16px; font-size: 13px;
   }
   .menu button:hover { background: rgba(255,255,255,.06); }
+  /* Polish v3: completed-books trophy case inside the avatar dropdown. */
+  .menu .completed-count {
+    display: inline-block; margin-left: 6px;
+    background: rgba(99,179,237,.18); color: #93c5fd;
+    border-radius: 999px; padding: 1px 8px;
+    font-size: 11px; font-weight: 600;
+    min-width: 22px; text-align: center;
+  }
+  .menu .completed-list {
+    max-height: 260px; overflow-y: auto;
+    padding: 4px 10px 8px;
+    border-bottom: 1px solid var(--line);
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+  }
+  .menu .completed-list[hidden] { display: none !important; }
+  .menu .completed-list .ci {
+    display: block; cursor: pointer; border: 1px solid var(--line);
+    border-radius: 6px; overflow: hidden; background: rgba(255,255,255,.02);
+    transition: transform .08s ease, border-color .08s ease;
+  }
+  .menu .completed-list .ci:hover {
+    transform: translateY(-1px); border-color: rgba(99,179,237,.55);
+  }
+  .menu .completed-list .ci img {
+    width: 100%; aspect-ratio: 2 / 3; object-fit: cover; display: block;
+  }
+  .menu .completed-list .ci .ci-title {
+    padding: 3px 4px; font-size: 10px; line-height: 1.15;
+    color: var(--ink); white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .menu .completed-list .ci-empty {
+    grid-column: 1 / -1; padding: 18px 4px;
+    color: var(--muted); font-size: 12px; text-align: center;
+  }
 
   /* =================== Stats strip (Alpha differentiator) =================== */
   .stats-strip {
@@ -1549,6 +1584,16 @@
     background: rgba(20,184,166,.32); color: #fff;
     border-color: rgba(20,184,166,.7);
   }
+  /* Polish v3: icon-only speaker that sits above the modal blurb.
+     Right-aligned so the blurb body stays full-width below. Reuses
+     .tour-speak's color tokens for visual continuity. */
+  .blurb-speaker-row {
+    display: flex; justify-content: flex-end;
+    margin: 2px 0 4px;
+  }
+  .blurb-speaker-row .tour-speak {
+    padding: 4px 8px; font-size: 13px; line-height: 1;
+  }
   .tour-title {
     font-size: 16px; font-weight: 700; margin-bottom: 6px;
   }
@@ -1874,6 +1919,17 @@
         </div>
         <button id="menuAdmin" style="display:none">⚙️ Admin · Users</button>
         <button id="menuReplayTour">🎬 Replay intro tour</button>
+        <!-- Polish v3: completed books trophy case. Replaces the "Keep
+             Reading" row of finished books that used to live on the
+             home page. Toggles a thumbnail grid; tapping a thumb
+             reopens that book's modal. Count badge updates from
+             refreshInteractiveBits. -->
+        <button id="menuCompletedToggle" aria-expanded="false"
+          aria-controls="completedList" type="button">
+          🏆 Completed books
+          <span class="completed-count" id="completedCount">0</span>
+        </button>
+        <div class="completed-list" id="completedList" hidden></div>
         <button id="signout">Sign out</button>
       </div>
     </div>
@@ -2021,6 +2077,18 @@
           title="Read this aloud" aria-label="Read this warning aloud"
           style="margin-left:8px;flex-shrink:0">🔊</button>
       </div>
+      <!-- Polish v3: read-aloud speaker moved from the action row to
+           directly above the blurb, and shrunk to an icon-only
+           circular button (matches the .tour-speak pattern used in
+           the level-warning row). Reads "<title>. <blurb>" in one
+           tap. Right-aligned so the blurb body stays full-width and
+           the speaker reads as an affordance ON the blurb, not part
+           of the action toolbar. Keeps the #speakTitle ID. -->
+      <div class="blurb-speaker-row">
+        <button class="tour-speak" id="speakTitle" type="button"
+                title="Read the title and book description aloud"
+                aria-label="Read the title and book description aloud">🔊</button>
+      </div>
       <p class="blurb" id="modalBlurb"></p>
       <!-- Polish v2: the verbose XP explainer paragraph is gone. The pill
            above tells the kid the XP target in one glance. modalXpExplain
@@ -2044,16 +2112,10 @@
              so totals show in the rating footnote above. -->
         <button class="icon-btn up"   id="voteUp" disabled style="display:none">👍 <span id="upCount">0</span></button>
         <button class="icon-btn down" id="voteDown" disabled style="display:none">👎 <span id="downCount">0</span></button>
-        <!-- Polish v2 (revised): read-aloud speaker sits right next to
-             the Amazon link. Reads "<title>. <blurb>" in one tap so a
-             K-2 kid can hear the book described without finding a
-             buried button in the title bar. Keeps the #speakTitle ID
-             that existing handlers wire to. -->
-        <button class="icon-btn" id="speakTitle" type="button"
-                title="Read the title and book description aloud"
-                aria-label="Read the title and book description aloud">
-          🔊 Read aloud
-        </button>
+        <!-- Polish v3: read-aloud speaker moved out of the action row
+             and up above the blurb (icon-only). Action row is back to
+             just CTAs (Start / Quiz / Done / Get this book) — no
+             secondary tools competing for attention. -->
         <!-- Polish v2 (revised): cart icon + "Get this book" copy. Was
              icon-only in the first pass; user feedback said the icon
              alone wasn't clear enough to parents browsing alongside
@@ -3451,21 +3513,12 @@ function renderRows() {
   const root = document.getElementById("rows");
   root.innerHTML = "";
 
-  // Polish v2: when the kid has an active read, the hero already shows
-  // "Continue reading: <book>" — the dedicated "Keep Reading" row was
-  // duplicating that signal. Render the row ONLY when the hero is in
-  // Pick-of-the-Week mode (no active read), and only with books the
-  // kid has already finished (no overlap with the active book).
-  const hasActiveRead = !!state.session?.currentlyReading?.bookId;
-  const readIds = Object.keys(state.data.read);
-  if (!hasActiveRead && readIds.length) {
-    const recent = readIds.map(id => BOOK_BY_ID[id]).filter(Boolean).slice(-12).reverse();
-    if (recent.length) root.appendChild(buildRow({
-      id: "recent", title: "Keep Reading",
-      sub: "Books you've finished", icon: "📖",
-      books: recent,
-    }, true /* isRecent — skip progress meter */));
-  }
+  // Polish v3: the "Keep Reading" row is gone entirely. It was a row of
+  // FINISHED books — confusing label, and once a kid has read 10+ books
+  // it ate a screen of real estate on the home page. Completed books
+  // now live in the profile dropdown under "🏆 Completed books" where
+  // they're a trophy case, not a redundant browsing row. Active read
+  // is still surfaced in the hero (#76).
 
   // Grade rows — filtered by visibleTracks (#14). If the server hasn't told
   // us which tracks are visible yet, default to showing everything (safe
@@ -3804,12 +3857,14 @@ function refreshInteractiveBits() {
       //   B) At or past QUIZ_AVAILABLE_DELAY_MS                          → active "Take the Quiz"
       //   C) startedAt missing (legacy data)                             → active (fail-open)
       //
-      // Admin bypass: testing the quiz/retell flow without waiting 15 min
-      // each iteration would be miserable. Admins go straight to (B).
-      const isAdminUser = !!state.session?.isAdmin;
+      // Polish v3: the admin bypass was removed. Admins now see the same
+      // 15-min countdown kids see — preview testing reported the missing
+      // greyed-out state as a regression. For fast iteration, admins can
+      // use the ⋯ menu's "Reset for me" to clear book state and re-time,
+      // or lower QUIZ_AVAILABLE_DELAY_MS locally for dev.
       const startedAt = Number(activeRead?.startedAt) || 0;
       const elapsedMs = startedAt ? Date.now() - startedAt : Infinity;
-      const remainingMs = isAdminUser ? 0 : QUIZ_AVAILABLE_DELAY_MS - elapsedMs;
+      const remainingMs = QUIZ_AVAILABLE_DELAY_MS - elapsedMs;
       if (remainingMs > 0) {
         // (A) — greyed countdown. Tick once per second to update the label.
         const renderCountdown = () => {
@@ -4613,8 +4668,77 @@ const userMenu = document.getElementById("userMenu");
 avatarWrap.addEventListener("click", (e) => {
   e.stopPropagation();
   userMenu.classList.toggle("open");
+  // Refresh trophy case every time the menu opens so it reflects the
+  // latest reads without us having to wire into every code path that
+  // mutates state.data.read (markBookAsRead, finishQuiz, reset, etc.).
+  if (userMenu.classList.contains("open")) renderCompletedBooks();
 });
 document.addEventListener("click", () => userMenu.classList.remove("open"));
+
+// Polish v3: completed-books trophy case. Replaces the home-page
+// "Keep Reading" row of finished books with a tucked-away list in
+// the profile dropdown. K-friendly: cover thumbs over titles so a
+// kid who can't decode the title still recognises the book.
+function renderCompletedBooks() {
+  const listEl = document.getElementById("completedList");
+  const countEl = document.getElementById("completedCount");
+  if (!listEl || !countEl) return;
+  const readIds = Object.keys(state.data?.read || {})
+    .filter(id => state.data.read[id]);
+  const books = readIds.map(id => BOOK_BY_ID[id]).filter(Boolean);
+  countEl.textContent = String(books.length);
+  if (!books.length) {
+    listEl.innerHTML = `<div class="ci-empty">No completed books yet.</div>`;
+    return;
+  }
+  // Most-recent finishes first by relying on the natural insertion
+  // order of state.data.read (we push as kids pass quizzes).
+  const ordered = books.slice().reverse();
+  const html = ordered.map(b => {
+    const cover = (coverUrl(b) || "").replace(/"/g, "&quot;");
+    const titleAttr = (b.title || "").replace(/"/g, "&quot;");
+    return `
+      <button class="ci" type="button" data-book-id="${b.id}"
+              title="Open ${titleAttr}" aria-label="Open ${titleAttr}">
+        <img src="${cover}" alt="" loading="lazy">
+        <div class="ci-title">${b.title}</div>
+      </button>`;
+  }).join("");
+  listEl.innerHTML = html;
+}
+
+// Toggle the trophy-case grid open/closed. Tap a cover to jump back
+// into that book's modal. We keep the menu open during the toggle so
+// the kid can browse — only a cover click closes the menu (via the
+// modal open call's stopPropagation, plus our explicit close below).
+document.getElementById("menuCompletedToggle")
+  .addEventListener("click", (e) => {
+    e.stopPropagation();
+    const list = document.getElementById("completedList");
+    const btn = e.currentTarget;
+    const isHidden = list.hasAttribute("hidden");
+    if (isHidden) {
+      list.removeAttribute("hidden");
+      btn.setAttribute("aria-expanded", "true");
+    } else {
+      list.setAttribute("hidden", "");
+      btn.setAttribute("aria-expanded", "false");
+    }
+  });
+
+document.getElementById("completedList").addEventListener("click", (e) => {
+  e.stopPropagation();
+  const card = e.target.closest(".ci[data-book-id]");
+  if (!card) return;
+  const bookId = card.getAttribute("data-book-id");
+  if (!bookId) return;
+  userMenu.classList.remove("open");
+  // Reuse the regular modal open flow so all the existing wiring
+  // (XP pill, comments, vote prompt, admin tools) lights up.
+  try { openBook(bookId); } catch (err) {
+    console.warn("[completed-books] openBook failed", err);
+  }
+});
 
 /* ---------- 13. Quiz state machine ----------
    Server returns a POOL of 12 questions per book. Each attempt we pick a
