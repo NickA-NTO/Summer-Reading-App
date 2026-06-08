@@ -2518,9 +2518,13 @@ const CATEGORIES = [
       { id: "e10", isbn: "9780064440592", title: "Frog and Toad All Year", author: "Arnold Lobel", age: "Beginning",
         palette: ["#65a30d","#92400e"],
         blurb: "Frog and Toad share five gentle stories through the seasons — sledding, ice cream, a Christmas surprise, and the joy of being friends all year long." },
+      // TODO #80 amazon-link-audit: UK Usborne Phonics ISBN — may only
+      // be on amazon.com via third-party UK sellers. Verify US stock.
       { id: "e11", isbn: "9780746077207", title: "Goose on the Loose", author: "Phil Roxbee Cox (Usborne)", age: "Beginning",
         palette: ["#fbbf24","#3b82f6"],
         blurb: "A goose is on the loose! Will the boy with the broom be able to catch her in time? A short rhyming chase through the farm." },
+      // TODO #80 amazon-link-audit: UK Usborne Very First Reading ISBN —
+      // verify US stock; replace with US ISBN if third-party-only.
       { id: "e12", isbn: "9781409507031", title: "Pirate Pat", author: "Mairi Mackinnon (Usborne)", age: "Beginning",
         palette: ["#1e40af","#fbbf24"],
         blurb: "Pirate Pat sails his little boat across the sea looking for treasure. A short, rhyming Usborne reader with a parrot, a whale, and an island full of gold." },
@@ -2588,6 +2592,9 @@ const CATEGORIES = [
       { id: "a07", isbn: "9780064431781", title: "Where the Wild Things Are", author: "Maurice Sendak", age: "Ages 4–8",
         palette: ["#0f766e","#fde68a"],
         blurb: "Max is sent to bed without supper, and a forest grows in his room. He sails off to where the wild things are — and becomes their king." },
+      // TODO #80 amazon-link-audit: old Puffin paperback ISBN — may be
+      // out of print on amazon.com. Confirm the link lands on a current
+      // in-print edition (used-only listings are confusing for parents).
       { id: "a08", isbn: "9780140502411", title: "The Story about Ping", author: "Marjorie Flack", age: "Ages 4–8",
         palette: ["#fbbf24","#0ea5e9"],
         blurb: "Ping is a duck who lives on a boat on the Yangtze River. One night he misses the boat home — and has a great adventure before finding his family again." },
@@ -2603,6 +2610,12 @@ const CATEGORIES = [
       { id: "u04", isbn: "9781409581017", title: "Jack and the Beanstalk", author: "Traditional (Usborne)", age: "Ages 5–7",
         palette: ["#15803d","#fbbf24"],
         blurb: "Jack trades their cow for magic beans — and overnight a beanstalk grows into the clouds. At the top is a giant's castle full of treasure. And a very large, angry giant." },
+      // TODO #80 amazon-link-audit: ISBN prefix 978-1-55858 is NorthSouth
+      // Books, NOT Usborne. amazon.com /dp/<ISBN10> will likely land on a
+      // different edition than the catalog claims. Replace with the
+      // correct Usborne ISBN or update the author tag to match the
+      // publisher this ISBN actually resolves to. Verified suspect by
+      // the read-only audit agent (commit 4eee628).
       { id: "u05", isbn: "9781558580343", title: "The Princess and the Pea", author: "H.C. Andersen (Usborne)", age: "Ages 5–7",
         palette: ["#f9a8d4","#0d9488"],
         blurb: "A prince searches the world for a real princess. One stormy night a visitor arrives — but can the queen's clever test really tell if she's genuine?" },
@@ -2638,9 +2651,18 @@ const CATEGORIES = [
       { id: "b08", isbn: "9780942303124", title: "Stellaluna", author: "Janell Cannon", age: "Ages 5–8",
         palette: ["#1e1b4b","#8b5cf6"],
         blurb: "A baby fruit bat falls into a bird's nest and is raised as a bird — until one starry night she discovers who she really is. A heartwarming story about being different and finding family." },
+      // TODO #80 amazon-link-audit: 9780749707590 is a UK Egmont edition.
+      // amazon.com may redirect or show third-party-only listings.
+      // Verify the link lands on something a US parent can actually buy
+      // (the Story Tree boxed-set ISBN 9780688175122 is one US fallback).
       { id: "b09", isbn: "9780749707590", title: "The Magic Faraway Tree", author: "Enid Blyton", age: "Ages 7–10",
         palette: ["#15803d","#a855f7"],
         blurb: "At the top of a magical tree, a different fantastic land arrives every day. The kids climb up to find Birthday Land, the Land of Topsy-Turvy, the Land of Sweets…" },
+      // TODO #80 amazon-link-audit: HIGH RISK. ISBN prefix 978-605 is the
+      // Turkish ISBN registration group — amazon.com will 404 or land on
+      // a Turkish-language edition. Replace with a US Usborne ISBN
+      // (e.g. the Usborne Illustrated Originals "Wizard of Oz" hardback)
+      // before launch.
       { id: "u07", isbn: "9786052952740", title: "The Wizard of Oz", author: "L. Frank Baum (Usborne)", age: "Ages 6–9",
         palette: ["#fbbf24","#059669"],
         blurb: "A tornado whisks Dorothy and her dog Toto to the magical land of Oz. To get home she must follow the Yellow Brick Road — and meet a scarecrow, a tin man, and a very cowardly lion." },
