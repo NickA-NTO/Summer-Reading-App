@@ -1108,22 +1108,37 @@
     width: 32px; height: 32px; border-radius: 50%;
     font-size: 16px; cursor: pointer;
   }
+  /* Polish v3 (Quiz pass): the "Question 1 of 4" + bar combo was two
+     elements telling the same story. Replaced with a dot row that
+     reads at a glance — current dot is the accent gradient with a
+     subtle ring, past dots are filled-muted, future dots are outlined.
+     Kept #quizStep + #quizBar as hidden no-op nodes so screen readers
+     and the legacy progress writer don't choke. */
   .quiz-progress {
-    display: flex; align-items: center; gap: 12px; margin-bottom: 18px;
-    font-size: 12px; color: var(--muted);
-    text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;
+    display: flex; align-items: center; justify-content: center;
+    gap: 10px; margin: 0 auto 22px;
   }
-  .quiz-progress .bar {
-    flex: 1; height: 6px; border-radius: 3px;
-    background: rgba(255,255,255,.06); overflow: hidden;
+  .quiz-dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: transparent; border: 1.5px solid rgba(255,255,255,.18);
+    transition: background .25s ease, border-color .25s ease,
+                box-shadow .25s ease, transform .25s ease;
   }
-  .quiz-progress .bar > i {
-    display: block; height: 100%; border-radius: 3px;
-    background: linear-gradient(90deg, var(--accent), var(--accent-2));
-    transition: width .3s;
+  .quiz-dot.past {
+    background: rgba(94,234,212,.55); border-color: rgba(94,234,212,.55);
   }
+  .quiz-dot.current {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    border-color: var(--accent-2);
+    box-shadow: 0 0 0 4px rgba(37,99,235,.18);
+    transform: scale(1.15);
+  }
+  /* Legacy nodes kept hidden so old setQuizProgress() writes don't
+     blow up if someone calls it with the old shape. */
+  #quizStep, #quizBar { display: none !important; }
   .quiz-book-title {
-    font-size: 13px; color: var(--muted); margin: 0 0 8px;
+    font-size: 13px; color: var(--muted); margin: 0 0 10px;
+    text-align: center;
   }
   .quiz-question {
     font-size: 22px; font-weight: 700; margin: 6px 0 18px;
@@ -2215,10 +2230,13 @@
   <div class="quiz-card" id="quizCard">
     <button class="quiz-close" id="quizClose" aria-label="Close quiz">✕</button>
     <p class="quiz-book-title" id="quizBookTitle">—</p>
-    <div class="quiz-progress">
-      <span id="quizStep">Question 1 of 4</span>
-      <div class="bar"><i id="quizBar" style="width:25%"></i></div>
-    </div>
+    <!-- Polish v3 (Quiz pass): dot row replaces the "Question 1 of 4" +
+         bar combo. setQuizProgress() now populates #quizDots; the
+         legacy #quizStep / #quizBar nodes are hidden but kept so any
+         stale references don't crash. -->
+    <div class="quiz-progress" id="quizDots" aria-live="polite"></div>
+    <span id="quizStep" aria-hidden="true">Question 1 of 4</span>
+    <i id="quizBar" aria-hidden="true"></i>
     <div id="quizContent"></div>
   </div>
 </div>
@@ -5219,10 +5237,26 @@ function closeQuiz() {
 
 function setQuizProgress(idx, totalOverride) {
   const total = totalOverride ?? questionsPerAttempt(quizState.style);
-  document.getElementById("quizStep").textContent =
+  // Polish v3 (Quiz pass): render the dot row. past < current < future.
+  // The legacy step text + bar width writes are kept for the hidden
+  // a11y/legacy nodes so anything that read them still sees sensible
+  // values (cheap insurance).
+  const dotsEl = document.getElementById("quizDots");
+  if (dotsEl) {
+    let html = "";
+    for (let i = 0; i < total; i++) {
+      const cls = i < idx ? "past" : i === idx ? "current" : "";
+      html += `<span class="quiz-dot ${cls}" aria-label="${
+        i < idx ? "completed" : i === idx ? "current" : "upcoming"
+      } question ${i + 1}"></span>`;
+    }
+    dotsEl.innerHTML = html;
+  }
+  const stepEl = document.getElementById("quizStep");
+  if (stepEl) stepEl.textContent =
     `Question ${Math.min(idx + 1, total)} of ${total}`;
-  document.getElementById("quizBar").style.width =
-    `${(idx / total) * 100}%`;
+  const barEl = document.getElementById("quizBar");
+  if (barEl) barEl.style.width = `${(idx / total) * 100}%`;
 }
 
 function renderQuizQuestion() {
