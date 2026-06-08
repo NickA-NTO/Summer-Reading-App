@@ -3847,8 +3847,19 @@ function refreshInteractiveBits() {
       const elapsedMs = startedAt ? Date.now() - startedAt : Infinity;
       const remainingMs = QUIZ_AVAILABLE_DELAY_MS - elapsedMs;
       if (remainingMs > 0) {
-        // (A) — greyed countdown. Tick once per second to update the label.
-        const renderCountdown = () => {
+        // (A) — locked. Polish v3.1: show a static "🔒 Finish the book"
+        // label instead of a live countdown. Knowing the exact minutes
+        // remaining gave kids a target to game ("only 3 minutes left,
+        // I can wait it out"). The static label keeps the gate without
+        // turning it into a stopwatch. We still poll for the elapsed
+        // time so the button auto-promotes to "Take the Quiz" the
+        // moment QUIZ_AVAILABLE_DELAY_MS passes — every 10 s is enough
+        // resolution now that no visible label is ticking.
+        quizBtn.textContent = "🔒 Finish the book";
+        quizBtn.disabled = true;
+        quizBtn.title = "Read the book — the quiz unlocks soon.";
+        quizBtn.classList.add("locked");
+        const pollUnlock = () => {
           const left = QUIZ_AVAILABLE_DELAY_MS - (Date.now() - startedAt);
           if (left <= 0) {
             // Promote to active state without re-rendering the whole modal.
@@ -3857,15 +3868,9 @@ function refreshInteractiveBits() {
             quizBtn.disabled = false;
             quizBtn.title = "";
             quizBtn.classList.remove("locked");
-          } else {
-            quizBtn.textContent = `📝 Quiz in ${formatCountdown(left)}`;
-            quizBtn.disabled = true;
-            quizBtn.title = "Take your time with the book — the quiz unlocks soon.";
-            quizBtn.classList.add("locked");
           }
         };
-        renderCountdown();
-        _quizCountdownInterval = setInterval(renderCountdown, 1000);
+        _quizCountdownInterval = setInterval(pollUnlock, 10_000);
       } else {
         // (B) / (C) — quiz is reachable.
         quizBtn.textContent = "📝 Take the Quiz";
