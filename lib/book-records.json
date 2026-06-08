@@ -1,0 +1,6 @@
+{
+  "schema": 1,
+  "generatedAt": null,
+  "comment": "Auto-populated by scripts/enrich-catalog.js. Each record carries source-cited structured data per book (characters/items/plot_beats/specific_facts/unknown_fields). The quiz generator + QC enforce a closed-list citation contract against this data when a record exists. Run `node scripts/enrich-catalog.js` to populate.",
+  "records": {}
+}

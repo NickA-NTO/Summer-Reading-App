@@ -30,6 +30,37 @@ import {
 } from "../lib/store.js";
 import { normalizeGrade } from "../lib/xp.js";
 import { checkRateLimit, send429, LIMITS } from "../lib/rate-limit.js";
+import fs from "node:fs";
+import path from "node:path";
+
+// ============================================================
+// Grounded book records (#84) — source-cited structured data per book
+// produced by scripts/enrich-catalog.js from Wikipedia + Open Library +
+// Google Books. When a record exists for a book, generateOnce and
+// qcAndFilter enforce a closed-set citation contract: every question's
+// answer must reference an entry in the record's closed lists, and the
+// QC reviewer rejects any question whose specifics aren't backed by
+// `specific_facts`. When no record exists (catalog book that hasn't
+// been enriched yet), both functions fall back to the legacy prose-
+// summary path so we don't break uncached books mid-rollout.
+// ============================================================
+const BOOK_RECORDS_PATH = path.join(process.cwd(), "lib", "book-records.json");
+let BOOK_RECORDS_DATA = { records: {} };
+try {
+  if (fs.existsSync(BOOK_RECORDS_PATH)) {
+    BOOK_RECORDS_DATA = JSON.parse(fs.readFileSync(BOOK_RECORDS_PATH, "utf-8"));
+  }
+} catch (err) {
+  console.warn("[quiz] couldn't load lib/book-records.json:", err?.message);
+}
+function getBookRecord(bookId) {
+  const entry = BOOK_RECORDS_DATA.records?.[bookId];
+  if (!entry || entry.error || !entry.record) return null;
+  // Skip low-confidence records — better to fall back to prose summary
+  // than to enforce a weak citation contract on thin data.
+  if (entry.record.confidence === "low") return null;
+  return entry.record;
+}
 import { clusterAndExtractConsensus } from "../lib/quiz-validator.js";
 import {
   resolveVisibleTracks,
@@ -581,7 +612,14 @@ const QCSchema = z.object({
 //      remove a hallucination ("fight with a fish called Ned" — that
 //      content is from Hop on Pop, not this book). Bump forces a fresh
 //      pool generation so the bad quiz question is purged.
-const SCHEMA_VERSION = 10;
+// v11: #84 — quiz generator + QC now consume the structured BOOK_RECORDS
+//      data (lib/book-records.json) when available. Closed-list citation
+//      contract: every entity in a question must trace to a record entry;
+//      specific quantifiers must appear in `specific_facts`; questions
+//      referencing `unknown_fields` are auto-rejected. Books without a
+//      record fall back to the legacy prose-summary path. Bump
+//      invalidates v10 pools so they regenerate under the new contract.
+const SCHEMA_VERSION = 11;
 // Exported alias so api/activity.js can build the same cache key when it
 // validates a quiz_submit. Kept as a renamed export so the local const can
 // be reassigned independently if we ever split client / server schemas.
@@ -757,9 +795,10 @@ const MATURITY_GUIDANCE = {
 // it N times in parallel at different temperatures. The prompt is identical
 // across runs; only `temperature` varies. Returns the array of questions
 // (poolSize long for the book's style) or throws.
-async function generateOnce(book, studentGrade, guidance, temperature, ageGrade) {
+async function generateOnce(bookId, book, studentGrade, guidance, temperature, ageGrade) {
   const poolSize = POOL_SIZE_FULL;
   const schema = quizSchemaFor();
+  const record = getBookRecord(bookId);
 
   // PK-leveled prompts deliberately tighten the vocabulary + length rules
   // to keep questions readable for a 4-5 year old. Everything else uses
@@ -791,10 +830,36 @@ async function generateOnce(book, studentGrade, guidance, temperature, ageGrade)
     `but-wrong things a kid who skimmed might pick. Vary which index ` +
     `(0,1,2,3) is correct across all questions — don't bunch the ` +
     `correct answers at the same position.\n\n` +
-    `CRITICAL: Only ask about details that are explicitly in the plot ` +
-    `summary provided. Do NOT invent characters, events, items, or ` +
-    `numbers. If you can't verify a detail in the summary, do NOT use ` +
-    `it as a question or distractor.`;
+    (record
+      ? // CITATION-CONTRACT MODE (#84). Hard rules backed by closed sets.
+        `CRITICAL — CITATION CONTRACT:\n` +
+        `You are working from a STRUCTURED book record. Every claim you make ` +
+        `MUST trace to that record. Specifically:\n` +
+        `  • All characters you reference must appear in the record's ` +
+        `    "characters" list. Do NOT invent character names.\n` +
+        `  • All items/objects you reference must appear in "key_objects". ` +
+        `    Do NOT invent items.\n` +
+        `  • All plot events you reference must appear in "plot_beats". ` +
+        `    Do NOT invent scenes.\n` +
+        `  • Specific quantifiers (numbers, colors, sizes, counts) must ` +
+        `    appear in "specific_facts" with that exact value. If a fact ` +
+        `    is not in "specific_facts", do NOT ask about a specific value.\n` +
+        `  • The "unknown_fields" list names topics the sources did NOT ` +
+        `    establish. Do NOT generate questions on these topics under ` +
+        `    any circumstances — even if you think you know the answer ` +
+        `    from elsewhere. Treat them as forbidden.\n` +
+        `  • Distractors are NOT exempt. A wrong-but-plausible distractor ` +
+        `    must still be drawn from the closed sets above (a different ` +
+        `    character, item, or fact from the record).\n` +
+        `If you cannot generate ${poolSize} questions under this contract, ` +
+        `generate as many as you confidently can — the QC pass and the ` +
+        `consensus filter will accept smaller pools rather than ship ` +
+        `hallucinations.`
+      : // Legacy summary-only mode (book hasn't been enriched yet)
+        `CRITICAL: Only ask about details that are explicitly in the plot ` +
+        `summary provided. Do NOT invent characters, events, items, or ` +
+        `numbers. If you can't verify a detail in the summary, do NOT use ` +
+        `it as a question or distractor.`);
 
   const lengthRules = isPreK
     ? `- Keep each question under 10 words.\n` +
@@ -803,6 +868,32 @@ async function generateOnce(book, studentGrade, guidance, temperature, ageGrade)
       `  names that appear in the book.\n`
     : `- Keep each question under 18 words.\n` +
       `- Keep each option under 8 words.\n`;
+
+  // Build the grounding block. When we have a structured record, it
+  // becomes the source of truth (replaces the legacy summary). Otherwise
+  // we fall back to the prose summary.
+  const groundingBlock = record
+    ? `STRUCTURED BOOK RECORD (the ONLY source of truth):\n\n` +
+      `Premise: ${record.premise}\n\n` +
+      `Characters (closed list — only these may be referenced):\n` +
+      record.characters.map((c) => `  • ${c.name} — ${c.role}`).join("\n") + "\n\n" +
+      `Key objects / items (closed list):\n` +
+      record.key_objects.map((o) =>
+        `  • ${o.item}${o.detail ? ` (${o.detail})` : ""}`
+      ).join("\n") + "\n\n" +
+      `Plot beats (in order, closed list):\n` +
+      record.plot_beats.map((b, i) => `  ${i + 1}. ${b.beat}`).join("\n") + "\n\n" +
+      `Setting: ${record.setting}\n` +
+      `Themes: ${record.themes.join(", ")}\n\n` +
+      `Specific facts (the ONLY source of specific quantifiers — ` +
+      `numbers, colors, etc):\n` +
+      record.specific_facts.map((f) => `  • ${f.fact}`).join("\n") + "\n\n" +
+      (record.unknown_fields?.length
+        ? `UNKNOWN FIELDS (do NOT generate questions on these):\n` +
+          record.unknown_fields.map((u) => `  • ${u}`).join("\n") + "\n"
+        : "")
+    : `Plot summary (the source of truth — do NOT quote it verbatim, ` +
+      `but every question must be answerable from these details):\n${book.summary}`;
 
   const prompt =
     `Write ${poolSize} reading-comprehension questions for the book ` +
@@ -813,15 +904,19 @@ async function generateOnce(book, studentGrade, guidance, temperature, ageGrade)
     `don't dumb them down just because the book is short. If the student ` +
     `is YOUNGER than the book, keep questions simple even though the ` +
     `book is more advanced.\n\n` +
-    `Plot summary (the source of truth — do NOT quote it verbatim, ` +
-    `but every question must be answerable from these details):\n${book.summary}\n\n` +
+    groundingBlock + `\n\n` +
     `The questions should cover DIFFERENT aspects of the book so that any random ` +
     `subset of 5 still tests broad comprehension.\n\n` +
     `Hard rules:\n` +
     `- Avoid trick questions.\n` +
     lengthRules +
     `- No two questions should be near-duplicates.\n` +
-    `- Every fact you assert must appear in the plot summary above.`;
+    (record
+      ? `- Every fact you assert must be supported by a specific entry in ` +
+        `the structured record above.\n` +
+        `- Do NOT generate any question referencing the "unknown_fields" ` +
+        `list above.`
+      : `- Every fact you assert must appear in the plot summary above.`);
 
   const { object } = await generateObject({
     model: anthropic(GEN_MODEL),
@@ -833,10 +928,98 @@ async function generateOnce(book, studentGrade, guidance, temperature, ageGrade)
   return object.questions;
 }
 
+// System prompt for the QC reviewer. Two modes:
+//   • record present  → citation-contract enforcement against closed lists
+//   • record missing  → legacy summary-only accuracy check
+// Both modes ALSO score safety (#60).
+function buildQCSystemPrompt(record, studentGrade) {
+  const safetyBlock =
+    "AXIS 2 — SAFETY (0-10). The student is in Grade " +
+    `${studentGrade} (most readers K-3). Score for AGE-APPROPRIATENESS:\n` +
+    "  10 = unambiguously safe for the target grade\n" +
+    "   7 = workable but borderline (e.g., the book has stakes — a wolf, " +
+    "a chase — and the question references them at an age-appropriate " +
+    "level)\n" +
+    "   4 = marginal: explicit references to violence/death the book " +
+    "treats lightly, fearful imagery without the book's context, or " +
+    "language that reads as gratuitously frightening\n" +
+    "   0 = inappropriate for the target grade: explicit violence, " +
+    "gore, sexual content, slurs, religious/political commentary, " +
+    "identity-based statements, self-harm references, or distractors " +
+    "that introduce content not in the book.\n\n" +
+    "Score safety SEPARATELY from accuracy. A question can be perfectly " +
+    "accurate to the book and still be flagged unsafe if the framing " +
+    "is wrong for the grade. Most K-2 books are fine — only flag when " +
+    "the question (not just the book) introduces age-inappropriate content.";
+
+  const accuracyBlock = record
+    ? "AXIS 1 — ACCURACY (0-10). The book has a STRUCTURED RECORD with " +
+      "closed lists (characters, key_objects, plot_beats, specific_facts, " +
+      "unknown_fields). Score against THAT record:\n" +
+      "  10 = every entity in question + answer + distractors traces to a " +
+      "record entry; specifics match specific_facts exactly\n" +
+      "   7 = workable — minor wording issue but contract holds\n" +
+      "   4 = answer or a distractor introduces a name/item not in the " +
+      "closed lists; or asks about something the sources don't establish " +
+      "but doesn't reference unknown_fields directly\n" +
+      "   0 = question references unknown_fields, OR the answer's specific " +
+      "value (a number, color, name) does NOT appear in specific_facts, OR " +
+      "a character/item not in the record\n\n" +
+      "CITATION RULE: if a question asks 'how many X', 'what color is Y', " +
+      "or any specific quantifier, the answer MUST appear verbatim in " +
+      "specific_facts. Inference from the prose is NOT enough. Score 0 if " +
+      "the specific value isn't there.\n\n"
+    : "AXIS 1 — ACCURACY (0-10). Catch hallucinations and inaccuracies. " +
+      "For each question, verify it against the canonical plot summary.\n" +
+      "  10 = unambiguously answerable from the summary; correct answer is " +
+      "clearly correct; distractors are plausible-but-wrong\n" +
+      "   7 = workable but minor wording issue (still ship it)\n" +
+      "   4 = answer is questionable, or 2+ options could be defended as correct\n" +
+      "   0 = fabricated detail not in the book, wrong answer, or " +
+      "unanswerable from the summary\n\n" +
+      "Be skeptical. If a question references a character name, number, " +
+      "color, action, or event you can't find in the summary, score it LOW. " +
+      "Don't pad scores to be nice — accuracy matters more than volume.\n\n";
+
+  return (
+    "You are a strict reading-comprehension QC reviewer for an " +
+    "elementary-school reading app (Kindergarten through Grade 8, " +
+    "though most readers are K-3). You score TWO axes per question.\n\n" +
+    accuracyBlock +
+    safetyBlock
+  );
+}
+
+function buildQCPrompt(record, book, studentGrade, formatted, questionCount) {
+  const groundingBlock = record
+    ? `STRUCTURED RECORD (the ONLY source of truth):\n\n` +
+      `Premise: ${record.premise}\n\n` +
+      `Characters: ${record.characters.map((c) => c.name).join(", ")}\n` +
+      `Key objects: ${record.key_objects.map((o) => o.item).join(", ")}\n` +
+      `Plot beats:\n${record.plot_beats.map((b, i) => `  ${i + 1}. ${b.beat}`).join("\n")}\n\n` +
+      `Specific facts (the ONLY allowed source of specific quantifiers):\n` +
+      record.specific_facts.map((f) => `  • ${f.fact}`).join("\n") + `\n\n` +
+      (record.unknown_fields?.length
+        ? `UNKNOWN FIELDS (any question asking about these → score 0):\n` +
+          record.unknown_fields.map((u) => `  • ${u}`).join("\n") + `\n`
+        : "")
+    : `Canonical plot summary (the ONLY source of truth):\n${book.summary}`;
+  return (
+    `Book: "${book.title}" by ${book.author}\n` +
+    `Grade level (calibration target): ${studentGrade}\n\n` +
+    groundingBlock + `\n\n` +
+    `Questions to review:\n\n${formatted}\n\n` +
+    `For EVERY question (indexes 0 through ${questionCount - 1}), ` +
+    `return an entry with that index, an accuracy score, a safety score, ` +
+    `and any specific issues you found. Do not skip any.`
+  );
+}
+
 // QC reviewer: takes a freshly-generated pool of questions and scores each
 // for accuracy against the book's canonical summary. Drops questions with
 // accuracy below QC_MIN_ACCURACY. Returns { questions: [keepers], dropped: [{idx, accuracy, issues}] }.
-async function qcAndFilter(book, studentGrade, questions) {
+async function qcAndFilter(bookId, book, studentGrade, questions) {
+  const record = getBookRecord(bookId);
   const letters = ["A", "B", "C", "D"];
   const formatted = questions
     .map(
@@ -852,49 +1035,8 @@ async function qcAndFilter(book, studentGrade, questions) {
     const { object } = await generateObject({
       model: anthropic(QC_MODEL),
       schema: QCSchema,
-      system:
-        "You are a strict reading-comprehension QC reviewer for an " +
-        "elementary-school reading app (Kindergarten through Grade 8, " +
-        "though most readers are K-3). You score TWO axes per question.\n\n" +
-        "AXIS 1 — ACCURACY (0-10). Catch hallucinations and inaccuracies. " +
-        "For each question, verify it against the canonical plot summary. " +
-        "Score 0-10:\n" +
-        "  10 = unambiguously answerable from the summary; correct answer is " +
-        "clearly correct; distractors are plausible-but-wrong\n" +
-        "   7 = workable but minor wording issue (still ship it)\n" +
-        "   4 = answer is questionable, or 2+ options could be defended as correct\n" +
-        "   0 = fabricated detail not in the book, wrong answer, or " +
-        "unanswerable from the summary\n\n" +
-        "Be skeptical. If a question references a character name, number, " +
-        "color, action, or event you can't find in the summary, score it LOW. " +
-        "Don't pad scores to be nice — accuracy matters more than volume.\n\n" +
-        "AXIS 2 — SAFETY (0-10). The student is in Grade " +
-        `${studentGrade} (most readers K-3). Score for AGE-APPROPRIATENESS:\n` +
-        "  10 = unambiguously safe for the target grade\n" +
-        "   7 = workable but borderline (e.g., the book has stakes — a wolf, " +
-        "a chase — and the question references them at an age-appropriate " +
-        "level)\n" +
-        "   4 = marginal: explicit references to violence/death the book " +
-        "treats lightly, fearful imagery without the book's context, or " +
-        "language that reads as gratuitously frightening\n" +
-        "   0 = inappropriate for the target grade: explicit violence, " +
-        "gore, sexual content, slurs, religious/political commentary, " +
-        "identity-based statements, self-harm references, or distractors " +
-        "that introduce content not in the book.\n\n" +
-        "Score safety SEPARATELY from accuracy. A question can be perfectly " +
-        "accurate to the book and still be flagged unsafe if the framing " +
-        "is wrong for the grade. Most K-2 books are fine — only flag when " +
-        "the question (not just the book) introduces age-inappropriate content. " +
-        "If the book itself is age-appropriate and the question references " +
-        "the canonical plot at an appropriate level, score safety HIGH.",
-      prompt:
-        `Book: "${book.title}" by ${book.author}\n` +
-        `Grade level (calibration target): ${studentGrade}\n\n` +
-        `Canonical plot summary (the ONLY source of truth):\n${book.summary}\n\n` +
-        `Questions to review:\n\n${formatted}\n\n` +
-        `For EVERY question (indexes 0 through ${questions.length - 1}), ` +
-        `return an entry with that index, an accuracy score, and any specific ` +
-        `issues you found. Do not skip any.`,
+      system: buildQCSystemPrompt(record, studentGrade),
+      prompt: buildQCPrompt(record, book, studentGrade, formatted, questions.length),
     });
     reviews = object.reviews || [];
   } catch (err) {
@@ -1115,7 +1257,7 @@ export default async function handler(req, res) {
     if (MULTI_PASS_ENABLED) {
       const settled = await Promise.allSettled(
         MULTI_PASS_TEMPS.map((t) =>
-          generateOnce(book, studentGrade, guidance, t, ageGrade)
+          generateOnce(bookId, book, studentGrade, guidance, t, ageGrade)
         )
       );
       const successful = settled
@@ -1136,6 +1278,7 @@ export default async function handler(req, res) {
     } else {
       // Single-pass fallback — env-toggleable for A/B comparison.
       const questions = await generateOnce(
+        bookId,
         book,
         studentGrade,
         guidance,
@@ -1168,6 +1311,7 @@ export default async function handler(req, res) {
     // Independent second opinion: score each consensus question for
     // accuracy against the canonical summary. Drop low-scoring questions.
     const reviewedPool = await qcAndFilter(
+      bookId,
       book,
       studentGrade,
       consensus.questions
