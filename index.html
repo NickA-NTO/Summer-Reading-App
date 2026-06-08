@@ -3394,34 +3394,15 @@ function renderStats() {
   // `streak` local variable + computeStreak helper for future use
   // (e.g., if we ever add a real streak feature back).
 
-  // "Now reading" chip — visible when state.session.currentlyReading is set.
-  // Shows the book title + a soft progress line, and turns red when past
-  // the book-aware stall alarm threshold (max(14, 2 × ceil(min/20)) days).
-  const reading = state.session?.currentlyReading;
+  // Polish v3: the "Now reading: <title> · day X · stuck?" chip used to
+  // sit next to XP and Rank. Removed — it duplicated the hero (which
+  // shows the active book front-and-centre via #76) and the alarm copy
+  // was anxiety-inducing for kids ("⚠️ stuck?"). The active read still
+  // surfaces in the hero and in the book modal; the underlying alarm
+  // threshold logic on the server is untouched. Keep the DOM element
+  // hidden so any stray code paths don't throw on a missing node.
   const wrap = document.getElementById("statReadingWrap");
-  if (reading?.bookId && !state.data.read[reading.bookId]) {
-    const book = BOOK_BY_ID[reading.bookId];
-    const title = reading.title || book?.title || reading.bookId;
-    const days = Math.max(
-      0,
-      Math.floor((Date.now() - (reading.startedAt || Date.now())) / 86_400_000)
-    );
-    const dayLabel = `day ${days + 1}`;
-    const alarm = reading.alarmDays || 14;
-    const stalled = days + 1 > alarm;
-    const titleEl = document.getElementById("statReadingTitle");
-    const metaEl = document.getElementById("statReadingMeta");
-    titleEl.textContent = title.length > 26 ? title.slice(0, 25) + "…" : title;
-    if (stalled) {
-      metaEl.innerHTML = `<span style="color:var(--bad);font-weight:600">⚠️ ${dayLabel} · stuck?</span>`;
-      wrap.title = `You've been on this book ${days + 1} days — alarm at ${alarm}. Try a different book or take the quiz.`;
-    } else {
-      metaEl.textContent = `${dayLabel} · open quiz when ready`;
-      wrap.title = `Open ${title} — alarm at ${alarm} days`;
-    }
-    wrap.style.display = "flex";
-    wrap.onclick = () => openBook(reading.bookId);
-  } else {
+  if (wrap) {
     wrap.style.display = "none";
     wrap.onclick = null;
   }
@@ -4014,7 +3995,12 @@ function closeModal() {
   modal.classList.remove("open");
   document.body.style.overflow = "";
   activeBookId = null;
-  if (window.speechSynthesis) speechSynthesis.cancel();
+  // Polish v3: kill BOTH speech paths on close, not just the browser
+  // SpeechSynthesis fallback. Previously the OpenAI/Polly <audio>
+  // element kept playing the title+blurb after the kid backed out of
+  // the modal — disorienting and impossible to silence. cancelSpeech()
+  // handles currentTtsAudio (pause + currentTime=0) and the synth.
+  cancelSpeech();
   // Stop the quiz-unlock countdown timer if it was ticking — otherwise
   // it'd keep firing setInterval against a detached button.
   clearQuizCountdown();
@@ -4022,6 +4008,23 @@ function closeModal() {
   renderHero();
   renderRows();
 }
+
+// Polish v3: belt-and-braces — also cut TTS when the tab is hidden
+// (kid switches to another tab, locks the screen, or app loses focus)
+// or when the URL hash changes (back-button on mobile that doesn't
+// trigger a modal close path). Without these, a long blurb that
+// started playing keeps droning even after the kid has moved on.
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    try { cancelSpeech(); } catch {}
+  }
+});
+window.addEventListener("pagehide", () => {
+  try { cancelSpeech(); } catch {}
+});
+window.addEventListener("hashchange", () => {
+  try { cancelSpeech(); } catch {}
+});
 
 /* ---------- 11. Interactions ---------- */
 document.getElementById("readToggle").addEventListener("click", async () => {
