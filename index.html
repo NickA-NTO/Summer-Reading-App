@@ -6953,8 +6953,18 @@ async function onbSaveVoice() {
 const TOUR_STEPS = [
   {
     selector: ".hero-card",
-    title: "Pick of the Week",
-    body: "A new book is here. Tap it to look.",
+    // Polish v3 (Tour pass): step 1 used to say "A new book is here.
+    // Tap it to look." Two problems:
+    //   1. The book isn't always "new" — since #76 the hero now shows
+    //      the kid's currently-reading book when one is set.
+    //   2. The kid had no cue that this same spot would later carry
+    //      their active book — they thought it was just a recommend
+    //      slot.
+    // Title is generalized ("Your spotlight") so it fits both Pick-of-
+    // the-Week mode AND Continue-Reading mode. Body now explains the
+    // dual behaviour up front.
+    title: "Your spotlight",
+    body: "This is your Pick of the Week. Once you start a book, that one will live here so you can keep going where you left off.",
   },
   {
     // Polish v1: stats now show XP + currently-reading only.
