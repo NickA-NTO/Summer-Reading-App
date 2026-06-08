@@ -2004,6 +2004,12 @@
         </div>
         <button id="menuAdmin" style="display:none">⚙️ Admin · Users</button>
         <button id="menuReplayTour">🎬 Replay intro tour</button>
+        <!-- #59 — COPPA/GDPR self-service. Download triggers a JSON
+             dump of every server-side record we hold about this user.
+             Delete is a hard erasure (server-side + local) gated by a
+             confirm prompt + a confirmation token the server requires. -->
+        <button id="menuExportData">⬇️ Download my data</button>
+        <button id="menuDeleteData">🗑️ Delete my data</button>
         <!-- Polish v3: completed books trophy case. Replaces the "Keep
              Reading" row of finished books that used to live on the
              home page. Toggles a thumbnail grid; tapping a thumb
@@ -5878,6 +5884,83 @@ document.getElementById("menuReplayTour").addEventListener("click", (e) => {
   e.stopPropagation();
   document.getElementById("userMenu").classList.remove("open");
   startOnboarding();
+});
+
+// #59 — "Download my data". Hits /api/auth/me?action=export which
+// streams a JSON dump. We bounce it through a Blob URL so the browser
+// fires its native save dialog without us having to wire a service
+// worker.
+document.getElementById("menuExportData").addEventListener("click", async (e) => {
+  e.stopPropagation();
+  document.getElementById("userMenu").classList.remove("open");
+  const btn = e.currentTarget;
+  const orig = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "⏳ Preparing…";
+  try {
+    const r = await fetch("/api/auth/me?action=export", {
+      method: "GET", credentials: "same-origin",
+    });
+    if (!r.ok) {
+      alert(`Export failed (${r.status}). Try again in a moment.`);
+      return;
+    }
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `reading-spine-data-${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (err) {
+    alert("Couldn't download your data: " + (err.message || err));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = orig;
+  }
+});
+
+// #59 — "Delete my data". Two-step confirm (browser confirm() then
+// the server requires a confirmation token in the body — belt-and-
+// suspenders against accidental clicks AND any CSRF that slipped past
+// SameSite). On success, wipe localStorage + redirect to /api/auth/logout.
+document.getElementById("menuDeleteData").addEventListener("click", async (e) => {
+  e.stopPropagation();
+  document.getElementById("userMenu").classList.remove("open");
+  const ok = confirm(
+    "This will permanently delete all your reading history, " +
+    "achievements, comments, and XP. This can't be undone. " +
+    "Are you sure?"
+  );
+  if (!ok) return;
+  try {
+    const r = await fetch("/api/auth/me?action=delete", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ confirm: "DELETE-MY-DATA" }),
+    });
+    if (!r.ok) {
+      alert(`Delete failed (${r.status}). Try again later.`);
+      return;
+    }
+    // Clear localStorage + sign the kid out so the next visit starts
+    // truly fresh. Same logic as the regular signout handler.
+    try { cancelSpeech(); } catch {}
+    try {
+      const toRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && (k.startsWith("rs.") || k.startsWith("rs_"))) toRemove.push(k);
+      }
+      toRemove.forEach((k) => localStorage.removeItem(k));
+    } catch {}
+    location.href = "/api/auth/logout";
+  } catch (err) {
+    alert("Couldn't delete your data: " + (err.message || err));
+  }
 });
 
 // Generic floating-popover positioner — anchors a position:fixed

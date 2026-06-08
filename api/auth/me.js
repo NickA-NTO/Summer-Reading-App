@@ -10,6 +10,8 @@ import {
   evaluateAchievementsForUser,
   setInitialGradeIfMissing,
   STARTED_RECENTLY_HOLD_MS,
+  exportUserData,
+  deleteUserData,
 } from "../../lib/store.js";
 import { normalizeGrade, stallAlarmDays, estimatedMinutes } from "../../lib/xp.js";
 import { resolveVisibleTracks, TRACK_ORDER, trackForBook } from "../../lib/tracks.js";
@@ -60,6 +62,56 @@ export default async function handler(req, res) {
       // welcome screen can show the PREVIEW banner before sign-in.
       env: (process.env.VERCEL_ENV || "production").toLowerCase(),
     }));
+  }
+
+  // #59 — COPPA/GDPR self-service: export + erasure live on the same
+  // endpoint to stay under the Vercel Hobby 12-function cap. Folded
+  // here because /api/auth/me is the natural "self" surface, already
+  // authenticated, and scoped exactly to the verified user.
+  //
+  // GET  /api/auth/me?action=export      → JSON dump (download)
+  // POST /api/auth/me?action=delete      → wipes server-side state
+  const action = new URL(req.url, `http://${req.headers.host}`).searchParams.get("action");
+  if (action === "export" && req.method === "GET") {
+    const result = await exportUserData(session.email);
+    if (!result.ok) {
+      res.statusCode = 503;
+      return res.end(JSON.stringify({ error: result.reason || "export_failed" }));
+    }
+    // Disposition hint so browsers offer a clean save dialog.
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="reading-spine-data-${Date.now()}.json"`
+    );
+    return res.end(JSON.stringify(result.data, null, 2));
+  }
+  if (action === "delete" && req.method === "POST") {
+    // Belt-and-suspenders: require a confirmation token in the body so a
+    // CSRF that slipped past SameSite=Lax still couldn't trigger an
+    // erasure with a single click. Token: literal string "DELETE-MY-DATA".
+    let raw = "";
+    for await (const chunk of req) raw += chunk;
+    let body = {};
+    try { body = JSON.parse(raw || "{}"); } catch {}
+    if (body.confirm !== "DELETE-MY-DATA") {
+      res.statusCode = 400;
+      return res.end(JSON.stringify({
+        error: "confirmation_required",
+        message: 'Pass { "confirm": "DELETE-MY-DATA" } to confirm.',
+      }));
+    }
+    const result = await deleteUserData(session.email);
+    if (!result.ok) {
+      res.statusCode = 503;
+      return res.end(JSON.stringify({ error: result.reason || "delete_failed" }));
+    }
+    // Immediately invalidate the session cookie so the next request
+    // can't re-create profile rows.
+    res.setHeader(
+      "Set-Cookie",
+      "rs_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0"
+    );
+    return res.end(JSON.stringify({ ok: true, removed: result.removed }));
   }
 
   const profile = await loadProfile(session.email);
