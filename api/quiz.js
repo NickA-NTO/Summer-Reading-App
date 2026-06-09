@@ -1536,7 +1536,7 @@ export default async function handler(req, res) {
     const signed = staticBank.questions.map((q) => ({ ...q }));
     await attachAnswerTokens(bookId, signed);
     res.statusCode = 200;
-    res.setHeader("Cache-Control", "private, max-age=86400");
+    res.setHeader("Cache-Control", "no-store");
     return res.end(
       JSON.stringify({
         available: true,
@@ -1597,7 +1597,7 @@ export default async function handler(req, res) {
     // idempotent; on a fresh pool it'll already be present.
     await attachAnswerTokens(bookId, cached.questions);
     res.statusCode = 200;
-    res.setHeader("Cache-Control", "private, max-age=86400");
+    res.setHeader("Cache-Control", "no-store");
     return res.end(
       JSON.stringify({
         available: true,
