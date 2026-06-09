@@ -571,6 +571,18 @@ Build a structured record per the schema. Every entry must have source_ids.`;
         }
       }
     }
+    // Filter the stored audit trail to strip blacklisted sources even
+    // if the model failed to skip them. Belt-and-braces — Anthropic's
+    // web_search returns whatever the index has, and our blacklist
+    // instruction in the prompt is best-effort. Stripping these from
+    // the audit log keeps our provenance defensible: no record we
+    // ship cites Scribd / Z-Library / Anna's Archive / Internet
+    // Archive borrowable, even if the model briefly considered them.
+    const cleanUrls = searchedUrls.filter((u) => !isBlacklistedSource(u));
+    const blockedDropped = searchedUrls.length - cleanUrls.length;
+    if (blockedDropped > 0) {
+      console.warn(`[enrich] dropped ${blockedDropped} blacklisted URL(s) from audit log for ${book.title}`);
+    }
 
     const jsonText = extractJsonFromText(finalText);
     let parsed;
@@ -588,7 +600,8 @@ Build a structured record per the schema. Every entry must have source_ids.`;
     return {
       record: validated,
       webSearchUsed: true,
-      searchedUrls: [...new Set(searchedUrls)],
+      searchedUrls: [...new Set(cleanUrls)],
+      blacklistedDropped: blockedDropped,
     };
   } catch (err) {
     // If the web_search tool itself is unavailable for some reason
@@ -614,6 +627,44 @@ Build a structured record per the schema. Every entry must have source_ids.`;
 }
 
 const MAX_WEB_SEARCHES = 5;
+
+// Hosts whose content is either (a) unauthorized redistributions of
+// copyrighted books (Scribd / Z-Library / Anna's Archive) or (b)
+// legally radioactive sources for a commercial K-8 app (Internet
+// Archive's borrowable book viewer — see Hachette v. IA 2023).
+// The synthesis prompt tells the model to skip these; this client-
+// side filter ALSO strips them from the stored searched_urls audit
+// log as belt-and-braces in case the model's text mentions them OR
+// they survive in our trace. So no record we ship cites them.
+const BLACKLISTED_DOMAINS = [
+  "scribd.com",
+  "z-library",     // z-library.org, z-lib.id, etc.
+  "annas-archive",
+  "libgen",        // library genesis
+  "1lib.",
+  "pdfdrive",
+  "vk.com/doc",    // VK is a common copyright laundering vector
+  "academia.edu",  // sometimes hosts full book PDFs
+];
+// Internet Archive's `/details/` PDF + borrowable book paths are the
+// problematic ones per Hachette v. IA. Their bibliographic + collection
+// pages (e.g. openlibrary.org or archive.org search) are fine.
+const BLACKLISTED_URL_PATTERNS = [
+  /archive\.org\/details\//i,
+  /archive\.org\/stream\//i,
+];
+
+function isBlacklistedSource(url) {
+  if (!url) return false;
+  const lower = String(url).toLowerCase();
+  for (const host of BLACKLISTED_DOMAINS) {
+    if (lower.includes(host)) return true;
+  }
+  for (const pat of BLACKLISTED_URL_PATTERNS) {
+    if (pat.test(url)) return true;
+  }
+  return false;
+}
 
 // Pull a JSON object out of model output that may have surrounding
 // prose or be wrapped in a ```json fence. Returns the inner string;
