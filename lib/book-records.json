@@ -1,303 +1,673 @@
 {
   "schema": 1,
-  "generatedAt": "2026-06-09T00:58:49.320Z",
+  "generatedAt": "2026-06-09T01:36:45.493Z",
   "comment": "Auto-populated by scripts/enrich-catalog.js. Each record carries source-cited structured data per book (characters/items/plot_beats/specific_facts/unknown_fields). The quiz generator + QC enforce a closed-list citation contract against this data when a record exists. Run `node scripts/enrich-catalog.js` to populate.",
   "records": {
     "e07": {
       "bookId": "e07",
-      "cachedAt": 1780966261925,
+      "cachedAt": 1780969005493,
       "sources_found": {
         "wikipedia": true,
         "openLibrary": true,
-        "googleBooks": false
+        "googleBooks": false,
+        "webSearch": true
       },
       "source_urls": {
         "wikipedia": "https://en.wikipedia.org/wiki/One_Fish%2C_Two_Fish%2C_Red_Fish%2C_Blue_Fish",
         "openLibrary": "https://openlibrary.org/isbn/9780394800134"
       },
+      "searched_urls": [
+        "https://seussblog.wordpress.com/2013/03/07/one-fish-two-fish-red-fish-blue-fish/",
+        "https://seuss.fandom.com/wiki/One_Fish_Two_Fish_Red_Fish_Blue_Fish",
+        "https://poemanalysis.com/dr-seuss/one-fish-two-fish-red-fish-blue-fish/",
+        "https://www.powells.com/book/one-fish-two-fish-red-fish-blue-fish-9780394800134",
+        "https://www.gradesaver.com/one-fish-two-fish-red-fish-blue-fish/study-guide/themes",
+        "https://dr-seuss-videos.livejournal.com/655.html",
+        "https://libquotes.com/dr-seuss/works/one-fish-two-fish-red-fish-blue-fish",
+        "https://www.gigwise.com/one-fish-two-fish-red-fish-blue-fish-dr-seuss-lyrics/",
+        "https://grizly.com/question/in-the-dr-seuss-classic-ione-fish-two-fish-red-fish-blue-fishi-what-does-mr-gump-own",
+        "https://tvtropes.org/pmwiki/pmwiki.php/Literature/OneFishTwoFishRedFishBlueFish",
+        "https://www.scribd.com/document/793028615/One-Fish-Two-Fish-Red-Fish-Blue-Fish-Dr-Seuss",
+        "https://www.cracked.com/blog/how-dr.-seuss-tried-to-battle-racism-and-failed-horribly",
+        "https://seuss.fandom.com/wiki/Mike",
+        "https://www.pinterest.com/pin/319403798547620844/",
+        "https://www.barnesandnoble.com/w/one-fish-two-fish-red-fish-blue-fish-dr-seuss/1101011554;jsessionid=E0A6A89C994BCDDBF7F041F28D55B879.prodny_store02-atgap05?ean=9780385372107&st=AFF&2sid=Random+House+Inc_8373827_NA&sourceId=AFFRandom+House+Inc",
+        "https://www.fbmarketplace.org/un-pez-dos-peces-pez-rojo-pez-azul-one-fish-two-fish-red-fish-blue-fish-spanish-edition-119140",
+        "https://www.kindergartenworksheetsandgames.com/rhyming-words-game/",
+        "https://kirezov-english.livejournal.com/3260.html",
+        "https://www.barnesandnoble.com/w/un-pez-dos-peces-pez-rojo-pez-azul-dr-seuss/1130737846;jsessionid=BBBADE5FAEEFF2FF1891603B49C9EB57.prodny_store01-atgap06?ean=9798217026234&st=AFF&2sid=Random+House+Inc_8373827_NA&sourceId=AFFRandom+House+Inc",
+        "https://www.amazon.com/ONE-FISH-TWO-Dr-Seuss/dp/0375834974",
+        "https://quillandinkstore.com/products/one-fish-two-fish-red-fish-blue-fish-i-can-read-it-all-by-myself",
+        "https://archiveofourown.org/works/1627229",
+        "https://lyrics.az/dr-seuss/-/one-fish-two-fish-red-fish-blue-fish.html",
+        "https://beelyrics.net/music/44415-dr-seuss/2251926-one-fish-two-fish-red-fish-blue-fish-lyrics.html",
+        "https://www.lindentreebooks.com/dr-seuss-library-one-fish-two-fish-red-fish-blue-f.html"
+      ],
       "record": {
-        "premise": "A rhyming picture book that counts and describes colorful fish, then introduces a parade of silly invented creatures with rhyming names doing silly things, page by page.",
+        "premise": "A rhyming picture book where two children (Jay and Kay) observe and describe many colorful fish and a parade of silly invented creatures with rhyming names, celebrating imagination and the fun of reading.",
         "characters": [
           {
-            "name": "Nook",
-            "role": "Unusual animal/creature",
+            "name": "Jay",
+            "role": "Main character, a boy who narrates and observes the creatures",
             "source_ids": [
-              2
+              3,
+              10,
+              11
+            ]
+          },
+          {
+            "name": "Kay",
+            "role": "Main character, a girl who narrates and observes the creatures with Jay",
+            "source_ids": [
+              3,
+              10,
+              11
             ]
           },
           {
             "name": "Wump",
-            "role": "Creature with seven humps that you can ride",
+            "role": "Creature with humps that can be ridden",
             "source_ids": [
               2,
-              3
-            ]
-          },
-          {
-            "name": "Yink",
-            "role": "Creature who likes to wink and drink pink ink",
-            "source_ids": [
-              2,
-              3
-            ]
-          },
-          {
-            "name": "Yap",
-            "role": "Unusual animal/creature",
-            "source_ids": [
-              2
-            ]
-          },
-          {
-            "name": "Gack",
-            "role": "Unusual animal/creature",
-            "source_ids": [
-              2
-            ]
-          },
-          {
-            "name": "Zeds",
-            "role": "Unusual animal/creature",
-            "source_ids": [
-              2
-            ]
-          },
-          {
-            "name": "Mike",
-            "role": "Creature with many legs who pedals his bike while others sit on top",
-            "source_ids": [
-              3
-            ]
-          },
-          {
-            "name": "Yop",
-            "role": "Creature on top",
-            "source_ids": [
-              3
-            ]
-          },
-          {
-            "name": "Zans",
-            "role": "Creatures that brush their teeth",
-            "source_ids": [
-              3
-            ]
-          },
-          {
-            "name": "Yeps",
-            "role": "Creature",
-            "source_ids": [
-              3
-            ]
-          },
-          {
-            "name": "Clark",
-            "role": "Character who never goes to school",
-            "source_ids": [
               3
             ]
           },
           {
             "name": "Mr. Gump",
-            "role": "A Wump with seven humps",
+            "role": "Man who owns a seven-hump Wump",
             "source_ids": [
-              3
+              3,
+              1,
+              5
+            ]
+          },
+          {
+            "name": "Mike",
+            "role": "Creature who sits on the back of the bike and pushes it up hills",
+            "source_ids": [
+              3,
+              10,
+              12,
+              17
+            ]
+          },
+          {
+            "name": "Ned",
+            "role": "Character who does not like his little bed because his feet stick out",
+            "source_ids": [
+              3,
+              5,
+              6
+            ]
+          },
+          {
+            "name": "Yink",
+            "role": "Creature that likes to wink and drink pink ink",
+            "source_ids": [
+              2,
+              3,
+              20
+            ]
+          },
+          {
+            "name": "Yop",
+            "role": "Creature that likes to hop from finger top to finger top",
+            "source_ids": [
+              2,
+              29
+            ]
+          },
+          {
+            "name": "Nook",
+            "role": "Creature with a hook on his head holding a cookbook, but cannot read",
+            "source_ids": [
+              2,
+              11,
+              29
+            ]
+          },
+          {
+            "name": "Zans",
+            "role": "Creature that helps open cans",
+            "source_ids": [
+              3,
+              20,
+              24
+            ]
+          },
+          {
+            "name": "Gox",
+            "role": "Creature that the narrator boxes with",
+            "source_ids": [
+              4,
+              20,
+              12
+            ]
+          },
+          {
+            "name": "Ying",
+            "role": "Creature that can sing",
+            "source_ids": [
+              24,
+              29
+            ]
+          },
+          {
+            "name": "Zeds",
+            "role": "Yellow pets with one hair on their heads that need a haircut every day",
+            "source_ids": [
+              2,
+              15,
+              29
+            ]
+          },
+          {
+            "name": "Ish",
+            "role": "Character with a dish on his hand that helps him wish for fish",
+            "source_ids": [
+              12,
+              15,
+              31
+            ]
+          },
+          {
+            "name": "Gack",
+            "role": "Creature used in a game called Ring the Gack",
+            "source_ids": [
+              2,
+              15,
+              31
+            ]
+          },
+          {
+            "name": "Clark",
+            "role": "Creature found in the park in the dark that the children take home",
+            "source_ids": [
+              3,
+              15,
+              29
             ]
           },
           {
             "name": "Zeep",
-            "role": "Creature the children put their cold feet on at bedtime to keep warm",
+            "role": "Pet that the children sleep with at bedtime",
             "source_ids": [
-              3
+              3,
+              15,
+              29
             ]
           },
           {
-            "name": "Narrator",
-            "role": "Narrator who counts and describes fish and creatures",
+            "name": "Joe",
+            "role": "Character called on the phone",
             "source_ids": [
-              3
+              15,
+              29
             ]
           }
         ],
         "key_objects": [
           {
-            "item": "Fish",
-            "detail": "Red, blue, black, old, new; some sad, some glad, some bad",
-            "source_ids": [
-              1,
-              3
-            ]
-          },
-          {
-            "item": "Little star",
-            "detail": "Some fish have a little star",
-            "source_ids": [
-              3
-            ]
-          },
-          {
-            "item": "Little car",
-            "detail": "Some fish have a little car",
-            "source_ids": [
-              3
-            ]
-          },
-          {
             "item": "Bike",
-            "detail": "Mike pedals his bike",
+            "detail": "Made for three; Mike sits in back and does the work when hills get high",
             "source_ids": [
-              3
+              3,
+              11,
+              12
             ]
           },
           {
             "item": "Pink ink",
-            "detail": "The Yink drinks pink ink",
+            "detail": "What the Yink likes to drink",
             "source_ids": [
-              3
+              3,
+              20,
+              24
+            ]
+          },
+          {
+            "item": "Hook",
+            "detail": "On the Nook's head, holding a book",
+            "source_ids": [
+              11,
+              29
+            ]
+          },
+          {
+            "item": "Cookbook",
+            "detail": "Called 'How to Cook', hangs on the Nook's hook",
+            "source_ids": [
+              11,
+              29
+            ]
+          },
+          {
+            "item": "Dish",
+            "detail": "Ish uses it to wish for fish",
+            "source_ids": [
+              15,
+              31
+            ]
+          },
+          {
+            "item": "Cans",
+            "detail": "The Zans helps open them",
+            "source_ids": [
+              24,
+              29
+            ]
+          },
+          {
+            "item": "Yellow socks",
+            "detail": "Worn while boxing the Gox",
+            "source_ids": [
+              12,
+              24
+            ]
+          },
+          {
+            "item": "Little bed",
+            "detail": "Ned's bed that he doesn't like because his feet stick out",
+            "source_ids": [
+              5,
+              6
+            ]
+          },
+          {
+            "item": "Phone/wire",
+            "detail": "A mouse cuts the phone wire",
+            "source_ids": [
+              15,
+              29
+            ]
+          },
+          {
+            "item": "Little star",
+            "detail": "One fish has a little star",
+            "source_ids": [
+              3,
+              7
+            ]
+          },
+          {
+            "item": "Little car",
+            "detail": "One fish has a little car",
+            "source_ids": [
+              3,
+              7
             ]
           }
         ],
         "plot_beats": [
           {
-            "beat": "The narrator counts fish: one fish, two fish",
+            "beat": "The book opens by counting and describing fish: one fish, two fish, red fish, blue fish, black fish, old fish, new fish",
             "source_ids": [
-              3
+              3,
+              7
             ]
           },
           {
-            "beat": "The narrator describes colorful fish: red fish, blue fish, black fish, old fish, new fish",
+            "beat": "The narrator describes fish with different traits: some are sad, some are glad, some are bad; one has a little star, one has a little car",
             "source_ids": [
-              3
+              3,
+              7,
+              14
             ]
           },
           {
-            "beat": "Fish are described by their feelings: some are sad, some are glad, some are bad",
+            "beat": "Jay and Kay observe funny things everywhere as creatures parade by",
             "source_ids": [
-              3
+              3,
+              11
             ]
           },
           {
-            "beat": "Fish are described by what they have: some have a little star, some have a little car",
+            "beat": "A creature with eleven fingers is shown, and the narrator wishes he had eleven too",
             "source_ids": [
-              3
+              5,
+              6
             ]
           },
           {
-            "beat": "A parade of silly invented creatures with rhyming names is introduced",
+            "beat": "The children ride a Wump with one hump, while Mr. Gump has a seven-hump Wump",
             "source_ids": [
-              2,
-              3
+              1,
+              3,
+              5
             ]
           },
           {
-            "beat": "The Wump with seven humps is shown as something you can ride",
+            "beat": "Ned complains about his little bed because his feet stick out all night",
             "source_ids": [
-              3
+              5,
+              6
             ]
           },
           {
-            "beat": "Mike with many legs pedals his bike while others sit on top of him",
+            "beat": "Mike rides on the bike made for three and does all the work pushing it up hills",
             "source_ids": [
-              3
+              3,
+              11,
+              12
             ]
           },
           {
-            "beat": "The Yink winks and drinks pink ink",
+            "beat": "A cow, dog, cat, and mouse get into Ned's bed",
             "source_ids": [
-              3
+              5,
+              6
             ]
           },
           {
-            "beat": "The Zans brush their teeth",
+            "beat": "A bird is found in someone's ear, then removed",
             "source_ids": [
-              3
+              11,
+              14
             ]
           },
           {
-            "beat": "At bedtime, the narrator and children put their cold feet on the Zeep to keep warm",
+            "beat": "The Nook tries to cook using a cookbook on a hook, but cannot read so cannot cook",
             "source_ids": [
-              3
+              11,
+              29
+            ]
+          },
+          {
+            "beat": "Sheep are seen walking in their sleep by moonlight",
+            "source_ids": [
+              29,
+              33
+            ]
+          },
+          {
+            "beat": "The Zans helps open many cans",
+            "source_ids": [
+              24,
+              29
+            ]
+          },
+          {
+            "beat": "The narrator boxes a Gox in yellow socks",
+            "source_ids": [
+              24,
+              29
+            ]
+          },
+          {
+            "beat": "The Ying sings with the narrator",
+            "source_ids": [
+              24,
+              29
+            ]
+          },
+          {
+            "beat": "The Yink drinks pink ink and likes to wink",
+            "source_ids": [
+              3,
+              24,
+              29
+            ]
+          },
+          {
+            "beat": "The Yop hops from finger top to finger top",
+            "source_ids": [
+              29,
+              31
+            ]
+          },
+          {
+            "beat": "A pet with blue hair is fun to brush and comb",
+            "source_ids": [
+              1,
+              29
+            ]
+          },
+          {
+            "beat": "A girl walks with ten cats on her head",
+            "source_ids": [
+              12,
+              15,
+              27
+            ]
+          },
+          {
+            "beat": "Someone calls Joe on the phone but a mouse has cut the wire",
+            "source_ids": [
+              15,
+              29
+            ]
+          },
+          {
+            "beat": "The yellow Zeds have one hair on their heads and need a haircut every day",
+            "source_ids": [
+              15,
+              29
+            ]
+          },
+          {
+            "beat": "Ish uses his dish to wish for fish",
+            "source_ids": [
+              15,
+              31
+            ]
+          },
+          {
+            "beat": "The children play Ring the Gack in their backyard",
+            "source_ids": [
+              15,
+              31
+            ]
+          },
+          {
+            "beat": "The children find Clark in the park in the dark and take him home",
+            "source_ids": [
+              15,
+              29
+            ]
+          },
+          {
+            "beat": "At bedtime, the children sleep with their pet Zeep",
+            "source_ids": [
+              3,
+              15,
+              29
+            ]
+          },
+          {
+            "beat": "The book ends with: Today is gone, today was fun, tomorrow is another one",
+            "source_ids": [
+              20,
+              29,
+              32
             ]
           }
         ],
-        "setting": "Imaginative/fantasy world with colorful fish and silly invented creatures",
+        "setting": "An imaginative world where funny creatures are everywhere, including the children's house, backyard, a park, and various fantastical locations",
         "themes": [
+          "Imagination and creativity",
+          "Celebrating differences and diversity",
+          "The joy of reading and rhyming",
+          "Opposites (old/new, sad/glad, high/low)",
           "Counting",
-          "Colors",
-          "Rhyming",
-          "Imagination",
-          "Silly creatures",
-          "Opposites (old/new, sad/glad)"
+          "Fun is good"
         ],
         "specific_facts": [
           {
-            "fact": "The Wump has seven humps",
+            "fact": "Mr. Gump's Wump has seven humps",
             "source_ids": [
-              3
+              1,
+              3,
+              5
             ]
           },
           {
-            "fact": "The Yink likes to wink and drink pink ink",
+            "fact": "The children's Wump has just one hump",
             "source_ids": [
-              3
+              1,
+              5,
+              6
             ]
           },
           {
-            "fact": "Mike has many legs and pedals his bike",
+            "fact": "The bike is made for three",
             "source_ids": [
-              3
+              3,
+              11,
+              6
             ]
           },
           {
-            "fact": "The Zans brush their teeth",
+            "fact": "Mike sits up in back of the bike",
             "source_ids": [
-              3
+              3,
+              11,
+              17
             ]
           },
           {
-            "fact": "Clark never goes to school",
+            "fact": "One creature has eleven fingers",
             "source_ids": [
-              3
+              5,
+              6
             ]
           },
           {
-            "fact": "Mr. Gump is a Wump with seven humps",
+            "fact": "The Yink drinks pink ink",
             "source_ids": [
-              3
+              3,
+              20,
+              24
             ]
           },
           {
-            "fact": "Children put their cold feet on the Zeep at bedtime to keep warm",
+            "fact": "The Zeds are yellow",
             "source_ids": [
-              3
+              15,
+              29
             ]
           },
           {
-            "fact": "Some fish are sad, some are glad, some are bad",
+            "fact": "The Zeds have one hair on their heads",
             "source_ids": [
-              3
+              15,
+              29
             ]
           },
           {
-            "fact": "Some fish have a little star and some have a little car",
+            "fact": "The Zeds need a haircut every day",
             "source_ids": [
-              3
+              15,
+              29
+            ]
+          },
+          {
+            "fact": "The Nook has a hook on his head",
+            "source_ids": [
+              11,
+              29
+            ]
+          },
+          {
+            "fact": "The Nook's book is called 'How to Cook'",
+            "source_ids": [
+              11,
+              29
+            ]
+          },
+          {
+            "fact": "The Nook can't read, so the Nook can't cook",
+            "source_ids": [
+              11,
+              29
+            ]
+          },
+          {
+            "fact": "A girl walks with ten cats on her head",
+            "source_ids": [
+              12,
+              15,
+              27
+            ]
+          },
+          {
+            "fact": "The Gox wears yellow boxing gloves",
+            "source_ids": [
+              12
+            ]
+          },
+          {
+            "fact": "The narrator boxes the Gox in yellow socks",
+            "source_ids": [
+              24,
+              29
+            ]
+          },
+          {
+            "fact": "Clark is found in the park in the dark",
+            "source_ids": [
+              15,
+              29
+            ]
+          },
+          {
+            "fact": "The old fish wears glasses",
+            "source_ids": [
+              12
+            ]
+          },
+          {
+            "fact": "The fat fish wears a hat",
+            "source_ids": [
+              6,
+              12
+            ]
+          },
+          {
+            "fact": "One fish has a little star",
+            "source_ids": [
+              3,
+              7
+            ]
+          },
+          {
+            "fact": "One fish has a little car",
+            "source_ids": [
+              3,
+              7
+            ]
+          },
+          {
+            "fact": "The main characters are named Jay and Kay",
+            "source_ids": [
+              10,
+              11
+            ]
+          },
+          {
+            "fact": "A mouse cuts the phone wire",
+            "source_ids": [
+              15,
+              29
+            ]
+          },
+          {
+            "fact": "The pet with blue hair is fun to brush and comb",
+            "source_ids": [
+              29,
+              31
             ]
           }
         ],
-        "confidence": "medium",
+        "confidence": "high",
         "unknown_fields": [
-          "exact_number_of_fish_counted",
-          "colors_of_specific_creatures_beyond_fish",
-          "names_of_the_children_in_the_book",
-          "exact_number_of_Mike's_legs",
-          "what_the_Nook_does",
-          "what_the_Yap_does",
-          "what_the_Gack_does",
-          "what_the_Zeds_do",
-          "order_of_pages",
-          "exact_rhyming_text",
-          "number_of_creatures_total"
+          "exact_number_of_fish_shown",
+          "ages_of_Jay_and_Kay",
+          "what_species_Clark_is",
+          "what_species_Zeep_is",
+          "color_of_the_Wump",
+          "how_many_cats_wear_pink_bows",
+          "exact_number_of_creatures_in_the_book",
+          "what_the_Gack_looks_like"
         ]
       }
     },

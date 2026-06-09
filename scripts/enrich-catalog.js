@@ -42,8 +42,14 @@ import path from "node:path";
 import url from "node:url";
 import { generateObject } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
+import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import { QUIZ_BOOKS } from "../api/quiz.js";
+
+// Native Anthropic SDK client — used ONLY for the synthesis call so we
+// can attach the server-side web_search tool. The rest of the app uses
+// @ai-sdk/anthropic which doesn't expose web_search at our version.
+const nativeAnthropic = new Anthropic();
 
 // ============================================================
 // Config
@@ -468,18 +474,162 @@ ${sourceBlock}
 
 Build a structured record per the schema. Every entry must have source_ids.`;
 
+  // Synthesis with Anthropic web_search enabled. The model can issue
+  // up to MAX_WEB_SEARCHES targeted queries during synthesis — to
+  // verify specific quantifiers, fill plot gaps where our pre-fetched
+  // sources are thin, or cross-check character lists against
+  // independent public references (school book reports, fan wikis,
+  // GoodReads, etc.). Web search results become source_ids 100+ in
+  // the record so we can audit any fact back to a public URL.
+  //
+  // We use generateText (not generateObject) because tool calls
+  // benefit from multi-step generation and the AI SDK's object mode
+  // is single-shot. We append a JSON-schema instruction and parse +
+  // validate the JSON output with the same RecordSchema.
+  const jsonInstruction =
+    `\n\nReturn ONLY a JSON object with this exact shape — no prose,` +
+    ` no markdown code fence, just the JSON:\n` +
+    `{\n` +
+    `  "premise": "string",\n` +
+    `  "characters": [{"name": "string", "role": "string", "source_ids": [number]}],\n` +
+    `  "key_objects": [{"item": "string", "detail": "string-optional", "source_ids": [number]}],\n` +
+    `  "plot_beats": [{"beat": "string", "source_ids": [number]}],\n` +
+    `  "setting": "string",\n` +
+    `  "themes": ["string"],\n` +
+    `  "specific_facts": [{"fact": "string", "source_ids": [number]}],\n` +
+    `  "confidence": "high" | "medium" | "low",\n` +
+    `  "unknown_fields": ["string"]\n` +
+    `}\n\nFor any fact you VERIFIED or LEARNED via web_search, cite the\n` +
+    `web result URL by adding a source_id of 100+ and listing the\n` +
+    `corresponding URL in "specific_facts" entries that came from search.`;
+
+  const systemWithSearch = system +
+    `\n\nADDITIONAL TOOL: You have web_search available. Use it to:\n` +
+    `  - Verify specific quantifiers (numbers, colors, character names) that the\n` +
+    `    provided sources mention but don't fully establish.\n` +
+    `  - Fill gaps in plot_beats when the provided sources are thin.\n` +
+    `  - Cross-check character lists against independent public references.\n\n` +
+    `RULES for web_search:\n` +
+    `  1. Do NOT search for, retrieve, or quote the full text of the book itself.\n` +
+    `     Use snippet-level information from book review sites, school book-club\n` +
+    `     pages, fan wikis, GoodReads, classroom resources. Public summaries OK;\n` +
+    `     unauthorized full-text copies NOT OK.\n` +
+    `  2. Prefer queries like "<Book title> Mike legs" or "<Book title> characters list"\n` +
+    `     over queries that would surface pirated full-text scans.\n` +
+    `  3. If a search result is from Scribd, Z-Library, Anna's Archive,\n` +
+    `     Internet Archive borrowable, or any similar repository of unauthorized\n` +
+    `     book copies — DO NOT cite it. Treat it as if the result didn't exist.\n` +
+    `  4. Web-search results get source_ids 100+. List the URL in the relevant\n` +
+    `     specific_facts entry so it can be audited later.\n` +
+    `  5. If multiple independent searches confirm a fact, set confidence: high.\n` +
+    `     If a fact came only from web_search with weak corroboration, mark it\n` +
+    `     medium. If you couldn't establish it, list under unknown_fields.\n` +
+    `  6. Maximum ${MAX_WEB_SEARCHES} searches per book. Choose them deliberately.`;
+
+  // Call Anthropic's native API with the server-side web_search tool.
+  // The model can issue up to MAX_WEB_SEARCHES queries during this
+  // single synthesis turn, with each result yielding searchable
+  // snippets the model uses to fill / verify the record.
   try {
-    const { object } = await generateObject({
-      model: anthropic(SYNTHESIS_MODEL),
-      schema: RecordSchema,
-      system,
-      prompt,
-      temperature: 0.2, // low — we want fidelity, not creativity
+    const response = await nativeAnthropic.messages.create({
+      model: SYNTHESIS_MODEL,
+      max_tokens: 8192,
+      temperature: 0.2,
+      system: systemWithSearch,
+      tools: [
+        {
+          type: "web_search_20250305",
+          name: "web_search",
+          max_uses: MAX_WEB_SEARCHES,
+        },
+      ],
+      messages: [{ role: "user", content: prompt + jsonInstruction }],
     });
-    return { record: object };
+
+    // Anthropic returns an array of content blocks. The final block
+    // is typically the model's text answer; intermediate blocks may
+    // include `server_tool_use` (search calls) and `web_search_tool_result`
+    // (their results). We pull the final text + collect all searched
+    // URLs for audit.
+    const blocks = response.content || [];
+    const textBlocks = blocks.filter((b) => b.type === "text");
+    if (textBlocks.length === 0) {
+      return {
+        error: "no_text_in_response",
+        message: "Anthropic response had no text block",
+      };
+    }
+    const finalText = textBlocks.map((b) => b.text).join("\n");
+
+    const searchedUrls = [];
+    for (const b of blocks) {
+      // The result block is `web_search_tool_result` and has .content
+      // that's an array of citation entries with .url
+      if (b.type === "web_search_tool_result" && Array.isArray(b.content)) {
+        for (const hit of b.content) {
+          if (hit?.url) searchedUrls.push(hit.url);
+        }
+      }
+    }
+
+    const jsonText = extractJsonFromText(finalText);
+    let parsed;
+    try {
+      parsed = JSON.parse(jsonText);
+    } catch (err) {
+      return {
+        error: "json_parse_failed",
+        message: `Couldn't parse model output as JSON: ${err.message}`,
+        rawText: finalText.slice(0, 500),
+      };
+    }
+    const validated = RecordSchema.parse(parsed);
+
+    return {
+      record: validated,
+      webSearchUsed: true,
+      searchedUrls: [...new Set(searchedUrls)],
+    };
   } catch (err) {
+    // If the web_search tool itself is unavailable for some reason
+    // (account permissions, beta gating, etc.) fall back to the
+    // pre-fetched-sources-only path so we still produce something.
+    if (String(err?.message || "").includes("web_search")) {
+      console.warn(`[enrich] web_search failed (${err.message}) — falling back to pre-fetched sources only`);
+      try {
+        const { object } = await generateObject({
+          model: anthropic(SYNTHESIS_MODEL),
+          schema: RecordSchema,
+          system, // ← original system without the web_search instructions
+          prompt,
+          temperature: 0.2,
+        });
+        return { record: object, webSearchUsed: false };
+      } catch (err2) {
+        return { error: "synthesis_failed", message: String(err2?.message || err2) };
+      }
+    }
     return { error: "synthesis_failed", message: String(err?.message || err) };
   }
+}
+
+const MAX_WEB_SEARCHES = 5;
+
+// Pull a JSON object out of model output that may have surrounding
+// prose or be wrapped in a ```json fence. Returns the inner string;
+// throws if no balanced object is found.
+function extractJsonFromText(text) {
+  const s = String(text || "");
+  // Try fenced code first.
+  const fenceMatch = s.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (fenceMatch) return fenceMatch[1].trim();
+  // Find the first '{' and the last '}' to get the outermost object.
+  const first = s.indexOf("{");
+  const last = s.lastIndexOf("}");
+  if (first === -1 || last === -1 || last <= first) {
+    throw new Error("no JSON object found in model output");
+  }
+  return s.slice(first, last + 1);
 }
 
 // ============================================================
@@ -521,18 +671,23 @@ async function enrichOne(bookId, book, isbn) {
     };
   }
 
-  console.log(`   ✓ confidence:${result.record.confidence} chars:${result.record.characters.length} facts:${result.record.specific_facts.length} unknowns:${result.record.unknown_fields.length}`);
+  const webStatus = result.webSearchUsed
+    ? `web:✓(${(result.searchedUrls || []).length})`
+    : "web:✗";
+  console.log(`   ✓ ${webStatus} confidence:${result.record.confidence} chars:${result.record.characters.length} facts:${result.record.specific_facts.length} unknowns:${result.record.unknown_fields.length}`);
   return {
     bookId,
     cachedAt: Date.now(),
     sources_found: {
       wikipedia: !!wikipedia, openLibrary: !!openLibrary, googleBooks: !!googleBooks,
+      webSearch: !!result.webSearchUsed,
     },
     source_urls: {
       wikipedia: wikipedia?.sourceUrl,
       openLibrary: openLibrary?.sourceUrl,
       googleBooks: googleBooks?.sourceUrl,
     },
+    searched_urls: result.searchedUrls || [],
     record: result.record,
   };
 }
