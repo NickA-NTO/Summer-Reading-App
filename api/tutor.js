@@ -47,6 +47,8 @@ import {
 import { resolveVisibleTracks, trackForBook } from "../lib/tracks.js";
 import { getBook } from "../lib/books.js";
 import { getBookSummary } from "./quiz.js";
+import { buildRetellEventEnvelope } from "../lib/caliper.js";
+import { sendCaliperEnvelopeAsync } from "../lib/timeback.js";
 import { normalizeGrade, pointsForBook, xpForReadingSession, retellOutcomeFromRubric } from "../lib/xp.js";
 import { trackError, trackEvent } from "../lib/observability.js";
 import { checkRateLimit, send429, LIMITS } from "../lib/rate-limit.js";
@@ -834,6 +836,47 @@ async function finalizeAndGrade(res, tutorSession, book) {
     });
   } catch (err) {
     trackError("tutor_retell_log_failed", { err: String(err?.message || err) });
+  }
+
+  // Caliper event emission for retell (TimeBack sync — 1e). Fires for
+  // every finalized retell session: pass, marginal, fail, and held.
+  // TimeBack receives the rubric total + per-axis breakdown +
+  // quality tier so it can apply its own XP rules. Fire-and-forget
+  // matches the quiz path in api/activity.js. Errors swallowed so
+  // they never break the student-facing response.
+  try {
+    const rubricTotal =
+      (Number(grade.retell_quality)   || 0) +
+      (Number(grade.character_recall) || 0) +
+      (Number(grade.event_recall)     || 0) +
+      (Number(grade.stayed_on_topic)  || 0);
+    const tier = rubricTotal >= 10 ? "clear_pass" : rubricTotal >= 7 ? "marginal" : "fail";
+    const envelope = buildRetellEventEnvelope({
+      email,
+      studentId: null, // populated once TimeBack id mapping ships
+      studentName: tutorSession.email.split("@")[0],
+      bookId: tutorSession.bookId,
+      bookTitle: book.title || tutorSession.bookId,
+      attemptNum: 1, // retell is one-shot per session
+      rubricTotal,
+      rubric: {
+        retell_quality:   grade.retell_quality,
+        character_recall: grade.character_recall,
+        event_recall:     grade.event_recall,
+        stayed_on_topic:  grade.stayed_on_topic,
+      },
+      tier,
+      retellOutcome,
+      outcomeKey: response.xpBreakdown?.outcomeKey,
+      bookGradeLevel: book.grade,
+      studentGrade: tutorSession.workingGrade,
+      xpAwarded: response.xpBreakdown?.xp ?? null,
+      held: !!response.held,
+    });
+    sendCaliperEnvelopeAsync(envelope);
+  } catch (err) {
+    console.warn("[caliper_retell_emit_failed]", String(err?.message || err));
+    trackError("caliper_retell_emit_failed", { err: String(err?.message || err) });
   }
 
   return json(res, 200, response);
