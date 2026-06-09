@@ -5890,6 +5890,13 @@ function saveQuizProgress() {
       // only), so a non-admin flipping this flag manually sees no
       // change (no correctShuffledIdx to render against).
       adminMode:  !!quizState.adminMode,
+      // Stamp the schema version at save time so loadQuizProgress
+      // can compare against the current server version and discard
+      // stale (pre-bump) resumes. This is what closes the bug where
+      // a kid kept seeing a broken question even after we shipped
+      // the corrected pool because their localStorage held the
+      // old questions baked in.
+      schemaVersion: state.session?.quizSchemaVersion || null,
       ts:         Date.now(),
     }));
   } catch {
@@ -5912,6 +5919,19 @@ function loadQuizProgress(bookId) {
     // Stale-after-24h guard so a kid who comes back a day later
     // doesn't get a creaky resume instead of a fresh attempt.
     if (typeof saved.ts === "number" && Date.now() - saved.ts > 86_400_000) {
+      clearQuizProgress(bookId);
+      return null;
+    }
+    // Schema-version check (CRITICAL: this is what closes the
+    // stale-cached-question bug). If the server bumped SCHEMA_VERSION
+    // since this resume was saved, the questions baked into
+    // localStorage are no longer valid — they were generated under
+    // older rules that we've since corrected. Drop the resume so
+    // openQuiz refetches a fresh pool from the server. Resumes saved
+    // before the schemaVersion stamp was added (no `schemaVersion`
+    // field) are likewise treated as stale.
+    const currentVersion = state.session?.quizSchemaVersion || null;
+    if (currentVersion != null && saved.schemaVersion !== currentVersion) {
       clearQuizProgress(bookId);
       return null;
     }
@@ -8730,6 +8750,13 @@ function _retellShowResult(data) {
         me.startedRecentlyHoldMsRules && typeof me.startedRecentlyHoldMsRules === "object"
           ? me.startedRecentlyHoldMsRules
           : null,
+      // Current server quiz schema version — stamped into the
+      // localStorage quiz-progress blob so a server SCHEMA_VERSION
+      // bump (which busts the Redis pool cache) ALSO auto-invalidates
+      // every kid's mid-quiz resume. Without this, kids would keep
+      // seeing the old broken questions from their localStorage
+      // even though the server has fresh ones.
+      quizSchemaVersion: Number(me.quizSchemaVersion) || null,
     });
 
     // First-run onboarding: voice picker → spotlight tour. Only shows

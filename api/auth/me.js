@@ -18,6 +18,7 @@ import { normalizeGrade, stallAlarmDays, estimatedMinutes } from "../../lib/xp.j
 import { resolveVisibleTracks, TRACK_ORDER, trackForBook } from "../../lib/tracks.js";
 import { getBook } from "../../lib/books.js";
 import { ACHIEVEMENTS } from "../../lib/achievements.js";
+import { QUIZ_SCHEMA_VERSION } from "../quiz.js";
 
 // Load the user's profile row from Redis (returns null on miss or error).
 async function loadProfile(email) {
@@ -243,6 +244,13 @@ export default async function handler(req, res) {
       //   G1 → 30 min, G2+ → 60 min (default).
       startedRecentlyHoldMs: STARTED_RECENTLY_HOLD_MS,
       startedRecentlyHoldMsRules: STARTED_RECENTLY_HOLD_MS_RULES,
+      // Current quiz schema version — client stamps this onto saved
+      // localStorage quiz progress so a server-side SCHEMA_VERSION
+      // bump (which busts the Redis pool cache) ALSO auto-invalidates
+      // every kid's mid-quiz resume blob. Without this the kid keeps
+      // seeing the old (buggy) questions baked into localStorage even
+      // though the server has fresh, corrected ones ready to ship.
+      quizSchemaVersion: QUIZ_SCHEMA_VERSION,
       // Onboarding state (#17) — client uses these to decide whether to
       // show the first-run voice picker + spotlight tour. tourCompleted=true
       // suppresses it forever (admin can reset via the admin endpoint).
