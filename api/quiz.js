@@ -523,7 +523,7 @@ const QCSchema = z.object({
 //
 // Previous versions retired in commit history; see git log for
 // per-version rationale.
-const SCHEMA_VERSION = 19;
+const SCHEMA_VERSION = 20;
 // Exported alias so api/activity.js can build the same cache key when it
 // validates a quiz_submit. Kept as a renamed export so the local const can
 // be reassigned independently if we ever split client / server schemas.
@@ -1079,6 +1079,89 @@ function verifyQuestionGrounded(q, summary) {
   return { ok: true };
 }
 
+// Reject questions whose distractors include the question's own
+// subject noun. Example: "What do some fish have that is little?"
+// with "A little fish" as a distractor — fish can't have fish; the
+// distractor is logically nonsensical. The LLM is supposed to know
+// this from the prompt but keeps falling back to noun-substitution
+// brainstorms.
+const SHARED_STOPWORDS = new Set([
+  "the","a","an","and","or","but","not","of","in","on","at","to","for","with","from",
+  "is","are","was","were","be","been","being","has","have","had","do","does","did",
+  "will","would","could","should","may","might","can","like","by","as","into","onto",
+  "this","that","these","those","there","here","where","when","why","how","what","who","which","whose",
+  "his","her","its","their","our","my","your","i","he","she","it","they","we","you","me","us","them",
+  "out","up","down","off","over","under","than","also","just","very","much",
+  "some","many","most","few","several","one","two","three","four","five","six","seven","eight","nine","ten",
+  "little","big","small","large","tall","short","high","low","new","old",
+]);
+function extractContentWords(text) {
+  const words = String(text || "").toLowerCase().match(/\b[a-z]+\b/g) || [];
+  return words.filter((w) => w.length >= 3 && !SHARED_STOPWORDS.has(w));
+}
+function verifyDistractorsNotSelfReferential(q) {
+  if (!Number.isInteger(q.answer)) return { ok: true };
+  const qNouns = new Set(extractContentWords(q.q));
+  if (qNouns.size === 0) return { ok: true };
+  for (let i = 0; i < q.options.length; i++) {
+    if (i === q.answer) continue;
+    const optNouns = extractContentWords(q.options[i]);
+    const overlap = optNouns.find((w) => qNouns.has(w));
+    if (overlap) {
+      return {
+        ok: false,
+        reason: "self_referential_distractor",
+        option: q.options[i],
+        sharedWord: overlap,
+      };
+    }
+  }
+  return { ok: true };
+}
+
+// Reject questions with exclusionary phrasing — K-2 readers
+// struggle with negation/exclusion question stems. "What does NOT",
+// "Besides X", "Except Y", etc. are all out. The question should be
+// affirmative: "What did X do?" not "What did X NOT do?".
+const COMPLEX_PHRASING = [
+  /\bbesides\b/i,
+  /\bexcept\b/i,
+  /\bother than\b/i,
+  /\bapart from\b/i,
+  /\bis not\b/i,
+  /\bare not\b/i,
+  /\bdoes not\b/i,
+  /\bdo not\b/i,
+  /\bdid not\b/i,
+  /\bwas not\b/i,
+  /\bwere not\b/i,
+  /\bcan not\b/i,
+  /\bcannot\b/i,
+  /\bdoesn[’']t\b/i,
+  /\bdon[’']t\b/i,
+  /\bdidn[’']t\b/i,
+  /\bisn[’']t\b/i,
+  /\baren[’']t\b/i,
+  /\bwasn[’']t\b/i,
+  /\bweren[’']t\b/i,
+  /\bcan[’']t\b/i,
+  /\bnever\b/i,
+];
+function verifyQuestionPhrasing(q) {
+  const text = String(q.q || "");
+  for (const re of COMPLEX_PHRASING) {
+    if (re.test(text)) {
+      return {
+        ok: false,
+        reason: "complex_phrasing",
+        pattern: re.source,
+        question: q.q,
+      };
+    }
+  }
+  return { ok: true };
+}
+
 // Deterministic option-parallelism check. Catches the case where 3
 // of 4 options share a leading determiner ("A wagon / A scooter /
 // A car / His bike") and the 4th gives away the correct answer.
@@ -1134,13 +1217,18 @@ async function qcAndFilter(bookId, book, studentGrade, questions) {
     // Either failure drops the question silently before the LLM QC
     // ever sees it. Both checks are pure substring / regex — the LLM
     // can't talk its way past either.
+    // Four deterministic checks per question, in order. Each is a
+    // pure substring / regex test — no LLM judgment, so the rules
+    // can't be talked around.
     const v = verifyQuestionGrounded(questions[i], summary);
-    const p = v.ok ? verifyOptionsParallel(questions[i]) : { ok: true };
-    if (v.ok && p.ok) {
+    const ph = v.ok ? verifyQuestionPhrasing(questions[i]) : { ok: true };
+    const p = v.ok && ph.ok ? verifyOptionsParallel(questions[i]) : { ok: true };
+    const sr = v.ok && ph.ok && p.ok ? verifyDistractorsNotSelfReferential(questions[i]) : { ok: true };
+    if (v.ok && ph.ok && p.ok && sr.ok) {
       groundedQuestions.push(questions[i]);
       continue;
     }
-    const fail = !v.ok ? v : p;
+    const fail = !v.ok ? v : !ph.ok ? ph : !p.ok ? p : sr;
     groundingDropped.push({ idx: i, ...fail, question: questions[i].q });
   }
   if (groundingDropped.length > 0) {
