@@ -46,24 +46,6 @@
         "premise": "A rhyming picture book where two children (Jay and Kay) observe and describe many colorful fish and a parade of silly invented creatures with rhyming names, celebrating imagination and the fun of reading.",
         "characters": [
           {
-            "name": "Jay",
-            "role": "Main character, a boy who narrates and observes the creatures",
-            "source_ids": [
-              3,
-              10,
-              11
-            ]
-          },
-          {
-            "name": "Kay",
-            "role": "Main character, a girl who narrates and observes the creatures with Jay",
-            "source_ids": [
-              3,
-              10,
-              11
-            ]
-          },
-          {
             "name": "Wump",
             "role": "Creature with humps that can be ridden",
             "source_ids": [
@@ -314,7 +296,7 @@
             ]
           },
           {
-            "beat": "Jay and Kay observe funny things everywhere as creatures parade by",
+            "beat": "The narrator observes funny things everywhere as creatures parade by",
             "source_ids": [
               3,
               11
@@ -636,13 +618,6 @@
             ]
           },
           {
-            "fact": "The main characters are named Jay and Kay",
-            "source_ids": [
-              10,
-              11
-            ]
-          },
-          {
             "fact": "A mouse cuts the phone wire",
             "source_ids": [
               15,
@@ -666,7 +641,15 @@
           "color_of_the_Wump",
           "how_many_cats_wear_pink_bows",
           "exact_number_of_creatures_in_the_book",
-          "what_the_Gack_looks_like"
+          "what_the_Gack_looks_like",
+          "names_of_the_children_narrators",
+          "specific_names_for_the_human_children"
+        ],
+        "_editorialNotes": [
+          {
+            "ts": "2026-06-09T02:01:37.609Z",
+            "note": "User correction (book owner): \"Jay and Kay are NOT in the book. Multiple online sources (poemanalysis, seuss.fandom) name the kids as Jay and Kay but the book does not. Removed from characters + facts; added to unknown_fields. Confirmed: the Gox illustration DOES show yellow boxing gloves on the Gox; both the Gox-gloves and narrator-yellow-socks facts are valid (text says \"In yellow socks I box my Gox. I box in yellow Gox box socks\" + illustration corroborates the gloves)."
+          }
         ]
       }
     },

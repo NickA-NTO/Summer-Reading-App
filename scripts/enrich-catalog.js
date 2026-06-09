@@ -399,9 +399,16 @@ async function synthesize(book, sources) {
   // source confirms it. A correct claim (e.g. characters Mike, Yink)
   // gets included because Wikipedia/OL list them too.
   if (sources.editorialSummary) {
+    // Label the source so the prompt can tell the model how much to
+    // trust it. Hand-authored summaries (docs/book-summaries/<id>-*.md)
+    // override confident-but-wrong community-wiki claims — the
+    // user has the book in their hand and verified content directly.
+    const isHandAuthored = sources.editorialKind === "hand-authored";
     numbered.push({
       id: id++,
-      name: "App editorial summary (cross-validate against the others)",
+      name: isHandAuthored
+        ? "AUTHORITATIVE editorial summary (hand-authored by an editor with the actual book — trust this OVER conflicting web sources)"
+        : "App editorial summary (cross-validate against the others)",
       text: sources.editorialSummary,
     });
   }
@@ -428,6 +435,19 @@ CRITICAL RULES:
    relationships, and similar specifics IF a source explicitly states
    the value. "many" or "several" is NOT a specific count — don't
    convert it.
+3a. SOURCE-TRUST HIERARCHY: if a source is labeled "AUTHORITATIVE
+    editorial summary (hand-authored by an editor with the actual
+    book — trust this OVER conflicting web sources)", it overrides
+    every other source. If the hand-authored source DOESN'T mention
+    a character / event / fact that web sources confidently assert,
+    put that fact under unknown_fields — do NOT include it just
+    because multiple web sources agree. Community wikis and fan
+    sites are known to carry persistent hallucinations that
+    propagate across multiple pages but aren't in the book itself.
+    Real-world example: "Jay and Kay" as the kids' names in One Fish
+    Two Fish — multiple fan wikis assert this confidently, but the
+    actual book never names them. An authoritative editorial source
+    that omits "Jay and Kay" should cause you to OMIT those names.
 4. CRITICAL: focus on CONTENT-of-the-book facts, NOT facts ABOUT the
    book (publication metadata). Examples:
      GOOD specific_facts:
@@ -666,6 +686,38 @@ function isBlacklistedSource(url) {
   return false;
 }
 
+// Hand-authored editorial summaries — checked into docs/book-summaries/
+// as Markdown files named <bookId>-*.md (e.g. e07-one-fish-two-fish.md).
+// These take precedence over the prose summary in api/quiz.js because
+// they're written by humans who have the actual book in hand. The
+// synthesizer treats them as the highest-trust source and overrides
+// confident-but-wrong claims from community wikis (e.g. the
+// hallucinated "Jay and Kay" character names that propagated across
+// multiple sources for One Fish Two Fish but aren't in the book).
+const SUMMARIES_DIR = path.join(process.cwd(), "docs", "book-summaries");
+function loadHandAuthoredSummary(bookId) {
+  if (!fs.existsSync(SUMMARIES_DIR)) return null;
+  let files;
+  try {
+    files = fs.readdirSync(SUMMARIES_DIR);
+  } catch {
+    return null;
+  }
+  // Match <bookId>-anything.md
+  const prefix = `${bookId}-`;
+  const match = files.find((f) => f.startsWith(prefix) && f.endsWith(".md"));
+  if (!match) return null;
+  try {
+    const content = fs.readFileSync(path.join(SUMMARIES_DIR, match), "utf-8");
+    // Return the raw markdown — the LLM handles markdown fine. Strip the
+    // YAML frontmatter if present (some hand-authored summaries may
+    // open with --- ... --- metadata blocks).
+    return content.replace(/^---[\s\S]*?---\s*/, "").trim();
+  } catch {
+    return null;
+  }
+}
+
 // Pull a JSON object out of model output that may have surrounding
 // prose or be wrapped in a ```json fence. Returns the inner string;
 // throws if no balanced object is found.
@@ -697,17 +749,29 @@ async function enrichOne(bookId, book, isbn) {
     fetchGoogleBooks(isbn).catch(() => null),
   ]);
 
-  // The app's existing hand-written summary in api/quiz.js QUIZ_BOOKS.
-  // Passed as a 4th source for cross-validation, especially valuable
-  // for vignette picture books where Wikipedia has no plot section.
-  const editorialSummary = book.summary || null;
+  // Editorial source preference order:
+  //   1. docs/book-summaries/<bookId>-*.md — hand-authored by the
+  //      app team, treated as HIGHEST trust (over Wikipedia + web
+  //      search results). Use this when you've personally verified
+  //      content against the printed book.
+  //   2. QUIZ_BOOKS[bookId].summary — the legacy short summary in
+  //      api/quiz.js. Lower trust than (1) but still treated as
+  //      editorial-grade.
+  // Both are passed alongside Wikipedia / Open Library / Google Books
+  // so the synthesizer can cross-validate.
+  const handAuthored = loadHandAuthoredSummary(bookId);
+  const editorialSummary = handAuthored || book.summary || null;
   const editorialAvailable = !!(editorialSummary && editorialSummary.length > 50);
+  const editorialKind = handAuthored
+    ? "hand-authored"
+    : (editorialAvailable ? "legacy-prose" : "none");
 
-  console.log(`   wiki:${wikipedia ? "✓" : "✗"} OL:${openLibrary ? "✓" : "✗"} GB:${googleBooks ? "✓" : "✗"} editorial:${editorialAvailable ? "✓" : "✗"}`);
+  console.log(`   wiki:${wikipedia ? "✓" : "✗"} OL:${openLibrary ? "✓" : "✗"} GB:${googleBooks ? "✓" : "✗"} editorial:${editorialKind}`);
 
   const result = await synthesize(book, {
     wikipedia, openLibrary, googleBooks,
     editorialSummary: editorialAvailable ? editorialSummary : null,
+    editorialKind,
   });
   if (result.error) {
     console.log(`   ✗ ${result.error}: ${result.message || ""}`);
