@@ -1,0 +1,126 @@
+{
+  "bookId": "a04",
+  "version": 1,
+  "questions": [
+    {
+      "q": "What is the name of the boy who solves mysteries in this story?",
+      "options": [
+        "Harry",
+        "Fang",
+        "Nate",
+        "Hex"
+      ],
+      "answer": 2
+    },
+    {
+      "q": "What food does Nate love to eat?",
+      "options": [
+        "Waffles",
+        "Pancakes",
+        "Eggs",
+        "Toast"
+      ],
+      "answer": 1
+    },
+    {
+      "q": "Who calls Nate to ask for help finding something?",
+      "options": [
+        "Rosamond",
+        "Harry",
+        "Fang",
+        "Annie"
+      ],
+      "answer": 3
+    },
+    {
+      "q": "What did Annie lose that she wants Nate to find?",
+      "options": [
+        "A picture she painted",
+        "A toy she bought",
+        "A book she read",
+        "A bone she found"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What is the name of Annie's big yellow dog?",
+      "options": [
+        "Hex",
+        "Harry",
+        "Fang",
+        "Nate"
+      ],
+      "answer": 2
+    },
+    {
+      "q": "What color is Annie's bedroom?",
+      "options": [
+        "Red",
+        "Orange",
+        "Blue",
+        "Yellow"
+      ],
+      "answer": 3
+    },
+    {
+      "q": "What does Fang like to bury in the yard?",
+      "options": [
+        "Toys",
+        "Bones",
+        "Pictures",
+        "Balls"
+      ],
+      "answer": 1
+    },
+    {
+      "q": "How many cats does Rosamond have?",
+      "options": [
+        "Two",
+        "Three",
+        "Four",
+        "Five"
+      ],
+      "answer": 2
+    },
+    {
+      "q": "What word is part of all four cat names at Rosamond's house?",
+      "options": [
+        "Super",
+        "Big",
+        "Hex",
+        "Plain"
+      ],
+      "answer": 2
+    },
+    {
+      "q": "What color paint has Harry been using for his own pictures?",
+      "options": [
+        "Yellow",
+        "Blue",
+        "Red",
+        "Green"
+      ],
+      "answer": 2
+    },
+    {
+      "q": "What color do you get when you mix yellow and red?",
+      "options": [
+        "Purple",
+        "Green",
+        "Orange",
+        "Brown"
+      ],
+      "answer": 2
+    },
+    {
+      "q": "What happened to Annie's picture of Fang?",
+      "options": [
+        "Fang buried it in the yard",
+        "Harry painted over it with red",
+        "Rosamond took it home",
+        "Annie left it at school"
+      ],
+      "answer": 1
+    }
+  ]
+}

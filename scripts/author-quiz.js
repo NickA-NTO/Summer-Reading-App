@@ -156,13 +156,34 @@ Constraints:
   all correct answers at index 0).
 `;
 
+// On a regenerate pass, the driver passes --fix-issues "..." with the
+// concrete QC findings from the prior attempt. Injecting them into the
+// user prompt lets Opus correct specific violations instead of just
+// re-rolling the dice. The orchestrator caps retries at 2; if it still
+// fails after 2 fixes, the book stays in the "needs human" bucket.
+const fixIssuesText = typeof args["fix-issues"] === "string" ? args["fix-issues"].trim() : "";
 const userPrompt = `Generate the question bank for bookId "${bookId}" using only
 this hand-authored summary as source material:
 
 ---
 ${summary}
 ---
+${
+  fixIssuesText
+    ? `
 
+A previous attempt at this question bank was REJECTED by the QC agent for
+the following issues. You MUST fix every one of these in this regeneration:
+
+${fixIssuesText}
+
+Do not repeat any of the above mistakes. Re-read the rules above before
+generating. If a question is fundamentally broken (e.g. its premise isn't
+in the summary), replace it with an entirely different question rather
+than trying to salvage the wording.
+`
+    : ""
+}
 Output the JSON object now.`;
 
 console.log(`[author-quiz] calling Claude (this takes ~30-60s)…`);

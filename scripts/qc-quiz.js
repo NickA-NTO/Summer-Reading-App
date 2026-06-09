@@ -108,6 +108,36 @@ function checkSchema(bank) {
   return issues;
 }
 
+// Proper nouns in a stem are the unavoidable subject context — the
+// protagonist's name (Ping, Max, Corduroy, McGregor, Vashti) shows up
+// in both stem and distractors because the story is ABOUT that
+// character. Excluding proper nouns from the self-ref / telegraphing
+// overlap stops the QC from flagging "Who carries Ping?" / "He gives
+// Ping to another family" as a self-referential distractor. Real
+// self-refs (fish-has-a-little-fish) use common nouns and are still
+// caught.
+//
+// Heuristic: a word is "proper-noun-ish" if it appears Capitalized in
+// the original text and isn't the sentence-initial word. We also
+// collect proper nouns from the SUMMARY (since a kid's-book summary
+// usually capitalizes proper nouns even when used mid-sentence) so we
+// catch names that appear in distractors even if the question stem
+// uses a pronoun.
+function extractProperNounsFromText(text) {
+  const out = new Set();
+  const sentences = String(text || "").split(/(?<=[.!?])\s+/);
+  for (const s of sentences) {
+    const tokens = s.match(/\b[A-Z][a-zA-Z]+\b/g) || [];
+    // Skip the first token of each sentence (could just be sentence-initial
+    // capitalization rather than a proper noun).
+    for (let i = 1; i < tokens.length; i++) {
+      out.add(tokens[i].toLowerCase());
+    }
+  }
+  return out;
+}
+const SUMMARY_PROPER_NOUNS = extractProperNounsFromText(summary);
+
 function checkQuestion(q, idx, summary) {
   const issues = [];
   const qText = String(q?.q || "");
@@ -128,25 +158,40 @@ function checkQuestion(q, idx, summary) {
   }
   const correct = String(q.options[q.answer]);
 
-  // (1) SOURCE GROUNDING — every content word in question + correct
-  // answer must appear in the summary (case-insensitive substring).
+  // (1) SOURCE GROUNDING — the correct ANSWER's content words must
+  // appear in the summary. The question stem doesn't have to — it's
+  // paraphrased English and uses generic question vocabulary
+  // ("color", "kind", "feels", "keep trying") that won't appear in
+  // a tightly-written summary. The summary's job is to confirm that
+  // the FACT being tested is actually in the book, not to enforce a
+  // word-for-word mapping of every question stem.
+  //
+  // Hallucinated question PREMISES (e.g. "Who goes to school?" when
+  // no one in the book attends school) are caught by the --llm
+  // premise-grounding pass below, not by this deterministic check.
   const summaryNorm = norm(summary);
   const qWords = contentWords(qText);
   const aWords = contentWords(correct);
-  const missingFromSummary = [...qWords, ...aWords].filter(
-    (w) => !summaryNorm.includes(w)
-  );
+  const missingFromSummary = aWords.filter((w) => !summaryNorm.includes(w));
   if (missingFromSummary.length > 0) {
     issues.push(
-      `source grounding fail: words not in summary: ${missingFromSummary.join(", ")}`
+      `answer not in summary: ${missingFromSummary.join(", ")}`
     );
   }
 
   // (2) TELEGRAPHING — question stem must not contain words that match
-  // the correct answer's content.
+  // the correct answer's content. Proper nouns (protagonist names)
+  // are excluded for the same reason as the self-ref check: "How does
+  // the boy free Ping?" answered with "He carries Ping" isn't a
+  // telegraph — Ping is the unavoidable subject of the question, not
+  // a giveaway word.
   const qNorm = norm(qText);
   const correctNorm = norm(correct);
-  const aTokens = correctNorm.split(/\s+/).filter((t) => t.length >= 4 && !SHARED_STOPWORDS.has(t));
+  const stemProperForTelegraph = extractProperNounsFromText(qText);
+  const properForTelegraph = new Set([...stemProperForTelegraph, ...SUMMARY_PROPER_NOUNS]);
+  const aTokens = correctNorm.split(/\s+/).filter(
+    (t) => t.length >= 4 && !SHARED_STOPWORDS.has(t) && !properForTelegraph.has(t)
+  );
   const telegraphed = aTokens.filter((t) => qNorm.includes(t));
   if (telegraphed.length > 0) {
     issues.push(
@@ -162,10 +207,19 @@ function checkQuestion(q, idx, summary) {
 
   // (4) SELF-REFERENTIAL DISTRACTORS — distractors must not use the
   // question's subject noun as their main noun.
-  const qNouns = new Set(qWords);
+  //
+  // We exclude proper nouns (the protagonist's name and other named
+  // entities that appear capitalized in the question or summary).
+  // "Who carries Ping?" with distractor "He gives Ping to another
+  // family" overlaps on "Ping" but that's the story's subject, not a
+  // self-referential failure. The genuine self-ref pattern is shared
+  // COMMON nouns: "What do some fish have?" / "A little fish."
+  const stemProperNouns = extractProperNounsFromText(qText);
+  const properNouns = new Set([...stemProperNouns, ...SUMMARY_PROPER_NOUNS]);
+  const qNouns = new Set(qWords.filter((w) => !properNouns.has(w)));
   for (let i = 0; i < q.options.length; i++) {
     if (i === q.answer) continue;
-    const optNouns = contentWords(q.options[i]);
+    const optNouns = contentWords(q.options[i]).filter((w) => !properNouns.has(w));
     const overlap = optNouns.find((w) => qNouns.has(w));
     if (overlap) {
       issues.push(

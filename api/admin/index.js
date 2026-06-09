@@ -14,6 +14,8 @@
 //                                                   { action: "reset_flags", email })
 //   POST /api/admin?action=set-grade      → set student's working grade
 //                                            (body: { email, grade })
+//   POST /api/admin?action=set-bypass-holds → toggle per-user time-hold
+//                                              bypass flag (body: { email, value })
 
 import { verifySession, parseCookies, isAdmin } from "../../lib/session.js";
 import {
@@ -28,6 +30,7 @@ import {
   resetFraudFlags,
   setUserWorkingGrade,
   setUserAgeGrade,
+  setBypassQuizHolds,
   bulkSetWorkingGrades,
   setTrackOverrides,
   clearReadingSession,
@@ -469,6 +472,27 @@ export default async function handler(req, res) {
       return json(res, 500, { error: result.reason || "save_failed" });
     }
     return json(res, 200, { ok: true, email, grade });
+  }
+
+  // ====================== set-bypass-holds =======================
+  // #97 — Toggle the per-user time-based fraud-hold exemption. This
+  // is NOT admin permission; the user still can't access the admin
+  // panel, set anyone else's settings, or escape the reopen-pattern
+  // (lookup) detector. It only exempts them from:
+  //   - the started-recently (15/30/60 min) hold
+  //   - the WCPM speed hold
+  // Body: { email, value: boolean }
+  if (action === "set-bypass-holds" && req.method === "POST") {
+    const body = await readBody(req);
+    if (body === null) return json(res, 400, { error: "invalid_json" });
+    const email = String(body.email || "").trim().toLowerCase();
+    if (!email) return json(res, 400, { error: "email_required" });
+    const value = !!body.value;
+    const result = await setBypassQuizHolds(email, value, authedEmail || "admin");
+    if (!result.ok) {
+      return json(res, 500, { error: result.reason || "save_failed" });
+    }
+    return json(res, 200, { ok: true, email, value });
   }
 
   // ========================= reset-my-book =======================

@@ -5314,6 +5314,11 @@ const quizState = {
 // normalisation map in two places. Falls back to GRADE_BY_CATEGORY
 // from the categoryId if neither field is present.
 function startedRecentlyHoldMsForBookId(bookId) {
+  // #97 — Bypass users have no client-side warning at all. Returning 0
+  // also keeps the math in the caller (gap < warnMs check) honest:
+  // gap is always >= 0, so 0-as-threshold falls through to openQuiz()
+  // immediately without ever showing the "Slow down a sec" overlay.
+  if (state.session?.bypassQuizHolds) return 0;
   const book = bookId ? BOOK_BY_ID[bookId] : null;
   const rules = state.session?.startedRecentlyHoldMsRules || null;
   const legacy = Number(state.session?.startedRecentlyHoldMs) || (60 * 60 * 1000);
@@ -7274,6 +7279,23 @@ function renderAdminTable() {
         data-email="${escapeAttr(u.email)}" data-track="${t.id}"
         data-state="${state}" title="${tip}">${t.label}</button>`;
     }).join("");
+    // #97 — Bypass toggle. ON = green; OFF = grey. Tooltip shows who
+    // last set it. Click toggles via /api/admin?action=set-bypass-holds.
+    const bypass = !!u.bypassQuizHolds;
+    const bypassTip = bypass
+      ? `ON — set by ${escapeAttr(u.bypassQuizHoldsSetBy || "?")}; click to disable`
+      : `OFF — click to enable (skips started-recently timer + WCPM, keeps reopen check)`;
+    const bypassBtn =
+      `<button type="button" class="bypass-toggle" ` +
+      `data-email="${escapeAttr(u.email)}" data-state="${bypass ? "on" : "off"}" ` +
+      `title="${bypassTip}" style="` +
+      `background:${bypass ? "linear-gradient(135deg,#10b981,#059669)" : "var(--panel)"};` +
+      `color:${bypass ? "#052e1c" : "var(--muted)"};` +
+      `border:1px solid ${bypass ? "transparent" : "var(--line)"};` +
+      `border-radius:999px;padding:4px 12px;font-size:11px;font-weight:700;` +
+      `cursor:pointer;font-family:inherit">` +
+      (bypass ? "✓ Bypass" : "Off") +
+      `</button>`;
     return `
       <tr>
         <td>
@@ -7288,6 +7310,7 @@ function renderAdminTable() {
           </select>
         </td>
         <td><div class="track-chips">${chips}</div></td>
+        <td>${bypassBtn}</td>
         <td class="a-when">${u.lastLoginAt ? friendlyDate(u.lastLoginAt) : "—"}</td>
         <td class="a-count">${u.loginCount || 0}</td>
         <td class="a-count">${u.booksRead || 0}</td>
@@ -7313,6 +7336,7 @@ function renderAdminTable() {
           <th>Domain</th>
           <th>Working grade</th>
           <th>Tracks</th>
+          <th title="Skip the 15/30/60-min started-recently timer + WCPM speed hold for this user. Reopen-pattern still applies. NOT admin permission.">Bypass holds</th>
           <th>Last login</th>
           <th style="text-align:right">Logins</th>
           <th style="text-align:right">Books</th>
@@ -7453,6 +7477,36 @@ function renderAdminTable() {
         alert("Couldn't save grade: " + (err.message || err));
       } finally {
         sel.disabled = false;
+      }
+    });
+  });
+
+  // #97 — Bypass-holds toggle. Click flips between ON and OFF; POSTs
+  // the new value to /api/admin?action=set-bypass-holds. On success
+  // re-renders the table so the chip + tooltip update.
+  document.querySelectorAll(".bypass-toggle").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const email = btn.dataset.email;
+      const newValue = btn.dataset.state !== "on";
+      btn.disabled = true;
+      try {
+        const r = await fetch("/api/admin?action=set-bypass-holds", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({ email, value: newValue }),
+        });
+        if (!r.ok) throw new Error(await r.text());
+        const u = adminState.users.find((x) => x.email === email);
+        if (u) {
+          u.bypassQuizHolds = newValue;
+          u.bypassQuizHoldsSetBy = state.session?.email || "admin";
+          u.bypassQuizHoldsSetAt = Date.now();
+        }
+        renderAdminTable();
+      } catch (err) {
+        alert("Couldn't toggle bypass: " + (err.message || err));
+        btn.disabled = false;
       }
     });
   });
@@ -9260,6 +9314,10 @@ function _retellShowResult(data) {
       availableQuizBookIds: Array.isArray(me.availableQuizBookIds)
         ? me.availableQuizBookIds
         : null,
+      // #97 — per-user exemption from the time-based fraud holds.
+      // Client suppresses the "Slow down a sec" pre-quiz overlay
+      // when this is true so the user can quiz immediately.
+      bypassQuizHolds: !!me.bypassQuizHolds,
     });
 
     // First-run onboarding: voice picker → spotlight tour. Only shows

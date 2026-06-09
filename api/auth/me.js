@@ -265,6 +265,11 @@ export default async function handler(req, res) {
       // "Take quiz" button would 503 with no_quiz_questions. Admins
       // see everything regardless (so they can author/test).
       availableQuizBookIds: getAvailableQuestionBookIds(),
+      // #97 — per-user bypass of the started-recently timer + WCPM
+      // speed check. Reopen-pattern check still applies. Client uses
+      // this to skip the "Slow down a sec" overlay. Granted via the
+      // admin panel toggle; NOT the same as admin permission.
+      bypassQuizHolds: !!profile?.bypassQuizHolds,
       // Onboarding state (#17) — client uses these to decide whether to
       // show the first-run voice picker + spotlight tour. tourCompleted=true
       // suppresses it forever (admin can reset via the admin endpoint).

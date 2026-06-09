@@ -1,0 +1,126 @@
+{
+  "bookId": "a07",
+  "version": 1,
+  "questions": [
+    {
+      "q": "What is the name of the boy in this story?",
+      "options": [
+        "Sam",
+        "Max",
+        "Jack",
+        "Ben"
+      ],
+      "answer": 1
+    },
+    {
+      "q": "What animal costume does Max wear?",
+      "options": [
+        "A bear",
+        "A tiger",
+        "A wolf",
+        "A lion"
+      ],
+      "answer": 2
+    },
+    {
+      "q": "What does Max chase with a fork?",
+      "options": [
+        "The cat",
+        "The dog",
+        "His sister",
+        "A bird"
+      ],
+      "answer": 1
+    },
+    {
+      "q": "What does Max's mother call him when she is angry?",
+      "options": [
+        "Bad boy",
+        "Wild thing",
+        "Little monster",
+        "Naughty child"
+      ],
+      "answer": 1
+    },
+    {
+      "q": "What grows in Max's bedroom?",
+      "options": [
+        "A garden",
+        "A forest",
+        "A mountain",
+        "A castle"
+      ],
+      "answer": 1
+    },
+    {
+      "q": "How does Max travel to where the wild things are?",
+      "options": [
+        "By airplane",
+        "By train",
+        "By boat",
+        "By horse"
+      ],
+      "answer": 2
+    },
+    {
+      "q": "What color are the wild things' eyes?",
+      "options": [
+        "Red",
+        "Green",
+        "Blue",
+        "Yellow"
+      ],
+      "answer": 3
+    },
+    {
+      "q": "How does Max tame the wild things?",
+      "options": [
+        "He roars at them",
+        "He stares without blinking",
+        "He runs away",
+        "He feeds them"
+      ],
+      "answer": 1
+    },
+    {
+      "q": "What do the wild things make Max?",
+      "options": [
+        "A knight",
+        "A king",
+        "A prince",
+        "A captain"
+      ],
+      "answer": 1
+    },
+    {
+      "q": "Why does Max decide to leave the wild things?",
+      "options": [
+        "He is scared",
+        "He is hungry",
+        "He wants to be loved",
+        "He is tired"
+      ],
+      "answer": 2
+    },
+    {
+      "q": "What do the wild things say when Max leaves?",
+      "options": [
+        "Goodbye forever",
+        "We'll eat you up",
+        "Come back soon",
+        "We are angry"
+      ],
+      "answer": 1
+    },
+    {
+      "q": "What is waiting for Max in his room when he gets home?",
+      "options": [
+        "His toys",
+        "His mother",
+        "His supper",
+        "His dog"
+      ],
+      "answer": 2
+    }
+  ]
+}

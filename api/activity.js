@@ -743,6 +743,20 @@ export default async function handler(req, res) {
       /* missing open data → don't synthesize fraud from absence */
     }
 
+    // #97 — Per-user bypass of time-based holds. If the profile has
+    // bypassQuizHolds=true, neuter the started-recently and WCPM
+    // verdicts to "clean" BEFORE the combine matrix runs. We leave
+    // openCountStatus untouched so the reopen-pattern lookup
+    // detector still applies (this is the "QA tester or fast reader,
+    // not a free pass" use case). Debug objects are preserved so the
+    // admin can still see WHAT the underlying gap was.
+    if (profile?.bypassQuizHolds) {
+      if (recentStartDebug) recentStartDebug.bypassed = true;
+      if (wcpmDebug) wcpmDebug.bypassed = true;
+      recentStartStatus = "clean";
+      wcpmStatus = "clean";
+    }
+
     // 2c. Combine the signals using a fair soft matrix:
     //       WCPM clean   + open clean         → clean
     //       WCPM clean   + open suspicious    → soft_flag (only 1 signal)
