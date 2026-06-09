@@ -645,7 +645,15 @@ const QCSchema = z.object({
 //      4) reject options where the correct answer stands out by
 //      grammar alone. Bump invalidates v12 pools so they regenerate
 //      under the new rule.
-const SCHEMA_VERSION = 13;
+//   v14: PREMISE GROUNDING rule. v13 still allowed "Who never goes to
+//      school?" — the answer character was in the record but the
+//      question's premise (someone "never goes to school") was
+//      invented from real-world common sense. New rule requires the
+//      question's implied assertion to itself trace to a specific_facts
+//      or plot_beats entry. QC accuracy axis now scores 0 when the
+//      premise can't be located in the record. Bump invalidates v13
+//      pools.
+const SCHEMA_VERSION = 14;
 // Exported alias so api/activity.js can build the same cache key when it
 // validates a quiz_submit. Kept as a renamed export so the local const can
 // be reassigned independently if we ever split client / server schemas.
@@ -879,6 +887,23 @@ async function generateOnce(bookId, book, studentGrade, guidance, temperature, a
         `  • Specific quantifiers (numbers, colors, sizes, counts) must ` +
         `    appear in "specific_facts" with that exact value. If a fact ` +
         `    is not in "specific_facts", do NOT ask about a specific value.\n` +
+        `  • PREMISE GROUNDING (critical — this is the rule that catches ` +
+        `    "Who never goes to school?" hallucinations). The question itself ` +
+        `    asserts or implies something — call this the PREMISE. The PREMISE ` +
+        `    must be supported by a specific entry in specific_facts or ` +
+        `    plot_beats. It is NOT enough for the answer character to exist ` +
+        `    in the record; the action / trait / relationship the question ` +
+        `    asks about must also be in the record verbatim or near-verbatim.\n` +
+        `      BAD: "Who never goes to school?" — the record does not say ` +
+        `      anyone goes (or doesn't go) to school. The premise is invented.\n` +
+        `      BAD: "What is Mike's favourite colour?" — Mike's favourite ` +
+        `      colour isn't in the record.\n` +
+        `      GOOD: "Who has a hook on his head?" — record says: "The Nook ` +
+        `      has a hook on his head". Premise grounded.\n` +
+        `      GOOD: "What does the Yink like to drink?" — record says: ` +
+        `      "The Yink drinks pink ink". Premise grounded.\n` +
+        `    If you cannot point to a specific record entry that supports the ` +
+        `    question's premise, do NOT generate the question.\n` +
         `  • The "unknown_fields" list names topics the sources did NOT ` +
         `    establish. Do NOT generate questions on these topics under ` +
         `    any circumstances — even if you think you know the answer ` +
@@ -886,6 +911,9 @@ async function generateOnce(bookId, book, studentGrade, guidance, temperature, a
         `  • Distractors are NOT exempt. A wrong-but-plausible distractor ` +
         `    must still be drawn from the closed sets above (a different ` +
         `    character, item, or fact from the record).\n` +
+        `  • Do NOT infer beyond the record. Even if real-world common sense ` +
+        `    suggests a creature in a fantasy picture book "wouldn't go to ` +
+        `    school" — that inference is OUTSIDE the record and forbidden.\n` +
         `If you cannot generate ${poolSize} questions under this contract, ` +
         `generate as many as you confidently can — the QC pass and the ` +
         `consensus filter will accept smaller pools rather than ship ` +
@@ -1006,18 +1034,31 @@ function buildQCSystemPrompt(record, studentGrade) {
       "closed lists (characters, key_objects, plot_beats, specific_facts, " +
       "unknown_fields). Score against THAT record:\n" +
       "  10 = every entity in question + answer + distractors traces to a " +
-      "record entry; specifics match specific_facts exactly\n" +
+      "record entry; specifics match specific_facts exactly; the question's " +
+      "PREMISE (the implied assertion, e.g. 'X did Y') is itself supported " +
+      "by a specific_facts or plot_beats entry\n" +
       "   7 = workable — minor wording issue but contract holds\n" +
       "   4 = answer or a distractor introduces a name/item not in the " +
       "closed lists; or asks about something the sources don't establish " +
       "but doesn't reference unknown_fields directly\n" +
       "   0 = question references unknown_fields, OR the answer's specific " +
       "value (a number, color, name) does NOT appear in specific_facts, OR " +
-      "a character/item not in the record\n\n" +
+      "a character/item not in the record, OR THE QUESTION'S PREMISE IS " +
+      "NOT IN THE RECORD\n\n" +
       "CITATION RULE: if a question asks 'how many X', 'what color is Y', " +
       "or any specific quantifier, the answer MUST appear verbatim in " +
       "specific_facts. Inference from the prose is NOT enough. Score 0 if " +
-      "the specific value isn't there.\n\n"
+      "the specific value isn't there.\n\n" +
+      "PREMISE RULE (critical, catches the 'Who never goes to school?' " +
+      "class of hallucination): the question itself implies an assertion. " +
+      'For "Who never goes to school?", the implied assertion is "some ' +
+      'character in this book never goes to school". That implied ' +
+      "assertion must be supported by a specific entry in specific_facts " +
+      "or plot_beats. If you cannot find a record entry that supports " +
+      "the premise of the question (not just the answer character), " +
+      "score the question 0. Common pattern: question references " +
+      "real-world common sense ('schools', 'jobs', 'pets', 'favourite " +
+      "colors') that the book never discusses — these are hallucinations.\n\n"
     : "AXIS 1 — ACCURACY (0-10). Catch hallucinations and inaccuracies. " +
       "For each question, verify it against the canonical plot summary.\n" +
       "  10 = unambiguously answerable from the summary; correct answer is " +

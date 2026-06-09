@@ -5526,14 +5526,24 @@ function startAttempt() {
   quizState.questions = chosenIndices.map((poolIdx) =>
     withShuffledOptions(quizState.pool[poolIdx], poolIdx)
   );
-  // Pre-warm TTS for both parts of every question (question + choices
-  // are spoken as two separate utterances now — see speakQuizQuestion
-  // for the rationale). Strings must match exactly so the cache hits.
-  for (const q of quizState.questions) {
-    const parts = buildQuizSpeakParts(q);
-    prewarmTts(parts.question);
-    prewarmTts(parts.choices);
-  }
+  // Pre-warm TTS for both parts of every question. Staggered so we
+  // don't fire 10 parallel /api/tts requests at once — OpenAI TTS has
+  // per-second limits and parallel bursts can queue some requests for
+  // multiple seconds. Question 1's parts get priority (immediate), the
+  // rest get spaced out so the kid's "Hear it" click on Q1 hits a
+  // warm cache. Strings must match exactly what speakQuizQuestion plays.
+  (function stagger() {
+    const all = [];
+    for (const q of quizState.questions) {
+      const parts = buildQuizSpeakParts(q);
+      all.push(parts.question, parts.choices);
+    }
+    // Priority: Q1's question + choices fire immediately. Everything
+    // else trickles in over the next few seconds — long before the
+    // kid finishes Q1 and moves to Q2.
+    all.slice(0, 2).forEach((t) => prewarmTts(t));
+    all.slice(2).forEach((t, i) => setTimeout(() => prewarmTts(t), 400 * (i + 1)));
+  })();
   renderQuizQuestion();
 }
 
@@ -5688,8 +5698,37 @@ function renderQuizQuestion() {
         ✓ Thanks! We will check it.
       </span>
     </div>`;
-  document.getElementById("qSpeak").addEventListener("click", () => {
-    speakQuizQuestion(q, { force: true });
+  // "Hear it" click handler with explicit loading + playing visual
+  // feedback. Without this, a cold-cache /api/tts fetch can take 1-5s
+  // (occasionally longer on OpenAI hiccups) and the kid sees nothing
+  // happen — they think their click was ignored and click again,
+  // which restarts the fetch and worsens the perceived latency.
+  const speakBtn = document.getElementById("qSpeak");
+  const speakIcon = speakBtn.querySelector(".qh-icon");
+  const speakLabel = speakBtn.querySelector(".qh-icon + span") || speakBtn.querySelector("span:last-child");
+  const ORIGINAL_LABEL = speakLabel ? speakLabel.textContent : "Hear it";
+  const ORIGINAL_ICON = speakIcon ? speakIcon.textContent : "🔊";
+  speakBtn.addEventListener("click", async () => {
+    // Disable to prevent double-clicks that would cancel the in-flight
+    // fetch and restart, multiplying perceived latency.
+    speakBtn.disabled = true;
+    speakBtn.classList.add("playing");
+    if (speakLabel) speakLabel.textContent = "Loading…";
+    if (speakIcon) speakIcon.textContent = "⏳";
+    try {
+      // speakQuizQuestion resolves when BOTH the question and choices
+      // audio have finished playing (or got cancelled by a newer call).
+      await speakQuizQuestion(q, { force: true });
+    } finally {
+      // Restore button state once narration completes. Guard against a
+      // re-render swapping the button out from under us mid-await.
+      if (document.getElementById("qSpeak") === speakBtn) {
+        speakBtn.disabled = false;
+        speakBtn.classList.remove("playing");
+        if (speakLabel) speakLabel.textContent = ORIGINAL_LABEL;
+        if (speakIcon) speakIcon.textContent = ORIGINAL_ICON;
+      }
+    }
   });
   // Auto-TTS on render was removed (user-requested). It produced a
   // race condition between questions where, if cancelSpeech() landed
