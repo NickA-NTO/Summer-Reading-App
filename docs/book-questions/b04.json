@@ -1,0 +1,126 @@
+{
+  "bookId": "b04",
+  "version": 2,
+  "questions": [
+    {
+      "q": "What is Pandora's job at the lighthouse?",
+      "options": [
+        "She keeps the lamp burning",
+        "She catches fish",
+        "She repairs boats",
+        "She watches the mice"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "How does Pandora feel at the start of the book?",
+      "options": [
+        "Lonely",
+        "Angry",
+        "Excited",
+        "Scared"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What kind of animal is Seabold?",
+      "options": [
+        "A dog",
+        "A cat",
+        "A mouse",
+        "A seal"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does the storm do to Seabold's boat?",
+      "options": [
+        "Wrecks it",
+        "Sinks it",
+        "Hides it",
+        "Steals it"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does Seabold fix after he feels better?",
+      "options": [
+        "A boat",
+        "A lamp",
+        "A crate",
+        "A kitchen"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What do Pandora and Seabold spot floating on the waves?",
+      "options": [
+        "A wooden crate",
+        "A small boat",
+        "A broken lamp",
+        "A fallen tree"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Who sails out to investigate the crate?",
+      "options": [
+        "Seabold",
+        "Pandora",
+        "Lila",
+        "Whistler"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "How many mice are inside the crate?",
+      "options": [
+        "Three",
+        "Two",
+        "Four",
+        "Five"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What are the names of the three mice?",
+      "options": [
+        "Lila, Whistler, and Tiny",
+        "Pip, Squeak, and Tiny",
+        "Lila, Squeaky, and Dot",
+        "Whiskers, Lila, and Spot"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Which mouse is sick when they are rescued?",
+      "options": [
+        "Tiny",
+        "Lila",
+        "Whistler",
+        "Seabold"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What season is it when the mice are rescued?",
+      "options": [
+        "Spring",
+        "Summer",
+        "Winter",
+        "Fall"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What happens to the animals by the end of the book?",
+      "options": [
+        "They become a family",
+        "They sail away alone",
+        "They leave the island",
+        "They fix the lighthouse"
+      ],
+      "answer": 0
+    }
+  ]
+}

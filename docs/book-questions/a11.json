@@ -1,0 +1,136 @@
+{
+  "bookId": "a11",
+  "version": 2,
+  "questions": [
+    {
+      "q": "What season does the story begin in?",
+      "options": [
+        "Summer",
+        "Winter",
+        "Spring",
+        "Autumn"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Where does the mother duck make her nest?",
+      "options": [
+        "By a river",
+        "By a cottage",
+        "By a garden",
+        "By a pond"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Which egg hatches last?",
+      "options": [
+        "The biggest one",
+        "The smallest one",
+        "The spotted one",
+        "The brown one"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does the ugly duckling look like when he hatches?",
+      "options": [
+        "Large and grey",
+        "Small and yellow",
+        "Fluffy and white",
+        "Tiny and brown"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does the mother duck teach her ducklings to do at the farmyard?",
+      "options": [
+        "Bow their heads",
+        "Flap their wings",
+        "Hide in reeds",
+        "Find worms"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Who kicks the ugly duckling at the farmyard?",
+      "options": [
+        "The poultry-girl",
+        "The old woman",
+        "The peasant",
+        "The farmer"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Who lives in the little cottage in the marsh?",
+      "options": [
+        "An old woman, a cat, and a hen",
+        "A farmer and his children",
+        "Three beautiful swans",
+        "Wild ducks and geese"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does the hen ask the duckling?",
+      "options": [
+        "Can you lay eggs?",
+        "Can you purr?",
+        "Can you swim?",
+        "Can you fly?"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does the cat ask the duckling?",
+      "options": [
+        "Can you purr?",
+        "Can you lay eggs?",
+        "Can you quack?",
+        "Can you swim?"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Who saves the duckling when he is stuck in the ice?",
+      "options": [
+        "A peasant",
+        "A hunter",
+        "A farmer's wife",
+        "A wild goose"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does the duckling crash into at the peasant's house?",
+      "options": [
+        "Milk, butter, and flour",
+        "Eggs, bread, and soup",
+        "Plates, cups, and bowls",
+        "Pots, pans, and spoons"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does the duckling see when he looks in the water in spring?",
+      "options": [
+        "A beautiful swan",
+        "A grey duckling",
+        "A wild goose",
+        "A white hen"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What do the children in the garden say about the new swan?",
+      "options": [
+        "He is the most beautiful",
+        "He is very ugly",
+        "He should fly away",
+        "He looks funny"
+      ],
+      "answer": 0
+    }
+  ]
+}

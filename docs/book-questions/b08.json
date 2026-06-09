@@ -1,0 +1,136 @@
+{
+  "bookId": "b08",
+  "version": 2,
+  "questions": [
+    {
+      "q": "What kind of animal is Stellaluna?",
+      "options": [
+        "A fruit bat",
+        "A baby bird",
+        "A small owl",
+        "A tiny sparrow"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Where does Stellaluna end up after she falls from her mother?",
+      "options": [
+        "In a bird's nest",
+        "In a dark cave",
+        "In a deep river",
+        "In a hollow log"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "How many baby birds live in the nest where Stellaluna lands?",
+      "options": [
+        "Two",
+        "Three",
+        "Four",
+        "Five"
+      ],
+      "answer": 1
+    },
+    {
+      "q": "What does Mother Bird make Stellaluna eat?",
+      "options": [
+        "Soft fruit",
+        "Bugs and worms",
+        "Seeds and nuts",
+        "Leaves and flowers"
+      ],
+      "answer": 1
+    },
+    {
+      "q": "When does Mother Bird tell Stellaluna to sleep?",
+      "options": [
+        "At night",
+        "At noon",
+        "At dawn",
+        "At sunset"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does Mother Bird tell Stellaluna NOT to do?",
+      "options": [
+        "Hang by her feet",
+        "Eat soft fruit",
+        "Fly with the birds",
+        "Sleep in the nest"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Why do the baby birds hurry back to the nest when night falls?",
+      "options": [
+        "They cannot see in the dark",
+        "They are hungry for dinner",
+        "They hear Mother Bird calling",
+        "They are scared of bats"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "How is Stellaluna hanging when the other bats find her?",
+      "options": [
+        "By her thumbs",
+        "By her feet",
+        "By her wings",
+        "By her tail"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Who finds Stellaluna alone on the branch at night?",
+      "options": [
+        "Another bat",
+        "Mother Bird",
+        "The owl",
+        "Pip"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Who is Stellaluna reunited with at the end of the story?",
+      "options": [
+        "Her Mother Bat",
+        "Her father",
+        "The owl",
+        "A new family"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What food does Stellaluna finally taste when she meets the other bats?",
+      "options": [
+        "Soft fruit",
+        "Crunchy bugs",
+        "Small seeds",
+        "Green leaves"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Where does this story take place?",
+      "options": [
+        "In a jungle in Africa",
+        "In a barn on a farm",
+        "In a city park",
+        "In a backyard garden"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What happens when Pip, Flitter, and Flap try hanging upside down?",
+      "options": [
+        "They love it",
+        "They don't like it",
+        "They fall asleep",
+        "They fly away"
+      ],
+      "answer": 1
+    }
+  ]
+}

@@ -1,0 +1,146 @@
+{
+  "bookId": "b03",
+  "version": 2,
+  "questions": [
+    {
+      "q": "Where does the Boy find the Velveteen Rabbit?",
+      "options": [
+        "In his stocking",
+        "In the toy cupboard",
+        "In the garden",
+        "In his bed"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Who is the oldest toy in the nursery?",
+      "options": [
+        "The clockwork mouse",
+        "The china dog",
+        "The model boat",
+        "The Skin Horse"
+      ],
+      "answer": 3
+    },
+    {
+      "q": "What does the Skin Horse teach the Velveteen Rabbit about?",
+      "options": [
+        "How to hop",
+        "How to become Real",
+        "How to play with the Boy",
+        "How to hide from Nana"
+      ],
+      "answer": 1
+    },
+    {
+      "q": "Who hands the rabbit to the Boy when his china dog is missing?",
+      "options": [
+        "Nana",
+        "Mother",
+        "Father",
+        "Sister"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does the Boy call his rabbit?",
+      "options": [
+        "Bunny",
+        "Spotty",
+        "Velvet",
+        "Brownie"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "How does the rabbit change after being loved for a long time?",
+      "options": [
+        "He becomes shabby and worn",
+        "He becomes shiny and new",
+        "He becomes larger and heavier",
+        "He becomes colorful and bright"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What do the wild rabbits do that the Velveteen Rabbit is unable to do?",
+      "options": [
+        "Hop",
+        "Talk",
+        "Sleep",
+        "Eat"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What illness does the Boy catch?",
+      "options": [
+        "Scarlet fever",
+        "Chicken pox",
+        "The flu",
+        "A bad cold"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does the doctor order done with the rabbit after the illness?",
+      "options": [
+        "Burned",
+        "Washed",
+        "Given away",
+        "Put in the cupboard"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Where is the rabbit left waiting to be burned?",
+      "options": [
+        "Behind the fowl-house",
+        "Behind the garden shed",
+        "Behind the nursery door",
+        "Behind the big tree"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What grows where the rabbit's real tear falls?",
+      "options": [
+        "A flower with a golden cup",
+        "A patch of green grass",
+        "A tall oak tree",
+        "A bush with red berries"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Who appears from the flower to help the rabbit?",
+      "options": [
+        "The Nursery Magic Fairy",
+        "The Skin Horse",
+        "The Boy",
+        "The Doctor"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does the Fairy do to turn the rabbit into a real rabbit?",
+      "options": [
+        "She kisses him",
+        "She waves a wand",
+        "She says magic words",
+        "She sprinkles dust on him"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "In the spring, what does the Boy see in the garden?",
+      "options": [
+        "A rabbit with odd spotted markings",
+        "A rabbit carrying a flower",
+        "A rabbit sleeping in the grass",
+        "A rabbit wearing a ribbon"
+      ],
+      "answer": 0
+    }
+  ]
+}
