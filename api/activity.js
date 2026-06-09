@@ -12,7 +12,7 @@
 //       reading time, the XP is either held for admin review or partially
 //       reduced. Manual "I read this" reads skip fraud detection entirely.
 
-import { verifySession, parseCookies, isAdmin, displayName, isTombstoned } from "../lib/session.js";
+import { verifySession, parseCookies, isAdmin, displayName, isTombstoned, verifyQuizAnswer } from "../lib/session.js";
 import { resolveVisibleTracks, trackForBook } from "../lib/tracks.js";
 import {
   recordRead,
@@ -407,9 +407,22 @@ export default async function handler(req, res) {
     if (serverAttempt != null) {
       attemptNum = Math.min(2, Math.max(1, serverAttempt));
     }
-    // Client posts `answers: [{ idx, chosen }, ...]` — idx is the index
-    // into the cached pool (0..poolSize-1), chosen is the kid's tapped
-    // option (0..3). Validates length + bounds before grading.
+    // Client posts `answers: [{ idx, chosen, qText, answerToken }, ...]`.
+    // `idx` is the position in the kid's slate (0-4, just for dedup).
+    // `chosen` is the kid's tapped option ORIGINAL index (0-3).
+    // `qText` + `answerToken` are the HMAC-signed payload from /api/quiz.
+    //
+    // Grading is now self-contained — server recomputes
+    // signQuizAnswer(bookId, qText, chosen) and compares to the
+    // submitted answerToken. If they match, the kid picked the correct
+    // option (because the token's HMAC encoded the correct idx at
+    // generation time). NO Redis cache lookup needed at grade time —
+    // schema bumps, cache expiry, redeploy timing can't break grading
+    // anymore.
+    //
+    // We still fetch the cached pool as a SOFT compatibility path for
+    // older clients that don't yet have answerToken in their saved
+    // localStorage; if neither path works, we 409 as before.
     const answers = Array.isArray(body.answers) ? body.answers : [];
     if (answers.length !== 5) {
       res.statusCode = 400;
@@ -418,51 +431,82 @@ export default async function handler(req, res) {
         message: "Need exactly 5 answers.",
       }));
     }
-    // #79 — pass ageGrade so the cache key matches what /api/quiz wrote
-    // when ageGrade ≠ workingGrade. Without this, kids with age overrides
-    // hit a different Redis key on the read path → no_quiz_pool 409, or
-    // a stale pool with wrong answer indices → 0/5 on correct answers.
-    const pool = await getCachedQuizPool(bookId, grade, ageGrade);
-    if (!pool || !Array.isArray(pool.questions) || pool.questions.length < 5) {
-      // The kid hit quiz_submit without ever fetching /api/quiz, OR the
-      // pool expired mid-attempt. Either way we can't validate; refuse.
-      res.statusCode = 409;
-      return res.end(JSON.stringify({
-        error: "no_quiz_pool",
-        message: "Couldn't find the quiz for this book. Reopen the quiz and try again.",
-      }));
+    const useTokenGrading = answers.every(
+      (a) => typeof a?.qText === "string" && typeof a?.answerToken === "string"
+    );
+    let pool = null;
+    if (!useTokenGrading) {
+      // Legacy client — fall back to the cache-pool lookup.
+      pool = await getCachedQuizPool(bookId, grade, ageGrade);
+      if (!pool || !Array.isArray(pool.questions) || pool.questions.length < 5) {
+        res.statusCode = 409;
+        return res.end(JSON.stringify({
+          error: "no_quiz_pool",
+          message: "Couldn't find the quiz for this book. Reopen the quiz and try again.",
+        }));
+      }
     }
-    // Grade each answer against the cached correct index.
+    // Grade each answer.
     let correctCount = 0;
     const correctFlags = [];
-    const seenIdx = new Set();
+    const seen = new Set();
     const adminDebug = isAdminUser ? [] : null;
     for (const a of answers) {
-      const idx = Number(a?.idx);
       const chosen = Number(a?.chosen);
-      if (
-        !Number.isInteger(idx) || idx < 0 || idx >= pool.questions.length ||
-        !Number.isInteger(chosen) || chosen < 0 || chosen > 3 ||
-        seenIdx.has(idx) // reject duplicate questions in a single attempt
-      ) {
+      if (!Number.isInteger(chosen) || chosen < 0 || chosen > 3) {
         res.statusCode = 400;
         return res.end(JSON.stringify({
           error: "invalid_answer_entry",
-          message: "Answer entries must be unique {idx, chosen} pairs within the pool.",
+          message: "Each answer needs a chosen index between 0 and 3.",
         }));
       }
-      seenIdx.add(idx);
-      const expected = Number(pool.questions[idx].answer);
-      const isCorrect = chosen === expected;
+      let isCorrect = false;
+      let qPreview = "";
+      let expectedDebug = null;
+      if (useTokenGrading) {
+        const qText = String(a.qText || "");
+        const token = String(a.answerToken || "");
+        // Dedup on qText so a kid can't game it by re-submitting the
+        // same question's answer with multiple chosen values.
+        const dedupKey = qText.slice(0, 200);
+        if (seen.has(dedupKey)) {
+          res.statusCode = 400;
+          return res.end(JSON.stringify({
+            error: "invalid_answer_entry",
+            message: "Answer entries must be for unique questions.",
+          }));
+        }
+        seen.add(dedupKey);
+        isCorrect = await verifyQuizAnswer(bookId, qText, chosen, token);
+        qPreview = qText.slice(0, 60);
+      } else {
+        // Legacy cache-pool path.
+        const idx = Number(a?.idx);
+        if (
+          !Number.isInteger(idx) || idx < 0 || idx >= pool.questions.length ||
+          seen.has(idx)
+        ) {
+          res.statusCode = 400;
+          return res.end(JSON.stringify({
+            error: "invalid_answer_entry",
+            message: "Answer entries must be unique {idx, chosen} pairs within the pool.",
+          }));
+        }
+        seen.add(idx);
+        const expected = Number(pool.questions[idx].answer);
+        isCorrect = chosen === expected;
+        qPreview = pool.questions[idx]?.q?.slice(0, 60) || "";
+        expectedDebug = expected;
+      }
       correctFlags.push(isCorrect);
       if (isCorrect) correctCount++;
       if (adminDebug) {
         adminDebug.push({
-          poolIdx: idx,
           chosen,
-          expected,
           isCorrect,
-          q: pool.questions[idx]?.q?.slice(0, 60) || "",
+          gradedVia: useTokenGrading ? "hmac" : "cache",
+          ...(expectedDebug != null && { expected: expectedDebug }),
+          q: qPreview,
         });
       }
     }

@@ -26,7 +26,7 @@ import { anthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
 import fs from "node:fs";
 import path from "node:path";
-import { verifySession, parseCookies, isAdmin } from "../lib/session.js";
+import { verifySession, parseCookies, isAdmin, signQuizAnswer } from "../lib/session.js";
 import { moderateQuizQuestions } from "../lib/moderation.js";
 import { trackError, trackEvent } from "../lib/observability.js";
 import {
@@ -533,10 +533,28 @@ export const QUIZ_SCHEMA_VERSION = SCHEMA_VERSION;
  * Remove the answer index from a question before shipping to the client.
  * The Redis-cached pool keeps the full {q, options, answer} so the server
  * can grade quiz_submit; the wire payload to the browser is only
- * {q, options}. Closes the DevTools answer-reveal vector.
+ * {q, options, answerToken}. The answerToken is an HMAC over the
+ * (bookId, qText, correctIdx) so the kid can submit it back to the
+ * server for self-contained grading — no Redis pool lookup needed at
+ * grade time. Closes the DevTools answer-reveal vector AND the
+ * "Redis cache lost between fetch and submit → 0/5" vector.
  */
 function stripAnswerKey(q) {
-  return { q: q.q, options: q.options };
+  return { q: q.q, options: q.options, answerToken: q.answerToken };
+}
+
+/**
+ * Attach an HMAC answerToken to every question in a pool. Idempotent —
+ * if a token is already present (cached payload from a previous request),
+ * leaves it alone. Mutates the input array AND returns it for chaining.
+ */
+async function attachAnswerTokens(bookId, questions) {
+  for (const q of questions) {
+    if (q.answerToken) continue;
+    if (!Number.isInteger(q.answer)) continue;
+    q.answerToken = await signQuizAnswer(bookId, q.q, q.answer);
+  }
+  return questions;
 }
 
 /**
@@ -1458,6 +1476,10 @@ export default async function handler(req, res) {
     // quiz_submit — opens-without-submit pattern feeds the soft-flag
     // matrix. Fire-and-forget; failures here mustn't block the response.
     recordQuizOpen(session.email, bookId).catch(() => {});
+    // Ensure every question carries an answerToken — older cached
+    // pools may pre-date the HMAC scheme. attachAnswerTokens is
+    // idempotent; on a fresh pool it'll already be present.
+    await attachAnswerTokens(bookId, cached.questions);
     res.statusCode = 200;
     res.setHeader("Cache-Control", "private, max-age=86400");
     return res.end(
@@ -1469,16 +1491,9 @@ export default async function handler(req, res) {
         quizStyle: style,
         cached: true,
         ...cached,
-        // SECURITY: strip the answer key before sending to the client.
-        // The cached pool keeps answers for server-side grading via
-        // /api/activity kind:"quiz_submit"; clients never see them. This
-        // closes the DevTools-reveal attack.
-        //
-        // Admin exception: admins doing QA need to see the correct
-        // answer to walk the kid through each question. The full pool
-        // (with `answer` per question) goes to admins only. The server
-        // still validates submissions against the cached pool — the
-        // admin client can't lie about the answer, just see it.
+        // Strip the raw answer index before sending to the client; the
+        // HMAC answerToken survives (kid needs it to submit). Admin
+        // exception: admins see the raw answer for QA walkthroughs.
         questions: isAdmin(session.email)
           ? cached.questions
           : cached.questions.map(stripAnswerKey),
@@ -1652,6 +1667,10 @@ export default async function handler(req, res) {
       },
       multiPass: multiPassStats,
     };
+    // Sign every surviving question with an HMAC answerToken BEFORE
+    // caching so the cache and the response both carry it. attaches
+    // to payload.questions in place.
+    await attachAnswerTokens(bookId, payload.questions);
     await setCachedQuiz(cacheKey, payload);
 
     // #41: count this open (cold-path mirror of the cached-hit branch).

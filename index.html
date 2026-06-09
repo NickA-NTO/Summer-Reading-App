@@ -4550,7 +4550,20 @@ async function markBookAsRead(bookId, attemptNum, submitAnswers) {
           bookId,
           attemptNum,
           // Strip the client-side `correct` flag — server re-derives it.
-          answers: submitAnswers.map((a) => ({ idx: a.poolIdx, chosen: a.chosen })),
+          // Each entry carries the question text + HMAC answerToken
+          // from /api/quiz so the server can grade by recomputing the
+          // HMAC instead of looking up a cached pool by (bookId,
+          // grade, age). The cache-lookup path was fragile — schema
+          // bumps, Redis expiry, redeploy timing all caused 0/5.
+          // qText + answerToken makes grading self-contained.
+          // idx is kept for legacy server compatibility (older
+          // deployments will fall back to cache-pool grading).
+          answers: submitAnswers.map((a) => ({
+            idx: a.poolIdx,
+            chosen: a.chosen,
+            qText: a.qText || "",
+            answerToken: a.answerToken || "",
+          })),
           streakDays: computeStreak(),
         }
       : {
@@ -5399,6 +5412,12 @@ function withShuffledOptions(question, poolIdx) {
     q: question.q,
     options: newOptions,
     originalIndices: order, // originalIndices[shuffledPos] = originalIdx
+    // Carry the HMAC answerToken through shuffling unchanged — it's
+    // signed over the original (qText, correctIdx) pair, so option
+    // order doesn't affect verification. The answer.chosen submitted
+    // to the server is always the ORIGINAL index, so the HMAC math
+    // works out.
+    answerToken: question.answerToken || "",
   };
   // Admin mode: /api/quiz includes the canonical `answer` (original
   // un-shuffled index) for admin sessions only. Translate it to the
@@ -5976,6 +5995,10 @@ function answerQuestion(choice) {
   quizState.answers.push({
     poolIdx: q.poolIdx,
     chosen: q.originalIndices[choice],
+    // Carry the HMAC-signed answerToken from /api/quiz so the server
+    // can grade by recomputing the HMAC instead of a cache lookup.
+    qText: q.q,
+    answerToken: q.answerToken || "",
   });
   // Persist progress so a close-and-reopen resumes here instead of
   // re-rolling the random question selection.
