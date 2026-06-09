@@ -499,6 +499,33 @@ export default async function handler(req, res) {
     return json(res, 200, { ok: true, email: e, bookId, cleared });
   }
 
+  // ========================= bust-quiz ===========================
+  // Body: { bookId }
+  // ADMIN-ONLY testing aid. Forces the cached question pool for a book
+  // to be deleted from Redis so the next /api/quiz fetch regenerates a
+  // fresh pool from the current canonical record + prompt. Use this
+  // after editing api/quiz.js QUIZ_BOOKS summaries, lib/book-records.json,
+  // or any time the existing pool needs to be re-derived under updated
+  // generator/QC rules. The client should ALSO clear its local
+  // mid-attempt resume key (rs.quiz.<email>.<bookId>) after calling
+  // this so the kid doesn't replay the old questions.
+  if (action === "bust-quiz" && req.method === "POST") {
+    const body = await readBody(req);
+    if (body === null) return json(res, 400, { error: "invalid_json" });
+    const bookId = String(body.bookId || "").trim();
+    if (!bookId) return json(res, 400, { error: "bookId_required" });
+    let bustedKeys = 0;
+    try {
+      bustedKeys = await bustQuizCache(bookId);
+    } catch (err) {
+      return json(res, 500, {
+        error: "bust_failed",
+        message: String(err?.message || err),
+      });
+    }
+    return json(res, 200, { ok: true, bookId, bustedKeys });
+  }
+
   // ========================= set-age-grade =======================
   // Body: { email, ageGrade }
   // Sets ONLY the maturity-calibration grade. Working grade (catalog

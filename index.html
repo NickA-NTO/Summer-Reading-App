@@ -2165,6 +2165,15 @@
             title="Admin: skip the 15-min wait before the quiz unlocks for this book">
             🔓 Skip wait
           </button>
+          <!-- Admin: force the cached question pool to regenerate. Use
+               after edits to api/quiz.js / lib/book-records.json so the
+               next quiz attempt builds fresh under updated rules.
+               Also clears the local mid-attempt resume key so the kid
+               doesn't replay the old questions. -->
+          <button class="modal-admin-item" id="adminRegenQuiz" type="button"
+            title="Admin: bust the cached quiz pool + clear local mid-attempt resume for this book">
+            ♻️ Regen quiz
+          </button>
         </div>
       </div>
     </div>
@@ -4930,6 +4939,51 @@ document.getElementById("adminSkipWait").addEventListener("click", (e) => {
   const orig = btn.textContent;
   btn.textContent = "✓ Unlocked";
   setTimeout(() => { btn.textContent = orig; }, 1500);
+});
+
+// Admin: force the cached quiz pool for this book to regenerate.
+// Use after editing api/quiz.js summaries / lib/book-records.json so
+// the next quiz fetch builds fresh under the updated grounding. Also
+// clears the local mid-attempt resume so the kid doesn't replay the
+// old questions from a saved in-progress state.
+document.getElementById("adminRegenQuiz").addEventListener("click", async (e) => {
+  e.stopPropagation();
+  if (!activeBookId) return;
+  if (!state.session?.isAdmin) return;
+  const btn = e.currentTarget;
+  const orig = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Busting…";
+  try {
+    const r = await fetch("/api/admin?action=bust-quiz", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ bookId: activeBookId }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      console.error("[admin] bust-quiz failed", data);
+      btn.textContent = "✗ Failed";
+      setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 2000);
+      return;
+    }
+    console.log(`[admin] bust-quiz ok — busted ${data.bustedKeys || 0} cache keys`);
+    // Clear the local mid-attempt resume too — otherwise the kid
+    // replays the OLD questions from their saved state even though
+    // the server-side pool just regenerated.
+    try { clearQuizProgress(activeBookId); } catch {}
+    btn.textContent = `✓ Busted (${data.bustedKeys || 0})`;
+    setTimeout(() => {
+      btn.textContent = orig; btn.disabled = false;
+      const pop = document.getElementById("modalAdminPopover");
+      if (pop) pop.setAttribute("hidden", "");
+    }, 1500);
+  } catch (err) {
+    console.error("[admin] bust-quiz threw", err);
+    btn.textContent = "✗ Failed";
+    setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 2000);
+  }
 });
 
 /* ---------- 12. Header scroll + user menu ---------- */
