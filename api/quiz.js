@@ -541,6 +541,16 @@ function quizSchemaFor(_style) {
             .min(0)
             .max(3)
             .describe("Index (0-3) of the correct option."),
+          sourceText: z
+            .string()
+            .min(10)
+            .describe(
+              "REQUIRED. The verbatim entry from specific_facts or " +
+              "plot_beats that supports this question. The correct " +
+              "answer's text MUST appear inside this sourceText, or " +
+              "the question is dropped by post-generation validation. " +
+              "Do NOT paraphrase — copy the record entry exactly."
+            ),
         })
       )
       .length(POOL_SIZE_FULL),
@@ -653,7 +663,19 @@ const QCSchema = z.object({
 //      or plot_beats entry. QC accuracy axis now scores 0 when the
 //      premise can't be located in the record. Bump invalidates v13
 //      pools.
-const SCHEMA_VERSION = 14;
+//   v15: DETERMINISTIC SOURCE CITATION. v14's LLM-based premise rule
+//      kept getting talked around — "What do the Zans brush?",
+//      "Where do the children put their cold feet at bedtime?", and
+//      "Who never goes to school?" all slipped through. v15 makes
+//      sourceText a REQUIRED field on every generated question and
+//      adds a code-level substring check in qcAndFilter: the
+//      sourceText must appear in record.specific_facts or
+//      record.plot_beats, AND the correct answer's text must appear
+//      inside the sourceText. No LLM judgment, no rationalisation —
+//      pure substring match. Questions that fail either check are
+//      dropped before the LLM QC even sees them. Bump invalidates
+//      v14 pools.
+const SCHEMA_VERSION = 15;
 // Exported alias so api/activity.js can build the same cache key when it
 // validates a quiz_submit. Kept as a renamed export so the local const can
 // be reassigned independently if we ever split client / server schemas.
@@ -887,13 +909,35 @@ async function generateOnce(bookId, book, studentGrade, guidance, temperature, a
         `  • Specific quantifiers (numbers, colors, sizes, counts) must ` +
         `    appear in "specific_facts" with that exact value. If a fact ` +
         `    is not in "specific_facts", do NOT ask about a specific value.\n` +
-        `  • PREMISE GROUNDING (critical — this is the rule that catches ` +
-        `    "Who never goes to school?" hallucinations). The question itself ` +
-        `    asserts or implies something — call this the PREMISE. The PREMISE ` +
-        `    must be supported by a specific entry in specific_facts or ` +
-        `    plot_beats. It is NOT enough for the answer character to exist ` +
-        `    in the record; the action / trait / relationship the question ` +
-        `    asks about must also be in the record verbatim or near-verbatim.\n` +
+        `  • REQUIRED SOURCE CITATION (CRITICAL — enforced by code, not by ` +
+        `    judgment). Every question must include a sourceText field ` +
+        `    that copies VERBATIM the specific_facts entry OR plot_beats ` +
+        `    entry that supports the question. The post-generation ` +
+        `    validator runs a substring check:\n` +
+        `      1) sourceText must appear (case-insensitive) in record.specific_facts OR record.plot_beats\n` +
+        `      2) the correct answer's text must appear inside sourceText\n` +
+        `    If either check fails, the question is silently DROPPED — ` +
+        `    you cannot talk your way past this. Quote the record entry ` +
+        `    EXACTLY. Do not paraphrase, summarise, or fabricate.\n` +
+        `    Worked examples (using the One Fish Two Fish record):\n` +
+        `      Q: "What does the Yink drink?" A: "Pink ink"\n` +
+        `      sourceText: "The Yink drinks pink ink and likes to wink"\n` +
+        `      ✓ source appears in specific_facts; ✓ "pink ink" substring matches\n` +
+        `\n` +
+        `      Q: "What do the Zans brush?" A: "Their teeth"\n` +
+        `      sourceText: (no record entry supports "Zans brush teeth")\n` +
+        `      ✗ REJECTED — record says the Zans OPENS CANS; you cannot generate this question\n` +
+        `\n` +
+        `      Q: "Who never goes to school?" A: "Clark"\n` +
+        `      sourceText: (no record entry mentions school)\n` +
+        `      ✗ REJECTED — premise invented, you cannot generate this question\n` +
+        `\n` +
+        `  • PREMISE GROUNDING (LLM-side restatement of the rule above). The ` +
+        `    question itself asserts or implies something — call this the ` +
+        `    PREMISE. The PREMISE must be supported by a specific entry in ` +
+        `    specific_facts or plot_beats. It is NOT enough for the answer ` +
+        `    character to exist in the record; the action / trait / ` +
+        `    relationship the question asks about must also be in the record.\n` +
         `      BAD: "Who never goes to school?" — the record does not say ` +
         `      anyone goes (or doesn't go) to school. The premise is invented.\n` +
         `      BAD: "What is Mike's favourite colour?" — Mike's favourite ` +
@@ -1126,15 +1170,109 @@ function buildQCPrompt(record, book, studentGrade, formatted, questionCount) {
 // QC reviewer: takes a freshly-generated pool of questions and scores each
 // for accuracy against the book's canonical summary. Drops questions with
 // accuracy below QC_MIN_ACCURACY. Returns { questions: [keepers], dropped: [{idx, accuracy, issues}] }.
+// Deterministic citation check. Each question must carry a sourceText
+// that (a) appears verbatim in record.specific_facts OR
+// record.plot_beats, AND (b) contains the correct answer's text.
+// This is what catches the "Who never goes to school?" / "Zans brush
+// teeth" / "On the Zeep cold feet" class of hallucination — the LLM
+// can't lie its way past a substring match.
+//
+// Returns { ok: true } on pass, { ok: false, reason, ... } on fail.
+// Lenient on:
+//   - case (normalises to lowercase)
+//   - leading articles on the answer ("the", "a", "an", "his", "her",
+//     "their", "on the", "in the") — the answer often has a determiner
+//     the record entry lacks ("A bike" vs "rides a bike")
+//   - whitespace + punctuation differences
+function verifyQuestionGrounded(q, record) {
+  if (!record) return { ok: true, reason: "no_record" }; // legacy path, skip
+  const src = String(q.sourceText || "").trim();
+  if (!src || src.length < 10) {
+    return { ok: false, reason: "no_source" };
+  }
+  const norm = (s) =>
+    String(s || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  const srcNorm = norm(src);
+  const recordEntries = [
+    ...(record.specific_facts || []).map((f) => norm(f.fact)),
+    ...(record.plot_beats || []).map((b) => norm(b.beat)),
+  ].filter(Boolean);
+  // Source must be substring of a record entry OR a record entry must
+  // be substring of source (LLM may quote partially or expand slightly).
+  const sourceFound = recordEntries.some(
+    (e) => e === srcNorm || e.includes(srcNorm) || srcNorm.includes(e)
+  );
+  if (!sourceFound) {
+    return { ok: false, reason: "source_not_in_record", source: src };
+  }
+  // Correct answer text must appear in source after stripping leading
+  // articles / prepositions.
+  const answerRaw = String(q.options?.[q.answer] || "").trim();
+  if (!answerRaw) {
+    return { ok: false, reason: "no_answer" };
+  }
+  const answerNorm = norm(answerRaw);
+  const answerNoLeader = answerNorm.replace(
+    /^(a|an|the|his|her|its|their|on|in|at|to|with|for|of|by)\s+/,
+    ""
+  );
+  if (
+    !srcNorm.includes(answerNorm) &&
+    !srcNorm.includes(answerNoLeader)
+  ) {
+    return {
+      ok: false,
+      reason: "answer_not_in_source",
+      answer: answerRaw,
+      source: src,
+    };
+  }
+  return { ok: true };
+}
+
 async function qcAndFilter(bookId, book, studentGrade, questions) {
   const record = getBookRecord(bookId);
+
+  // ---------- Citation grounding pre-filter (deterministic) ----------
+  // Run this BEFORE the LLM-based QC. The LLM-based premise check kept
+  // letting hallucinations through ("Who never goes to school?",
+  // "What do the Zans brush?", "Where do the children put their cold
+  // feet?") because the LLM can rationalise anything. The deterministic
+  // substring check can't be talked around.
+  let groundedQuestions = questions;
+  if (record) {
+    const groundingDropped = [];
+    groundedQuestions = [];
+    for (let i = 0; i < questions.length; i++) {
+      const v = verifyQuestionGrounded(questions[i], record);
+      if (v.ok) {
+        groundedQuestions.push(questions[i]);
+      } else {
+        groundingDropped.push({ idx: i, ...v, question: questions[i].q });
+      }
+    }
+    if (groundingDropped.length > 0) {
+      console.log(
+        `[quiz_grounding] ${book.title}: dropped ${groundingDropped.length}/${questions.length}`,
+        groundingDropped.map((d) => `Q${d.idx}(${d.reason})`).join(", ")
+      );
+    }
+  }
+  // Run the remaining LLM-based QC pass over the GROUNDING SURVIVORS
+  // only. Anything that failed citation grounding is already out — no
+  // point asking the LLM to score it.
   const letters = ["A", "B", "C", "D"];
-  const formatted = questions
+  const formatted = groundedQuestions
     .map(
       (q, i) =>
         `${i}. ${q.q}\n   A) ${q.options[0]}\n   B) ${q.options[1]}\n   ` +
         `C) ${q.options[2]}\n   D) ${q.options[3]}\n   ` +
-        `[marked correct: ${letters[q.answer]}]`
+        `[marked correct: ${letters[q.answer]}]\n   ` +
+        `[source from record: ${q.sourceText || "(none)"}]`
     )
     .join("\n\n");
 
@@ -1144,14 +1282,14 @@ async function qcAndFilter(bookId, book, studentGrade, questions) {
       model: anthropic(QC_MODEL),
       schema: QCSchema,
       system: buildQCSystemPrompt(record, studentGrade),
-      prompt: buildQCPrompt(record, book, studentGrade, formatted, questions.length),
+      prompt: buildQCPrompt(record, book, studentGrade, formatted, groundedQuestions.length),
     });
     reviews = object.reviews || [];
   } catch (err) {
-    // QC call failed — degrade gracefully by accepting all generated questions.
+    // QC call failed — degrade gracefully by accepting all grounded questions.
     // Better to serve a (possibly imperfect) quiz than to block on QC failure.
     console.warn("[quiz_qc_failed]", String(err?.message || err));
-    return { questions, dropped: [] };
+    return { questions: groundedQuestions.map(stripSourceText), dropped: [] };
   }
 
   const reviewByIdx = new Map();
@@ -1159,11 +1297,11 @@ async function qcAndFilter(bookId, book, studentGrade, questions) {
 
   const survivors = [];
   const dropped = [];
-  for (let i = 0; i < questions.length; i++) {
+  for (let i = 0; i < groundedQuestions.length; i++) {
     const r = reviewByIdx.get(i);
     // If QC didn't review a question (model omission), keep it but log.
     if (!r) {
-      survivors.push(questions[i]);
+      survivors.push(groundedQuestions[i]);
       continue;
     }
     // Drop on accuracy, safety, OR form below threshold. The safety
@@ -1176,7 +1314,7 @@ async function qcAndFilter(bookId, book, studentGrade, questions) {
                    safetyScore >= QC_MIN_SAFETY &&
                    formScore   >= QC_MIN_FORM;
     if (passes) {
-      survivors.push(questions[i]);
+      survivors.push(groundedQuestions[i]);
     } else {
       dropped.push({
         idx: i,
@@ -1188,19 +1326,26 @@ async function qcAndFilter(bookId, book, studentGrade, questions) {
           safetyScore < QC_MIN_SAFETY  ? "safety"   :
           "form",
         issues: r.issues || [],
-        question: questions[i].q,
+        question: groundedQuestions[i].q,
       });
     }
   }
 
   if (dropped.length > 0) {
     console.log(
-      `[quiz_qc] ${book.title} grade=${studentGrade}: kept ${survivors.length}/${questions.length}`,
+      `[quiz_qc] ${book.title} grade=${studentGrade}: kept ${survivors.length}/${groundedQuestions.length}`,
       dropped.map((d) => `Q${d.idx}(acc=${d.accuracy}/safe=${d.safety}/form=${d.form}/${d.reason})`).join(", ")
     );
   }
 
-  return { questions: survivors, dropped };
+  // Strip server-only sourceText from final survivors — it was a
+  // grounding-verification field, not for client or admin display.
+  return { questions: survivors.map(stripSourceText), dropped };
+}
+
+function stripSourceText(q) {
+  const { sourceText, ...rest } = q;
+  return rest;
 }
 
 export default async function handler(req, res) {

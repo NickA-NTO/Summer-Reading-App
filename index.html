@@ -5606,12 +5606,13 @@ function buildQuizSpeakParts(q) {
   };
 }
 
-// Pause between the question and the choices block. 1000ms reads as
-// a clear sentence break for K-2 listeners — long enough that the
-// kid registers the question before "Here are your choices" starts,
-// short enough not to feel like the app stalled. Tuned down from
-// 1200ms based on kid-test feedback ("a bit long").
-const QUIZ_TTS_GAP_MS = 1000;
+// Pause between the question and the choices block. 300ms reads as
+// a brief natural breath; combined with the trailing silence already
+// baked into the TTS audio (~200-400ms after the final period) the
+// total perceived pause lands at ~600ms — close to a normal sentence
+// break. Tuned from 1000ms based on kid-test feedback ("still ~1s
+// too long").
+const QUIZ_TTS_GAP_MS = 300;
 
 // Local token for quiz-narration sequencing — decoupled from the
 // global _ttsSeq. Earlier version predicted `mySeq = _ttsSeq + 1`
