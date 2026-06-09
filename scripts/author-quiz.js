@@ -130,18 +130,32 @@ RULES (the QC checklist):
      BAD:  "Why can't Trixie tell her daddy?"
      GOOD: "Why does Trixie struggle to tell her daddy?"
 
-7a. NEVER REPEAT THE QUESTION'S MAIN VERB IN THE ANSWER OR
-    DISTRACTORS. If the stem says "shown", the options must not
-    contain "show", "shown", "shows". Same for "tells/tell/told",
-    "frame/framed", "happens/happened", etc.
+7a. NEVER REPEAT ANY MAIN-CONTENT WORD FROM THE QUESTION STEM IN
+    THE ANSWER OR DISTRACTORS. This includes verbs AND short nouns
+    (3+ chars). If the stem says "shown", "fox", "owl", "bus", or
+    any other 3+ char content word, that word must not appear in
+    the correct answer.
      BAD:  Q: "Where are Vashti's paintings shown?"
-           Options include "shown at the art show" — telegraphs.
+           A: "Shown at the art show" — telegraphs "shown".
      GOOD: Q: "Where do people see Vashti's paintings?"
            A: "At the school art show"
      BAD:  Q: "Who tells a story to cheer up the other?"
            Distractor: "Toad tells Frog" — telegraphs "tells".
      GOOD: Q: "Who cheers up the other by sharing a story?"
-           A: "Frog cheers up Toad" (no "tells" anywhere)
+           A: "Frog cheers up Toad"
+     BAD:  Q: "What does the mouse say the Gruffalo eats when he meets the fox?"
+           A: "Roasted fox" — telegraphs "fox" (the 3-char animal name).
+           This pattern repeated across multiple questions (one per
+           animal) makes EVERY question trivially answerable from
+           the stem alone.
+     GOOD: Q: "What scary food does the mouse mention first?"
+           A: "Roasted fox"
+           — or —
+           Q: "Which scary food does the mouse invent for the first
+              animal he meets?"
+           A: "Roasted fox"
+     Animals like "fox", "owl", "cat", "dog", "rat", "bee", "ant",
+     "bug" are all flagged — short doesn't mean safe.
 
 7b. NUMERIC ANSWERS — When the question is "how many X", the options
     must be JUST NUMBERS, not "N X". Repeating the noun in every

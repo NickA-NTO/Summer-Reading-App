@@ -192,17 +192,30 @@ function checkQuestion(q, idx, summary) {
   }
 
   // (2) TELEGRAPHING — question stem must not contain words that match
-  // the correct answer's content. Proper nouns (protagonist names)
-  // are excluded for the same reason as the self-ref check: "How does
-  // the boy free Ping?" answered with "He carries Ping" isn't a
-  // telegraph — Ping is the unavoidable subject of the question, not
-  // a giveaway word.
+  // the correct answer's content. Proper nouns are excluded ONLY
+  // when they're capitalized in the stem itself (suggesting
+  // proper-noun usage in this question). We deliberately don't
+  // exempt summary-wide proper nouns — a word like "Fox" can be a
+  // CHARACTER name in the summary but a COMMON noun in the stem
+  // ("when meeting the fox"), where it IS a telegraph hit and
+  // should fire. The original Gruffalo k06 bug: 4 questions all
+  // had "fox / owl / snake / gruffalo" food options, and each
+  // question's stem named the matching animal. Each was trivially
+  // answerable because the SUMMARY had "Fox" capitalized as a name,
+  // letting the old check pass.
   const qNorm = norm(qText);
   const correctNorm = norm(correct);
   const stemProperForTelegraph = extractProperNounsFromText(qText);
-  const properForTelegraph = new Set([...stemProperForTelegraph, ...SUMMARY_PROPER_NOUNS]);
+  const properForTelegraph = stemProperForTelegraph;
+  // Length threshold of 3 (was 4) so short content words like animal
+  // names — "fox", "owl", "cat", "dog" — count as telegraph hits.
+  // Stopwords (the/and/for/etc.) are still excluded so common 3-char
+  // English doesn't false-positive. This caught the Gruffalo k06 case
+  // where the question stem said "when he meets the fox" and an
+  // option was "Roasted fox" — clearly telegraphed but missed by
+  // the old 4-char minimum.
   const aTokens = correctNorm.split(/\s+/).filter(
-    (t) => t.length >= 4 && !SHARED_STOPWORDS.has(t) && !properForTelegraph.has(t)
+    (t) => t.length >= 3 && !SHARED_STOPWORDS.has(t) && !properForTelegraph.has(t)
   );
   const telegraphed = aTokens.filter((t) => qNorm.includes(t));
   if (telegraphed.length > 0) {
@@ -228,8 +241,15 @@ function checkQuestion(q, idx, summary) {
   //     overlap with the stem's common noun ("teddy bear" → "Teddy")
   //     isn't a logical fish-has-a-fish failure — it's the distractor
   //     proposing an alternative NAME.
+  // Same logic as the telegraphing exclusion above: only exempt
+  // words that ARE capitalized in the stem itself (proper-noun
+  // usage in this question). Summary-wide proper nouns aren't
+  // exempted — a word can be a name in the summary AND a common
+  // noun in this stem, and we want the common-noun usage to
+  // trigger the rule. Distractors that are themselves capitalized
+  // (e.g. "Mr. Rabbit" as a name) are still exempted below.
   const stemProperNouns = extractProperNounsFromText(qText);
-  const properNouns = new Set([...stemProperNouns, ...SUMMARY_PROPER_NOUNS]);
+  const properNouns = stemProperNouns;
   const qNouns = new Set(qWords.filter((w) => !properNouns.has(w)));
   for (let i = 0; i < q.options.length; i++) {
     if (i === q.answer) continue;
