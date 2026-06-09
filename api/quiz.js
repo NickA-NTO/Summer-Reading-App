@@ -619,7 +619,14 @@ const QCSchema = z.object({
 //      referencing `unknown_fields` are auto-rejected. Books without a
 //      record fall back to the legacy prose-summary path. Bump
 //      invalidates v10 pools so they regenerate under the new contract.
-const SCHEMA_VERSION = 11;
+//   v12: summaries-only policy. The legacy `book.summary` fallback in
+//      scripts/enrich-catalog.js was retired — hand-authored .md files
+//      in docs/book-summaries/ are now the only editorial source. Bump
+//      invalidates v11 pools so cached questions regenerate against
+//      the new grounding (e07 picked up Gox boxing gloves; a01
+//      enriched for the first time using its hand-authored Peter
+//      Rabbit summary).
+const SCHEMA_VERSION = 12;
 // Exported alias so api/activity.js can build the same cache key when it
 // validates a quiz_submit. Kept as a renamed export so the local const can
 // be reassigned independently if we ever split client / server schemas.

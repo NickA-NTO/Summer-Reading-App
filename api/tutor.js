@@ -50,6 +50,7 @@ import { trackError, trackEvent } from "../lib/observability.js";
 import { checkRateLimit, send429, LIMITS } from "../lib/rate-limit.js";
 import {
   TUTOR_QUESTION_COUNT,
+  TUTOR_PASS_SCORE,
   hasOpenAI,
   createTutorSession,
   getTutorSession,
@@ -60,6 +61,8 @@ import {
   transcribeAudio,
   moderateOnTopic,
   gradeConversation,
+  previewGradeFirstTurn,
+  totalRubricScore,
   storeTutorAudio,
   synthTutorTts,
 } from "../lib/tutor.js";
@@ -423,18 +426,70 @@ async function actionTurn(req, res, sessionAuth, url) {
   if (audioUrl) tutorSession.audioUrls.push(audioUrl);
 
   // Decide what happens next based on turn count.
-  // - If kid has answered fewer than TUTOR_QUESTION_COUNT questions: ask the next one.
-  // - If they've answered all questions: send closing message + grade.
+  // - turn 1 → run a PRELIMINARY rubric grade. If the kid already
+  //   nailed it (clear pass) we finalize NOW with the preliminary as
+  //   the final grade and they get the bonus XP. Otherwise we ask one
+  //   targeted follow-up that probes the rubric's weakest axis — the
+  //   kid's second chance to bump their score across the pass threshold.
+  // - turn 2 → finalize with the commit-mode grader and compare against
+  //   the preliminary. If the score didn't improve past the pass bar,
+  //   it's an internal fail (no bonus XP) per the second-chance rule.
   const isFinalTurn = tutorSession.turnIndex >= TUTOR_QUESTION_COUNT;
 
   if (!isFinalTurn) {
-    // Generate the next tutor message based on the full conversation.
+    // We're between turn 1 and the follow-up. Run the preliminary grade
+    // on this single response to decide: clear pass → finalize early,
+    // otherwise → targeted follow-up. The preliminary grade is cheap
+    // (gpt-4o-mini) and on the critical-path latency budget.
+    let preliminary = null;
+    try {
+      preliminary = await previewGradeFirstTurn({
+        book,
+        ageGrade: tutorSession.ageGrade,
+        studentText: transcript,
+      });
+    } catch (err) {
+      trackError("tutor_preview_grade_failed", { err: String(err?.message || err) });
+      // If the preview grade fails, fall back to the legacy behavior:
+      // always ask the follow-up. We never want a failed preview call
+      // to deny a kid their chance to add more.
+      preliminary = null;
+    }
+    tutorSession.preliminaryGrade = preliminary;
+
+    // If on-topic moderation already said this was off-topic, we don't
+    // want to bail on the kid — we still want the follow-up so they can
+    // course-correct. But surface it in the preliminary's weakAxis hint
+    // so the tutor's next question gently redirects.
+    if (preliminary && !moderation.onTopic) {
+      preliminary.weakAxis = "stayed_on_topic";
+      preliminary.verdict = "needs_followup";
+    }
+
+    if (preliminary && preliminary.verdict === "clear_pass") {
+      // Clear pass on the first answer — finalize NOW. We re-use the
+      // commit-mode grader on the single-turn transcript so the final
+      // grade payload + feedback line are consistent with the two-turn
+      // path. The early-exit is recorded so admin can audit it.
+      tutorSession.earlyPass = true;
+      trackEvent("tutor_early_pass", {
+        bookId: tutorSession.bookId,
+        previewTotal: preliminary.total,
+      });
+      return await finalizeAndGrade(res, tutorSession, book);
+    }
+
+    // Needs follow-up — generate a targeted next message that probes
+    // the weak axis. The weakAxis hint goes into the system prompt
+    // so the tutor doesn't ask the same kind of question twice.
+    const weakAxis = preliminary?.weakAxis || null;
     let nextMessage;
     try {
       nextMessage = await generateTutorNextMessage({
         book,
         ageGrade: tutorSession.ageGrade,
         transcript: tutorSession.transcript,
+        weakAxis,
       });
     } catch (err) {
       trackError("tutor_next_message_failed", { err: String(err?.message || err) });
@@ -454,6 +509,11 @@ async function actionTurn(req, res, sessionAuth, url) {
       ts: Date.now(),
     });
     await saveTutorSession(tutorSession);
+    trackEvent("tutor_followup_asked", {
+      bookId: tutorSession.bookId,
+      weakAxis,
+      previewTotal: preliminary?.total ?? null,
+    });
     return json(res, 200, {
       ok: true,
       sessionId: tutorSession.sessionId,
@@ -502,24 +562,74 @@ async function actionGrade(req, res, sessionAuth, url) {
 async function finalizeAndGrade(res, tutorSession, book) {
   const email = tutorSession.email;
 
-  // Grade the retell conversation via the LLM rubric.
+  // Grade selection:
+  //   - earlyPass (clear pass on turn 1) → trust the preliminary rubric
+  //     as the final grade. We already saw all four axes non-zero and
+  //     total ≥ TUTOR_CLEAR_PASS_SCORE. Re-grading with gpt-4o would
+  //     risk a contradiction and burn an extra LLM call for no gain.
+  //   - otherwise → COMMIT-mode grader over the full transcript. After
+  //     the kid's had their second chance we owe them a definitive
+  //     pass/fail, not an admin-review null. Borderline collapses to
+  //     fail (no bonus XP).
   let grade;
-  try {
-    grade = await gradeConversation({
-      book,
-      ageGrade: tutorSession.ageGrade,
-      transcript: tutorSession.transcript,
-    });
-  } catch (err) {
-    trackError("tutor_grade_failed", { err: String(err?.message || err) });
+  if (tutorSession.earlyPass && tutorSession.preliminaryGrade) {
+    const p = tutorSession.preliminaryGrade;
     grade = {
-      retell_quality: 0,
-      character_recall: 0,
-      event_recall: 0,
-      stayed_on_topic: 0,
-      overall_pass: null,
-      feedback: "We're having trouble grading right now. We'll check this and get back to you!",
+      retell_quality:   p.retell_quality,
+      character_recall: p.character_recall,
+      event_recall:     p.event_recall,
+      stayed_on_topic:  p.stayed_on_topic,
+      overall_pass:     true,
+      feedback: "Great job telling me about the book!",
     };
+  } else {
+    try {
+      grade = await gradeConversation({
+        book,
+        ageGrade: tutorSession.ageGrade,
+        transcript: tutorSession.transcript,
+        mode: "commit",
+      });
+    } catch (err) {
+      trackError("tutor_grade_failed", { err: String(err?.message || err) });
+      grade = {
+        retell_quality: 0,
+        character_recall: 0,
+        event_recall: 0,
+        stayed_on_topic: 0,
+        // Grader call failed (LLM down / network blip) — DO hold for
+        // admin review here. This is a tech fault, not a kid problem,
+        // and we shouldn't penalize them for our outage.
+        overall_pass: null,
+        feedback: "We're having trouble grading right now. We'll check this and get back to you!",
+      };
+    }
+  }
+
+  // Second-chance rule (#85): if the kid got a follow-up, the final
+  // score MUST exceed the preliminary AND clear the pass bar. A kid
+  // who restated the same low score twice doesn't earn the bonus.
+  // Skipped when:
+  //   - earlyPass: clear pass on turn 1, no follow-up was offered
+  //   - no preliminaryGrade: grader fell back (preview call failed)
+  //   - overall_pass === null: grader infrastructure fault, held path
+  if (
+    !tutorSession.earlyPass &&
+    tutorSession.preliminaryGrade &&
+    grade.overall_pass === true
+  ) {
+    const prelimTotal = totalRubricScore(tutorSession.preliminaryGrade);
+    const finalTotal = totalRubricScore(grade);
+    if (finalTotal <= prelimTotal || finalTotal < TUTOR_PASS_SCORE) {
+      grade.overall_pass = false;
+      grade.feedback =
+        "Thanks for telling me about the book! Next time, try sharing a bit more about what happened and who's in it.";
+      trackEvent("tutor_second_chance_failed", {
+        bookId: tutorSession.bookId,
+        prelimTotal,
+        finalTotal,
+      });
+    }
   }
 
   tutorSession.graded = true;

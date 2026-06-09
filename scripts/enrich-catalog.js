@@ -749,22 +749,19 @@ async function enrichOne(bookId, book, isbn) {
     fetchGoogleBooks(isbn).catch(() => null),
   ]);
 
-  // Editorial source preference order:
-  //   1. docs/book-summaries/<bookId>-*.md — hand-authored by the
-  //      app team, treated as HIGHEST trust (over Wikipedia + web
-  //      search results). Use this when you've personally verified
-  //      content against the printed book.
-  //   2. QUIZ_BOOKS[bookId].summary — the legacy short summary in
-  //      api/quiz.js. Lower trust than (1) but still treated as
-  //      editorial-grade.
-  // Both are passed alongside Wikipedia / Open Library / Google Books
-  // so the synthesizer can cross-validate.
+  // Editorial source: hand-authored docs/book-summaries/<bookId>-*.md only.
+  // The legacy QUIZ_BOOKS[bookId].summary fallback was retired (per
+  // user directive 2026-06): those short prose blurbs were the source
+  // of the "fight with Ned" / Jay-and-Kay class of hallucinations
+  // because they conflated training-data lore with verified text.
+  // Books without a hand-authored .md fall back to Wikipedia + Open
+  // Library + Google Books + web search only — no internal-summary
+  // contamination. Authors who want a book to have rich grounded
+  // facts should write a .md under docs/book-summaries/.
   const handAuthored = loadHandAuthoredSummary(bookId);
-  const editorialSummary = handAuthored || book.summary || null;
+  const editorialSummary = handAuthored || null;
   const editorialAvailable = !!(editorialSummary && editorialSummary.length > 50);
-  const editorialKind = handAuthored
-    ? "hand-authored"
-    : (editorialAvailable ? "legacy-prose" : "none");
+  const editorialKind = handAuthored ? "hand-authored" : "none";
 
   console.log(`   wiki:${wikipedia ? "✓" : "✗"} OL:${openLibrary ? "✓" : "✗"} GB:${googleBooks ? "✓" : "✗"} editorial:${editorialKind}`);
 

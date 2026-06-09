@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "generatedAt": "2026-06-09T01:36:45.493Z",
+  "generatedAt": "2026-06-09T03:32:36.700Z",
   "comment": "Auto-populated by scripts/enrich-catalog.js. Each record carries source-cited structured data per book (characters/items/plot_beats/specific_facts/unknown_fields). The quiz generator + QC enforce a closed-list citation contract against this data when a record exists. Run `node scripts/enrich-catalog.js` to populate.",
   "records": {
     "e07": {
       "bookId": "e07",
-      "cachedAt": 1780969005493,
+      "cachedAt": 1780975197659,
       "sources_found": {
         "wikipedia": true,
         "openLibrary": true,
@@ -17,639 +17,584 @@
         "openLibrary": "https://openlibrary.org/isbn/9780394800134"
       },
       "searched_urls": [
-        "https://seussblog.wordpress.com/2013/03/07/one-fish-two-fish-red-fish-blue-fish/",
-        "https://seuss.fandom.com/wiki/One_Fish_Two_Fish_Red_Fish_Blue_Fish",
+        "https://www.shmoop.com/one-fish-two-fish/boy-girl.html",
         "https://poemanalysis.com/dr-seuss/one-fish-two-fish-red-fish-blue-fish/",
-        "https://www.powells.com/book/one-fish-two-fish-red-fish-blue-fish-9780394800134",
-        "https://www.gradesaver.com/one-fish-two-fish-red-fish-blue-fish/study-guide/themes",
-        "https://dr-seuss-videos.livejournal.com/655.html",
-        "https://libquotes.com/dr-seuss/works/one-fish-two-fish-red-fish-blue-fish",
-        "https://www.gigwise.com/one-fish-two-fish-red-fish-blue-fish-dr-seuss-lyrics/",
-        "https://grizly.com/question/in-the-dr-seuss-classic-ione-fish-two-fish-red-fish-blue-fishi-what-does-mr-gump-own",
+        "https://seuss.fandom.com/wiki/One_Fish_Two_Fish_Red_Fish_Blue_Fish",
         "https://tvtropes.org/pmwiki/pmwiki.php/Literature/OneFishTwoFishRedFishBlueFish",
-        "https://www.cracked.com/blog/how-dr.-seuss-tried-to-battle-racism-and-failed-horribly",
+        "https://www.gigwise.com/one-fish-two-fish-red-fish-blue-fish-dr-seuss-lyrics/",
         "https://seuss.fandom.com/wiki/Mike",
-        "https://www.pinterest.com/pin/319403798547620844/",
-        "https://www.barnesandnoble.com/w/one-fish-two-fish-red-fish-blue-fish-dr-seuss/1101011554;jsessionid=E0A6A89C994BCDDBF7F041F28D55B879.prodny_store02-atgap05?ean=9780385372107&st=AFF&2sid=Random+House+Inc_8373827_NA&sourceId=AFFRandom+House+Inc",
-        "https://www.fbmarketplace.org/un-pez-dos-peces-pez-rojo-pez-azul-one-fish-two-fish-red-fish-blue-fish-spanish-edition-119140",
-        "https://www.kindergartenworksheetsandgames.com/rhyming-words-game/",
-        "https://kirezov-english.livejournal.com/3260.html",
-        "https://www.barnesandnoble.com/w/un-pez-dos-peces-pez-rojo-pez-azul-dr-seuss/1130737846;jsessionid=BBBADE5FAEEFF2FF1891603B49C9EB57.prodny_store01-atgap06?ean=9798217026234&st=AFF&2sid=Random+House+Inc_8373827_NA&sourceId=AFFRandom+House+Inc",
-        "https://www.amazon.com/ONE-FISH-TWO-Dr-Seuss/dp/0375834974",
-        "https://quillandinkstore.com/products/one-fish-two-fish-red-fish-blue-fish-i-can-read-it-all-by-myself",
-        "https://archiveofourown.org/works/1627229",
-        "https://lyrics.az/dr-seuss/-/one-fish-two-fish-red-fish-blue-fish.html",
-        "https://beelyrics.net/music/44415-dr-seuss/2251926-one-fish-two-fish-red-fish-blue-fish-lyrics.html",
-        "https://www.lindentreebooks.com/dr-seuss-library-one-fish-two-fish-red-fish-blue-f.html"
+        "https://www.gradesaver.com/one-fish-two-fish-red-fish-blue-fish/study-guide/character-list",
+        "https://dr-seuss-videos.livejournal.com/655.html",
+        "https://www.learnwithliann.com/early-storytelling-one-fish-two-fish-red-fish-blue-fish/",
+        "https://en.wikipedia.org/wiki/One_Fish,_Two_Fish,_Red_Fish,_Blue_Fish",
+        "https://www.shmoop.com/study-guides/one-fish-two-fish/ned.html",
+        "https://www.shmoop.com/one-fish-two-fish/neds-bed-symbol.html",
+        "https://seuss.fandom.com/wiki/Ned",
+        "https://newbookrecommendation.com/summary-of-one-fish-two-fish-red-fish-blue-fish-by-dr-seuss/",
+        "https://www.shmoop.com/one-fish-two-fish/characters.html",
+        "https://www.gradesaver.com/one-fish-two-fish-red-fish-blue-fish/study-guide/literary-elements"
       ],
       "record": {
-        "premise": "A rhyming picture book where two children (Jay and Kay) observe and describe many colorful fish and a parade of silly invented creatures with rhyming names, celebrating imagination and the fun of reading.",
+        "premise": "A rhyming picture book without one continuous plot. The narrator walks the reader through a parade of short rhyming scenes — first about lots of different fish, then about a long cast of made-up creatures whose names rhyme with what they do, what they wear, or what they own. The book celebrates rhyme, opposites, counting, and noticing funny things everywhere.",
         "characters": [
           {
-            "name": "Wump",
-            "role": "Creature with humps that can be ridden",
+            "name": "The child narrator(s)",
+            "role": "Unnamed narrator(s) who speak in first person ('I' or 'we') and guide the reader through the book",
             "source_ids": [
-              2,
               3
             ]
           },
           {
             "name": "Mr. Gump",
-            "role": "Man who owns a seven-hump Wump",
+            "role": "A man who owns a seven-hump Wump",
             "source_ids": [
-              3,
-              1,
-              5
-            ]
-          },
-          {
-            "name": "Mike",
-            "role": "Creature who sits on the back of the bike and pushes it up hills",
-            "source_ids": [
-              3,
-              10,
-              12,
-              17
+              3
             ]
           },
           {
             "name": "Ned",
-            "role": "Character who does not like his little bed because his feet stick out",
+            "role": "A small character whose little bed is too short for him",
             "source_ids": [
-              3,
-              5,
-              6
+              3
             ]
           },
           {
-            "name": "Yink",
-            "role": "Creature that likes to wink and drink pink ink",
+            "name": "Mike",
+            "role": "A creature who sits in the back of a bike made for three and pushes it up hills",
             "source_ids": [
-              2,
-              3,
-              20
-            ]
-          },
-          {
-            "name": "Yop",
-            "role": "Creature that likes to hop from finger top to finger top",
-            "source_ids": [
-              2,
-              29
-            ]
-          },
-          {
-            "name": "Nook",
-            "role": "Creature with a hook on his head holding a cookbook, but cannot read",
-            "source_ids": [
-              2,
-              11,
-              29
-            ]
-          },
-          {
-            "name": "Zans",
-            "role": "Creature that helps open cans",
-            "source_ids": [
-              3,
-              20,
-              24
-            ]
-          },
-          {
-            "name": "Gox",
-            "role": "Creature that the narrator boxes with",
-            "source_ids": [
-              4,
-              20,
-              12
-            ]
-          },
-          {
-            "name": "Ying",
-            "role": "Creature that can sing",
-            "source_ids": [
-              24,
-              29
-            ]
-          },
-          {
-            "name": "Zeds",
-            "role": "Yellow pets with one hair on their heads that need a haircut every day",
-            "source_ids": [
-              2,
-              15,
-              29
-            ]
-          },
-          {
-            "name": "Ish",
-            "role": "Character with a dish on his hand that helps him wish for fish",
-            "source_ids": [
-              12,
-              15,
-              31
-            ]
-          },
-          {
-            "name": "Gack",
-            "role": "Creature used in a game called Ring the Gack",
-            "source_ids": [
-              2,
-              15,
-              31
-            ]
-          },
-          {
-            "name": "Clark",
-            "role": "Creature found in the park in the dark that the children take home",
-            "source_ids": [
-              3,
-              15,
-              29
-            ]
-          },
-          {
-            "name": "Zeep",
-            "role": "Pet that the children sleep with at bedtime",
-            "source_ids": [
-              3,
-              15,
-              29
+              3
             ]
           },
           {
             "name": "Joe",
-            "role": "Character called on the phone",
+            "role": "Someone who is being telephoned",
             "source_ids": [
-              15,
-              29
+              3
+            ]
+          },
+          {
+            "name": "The Wump",
+            "role": "A humped creature you can ride; the narrator's Wump has one hump, Mr. Gump's has seven humps",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "The Nook",
+            "role": "A creature with a hook on his head holding a cookbook; can't read so can't cook",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "The Zans",
+            "role": "A creature whose job is to open cans",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "The Gox",
+            "role": "A creature the narrator boxes with",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "The Ying",
+            "role": "A creature that sings",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "The Yink",
+            "role": "A creature that likes to wink and drinks pink ink",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "The Yop",
+            "role": "A creature that hops from finger top to finger top",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "The Zeds",
+            "role": "Small yellow pets with one hair on top of each head; need a haircut every day",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "Ish",
+            "role": "A character with a dish in his hand that he uses to wish for fish",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "The Gack",
+            "role": "A creature used in a backyard game called 'Ring the Gack'",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "Clark",
+            "role": "A creature found in the park in the dark and taken home",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "Zeep",
+            "role": "A pet that is taken to bed at the end of the day",
+            "source_ids": [
+              3
             ]
           }
         ],
         "key_objects": [
           {
-            "item": "Bike",
-            "detail": "Made for three; Mike sits in back and does the work when hills get high",
+            "item": "A little star",
+            "detail": "Carried by one fish",
             "source_ids": [
-              3,
-              11,
-              12
+              3
             ]
           },
           {
-            "item": "Pink ink",
-            "detail": "What the Yink likes to drink",
+            "item": "A little car",
+            "detail": "Driven by another fish",
             "source_ids": [
-              3,
-              20,
-              24
+              3
             ]
           },
           {
-            "item": "Hook",
-            "detail": "On the Nook's head, holding a book",
+            "item": "A yellow hat",
+            "detail": "Worn by the fat fish",
             "source_ids": [
-              11,
-              29
+              3
             ]
           },
           {
-            "item": "Cookbook",
-            "detail": "Called 'How to Cook', hangs on the Nook's hook",
+            "item": "A bike made for three",
+            "detail": "Mike pushes it from the back up hills",
             "source_ids": [
-              11,
-              29
+              3
             ]
           },
           {
-            "item": "Dish",
-            "detail": "Ish uses it to wish for fish",
+            "item": "A little bed",
+            "detail": "Too small for Ned; his feet stick out",
             "source_ids": [
-              15,
-              31
+              3
+            ]
+          },
+          {
+            "item": "A hook",
+            "detail": "On the Nook's head, holding the cookbook 'How to Cook'",
+            "source_ids": [
+              3
             ]
           },
           {
             "item": "Cans",
-            "detail": "The Zans helps open them",
+            "detail": "Opened by the Zans",
             "source_ids": [
-              24,
-              29
+              3
             ]
           },
           {
             "item": "Yellow socks",
-            "detail": "Worn while boxing the Gox",
+            "detail": "Worn by the narrator while boxing the Gox",
             "source_ids": [
-              12,
-              24
+              3
             ]
           },
           {
-            "item": "Little bed",
-            "detail": "Ned's bed that he doesn't like because his feet stick out",
+            "item": "Yellow boxing gloves",
+            "detail": "Worn by the Gox (visible in illustration)",
             "source_ids": [
-              5,
-              6
+              3
             ]
           },
           {
-            "item": "Phone/wire",
-            "detail": "A mouse cuts the phone wire",
+            "item": "Pink ink",
+            "detail": "Drunk by the Yink",
             "source_ids": [
-              15,
-              29
+              3
             ]
           },
           {
-            "item": "Little star",
-            "detail": "One fish has a little star",
+            "item": "A dish",
+            "detail": "Used by Ish to wish for fish",
             "source_ids": [
-              3,
-              7
+              3
             ]
           },
           {
-            "item": "Little car",
-            "detail": "One fish has a little car",
+            "item": "A telephone wire",
+            "detail": "Chewed through by a mouse",
             "source_ids": [
-              3,
-              7
+              3
             ]
           }
         ],
         "plot_beats": [
           {
-            "beat": "The book opens by counting and describing fish: one fish, two fish, red fish, blue fish, black fish, old fish, new fish",
+            "beat": "The book opens with the famous rhyme: 'One fish, two fish, red fish, blue fish' followed by descriptions of different fish (black, blue, old, new, sad, glad, bad, thin, fat)",
             "source_ids": [
-              3,
-              7
+              3
             ]
           },
           {
-            "beat": "The narrator describes fish with different traits: some are sad, some are glad, some are bad; one has a little star, one has a little car",
+            "beat": "One fish has a little star; another has a little car; the fat fish has a yellow hat",
             "source_ids": [
-              3,
-              7,
-              14
+              3
             ]
           },
           {
-            "beat": "The narrator observes funny things everywhere as creatures parade by",
+            "beat": "A creature with eleven fingers is shown and counted",
             "source_ids": [
-              3,
-              11
+              3
             ]
           },
           {
-            "beat": "A creature with eleven fingers is shown, and the narrator wishes he had eleven too",
+            "beat": "The narrator rides a one-hump Wump and meets Mr. Gump with his seven-hump Wump",
             "source_ids": [
-              5,
-              6
+              3
             ]
           },
           {
-            "beat": "The children ride a Wump with one hump, while Mr. Gump has a seven-hump Wump",
+            "beat": "Ned is introduced; he doesn't like his little bed because his feet stick out, and a cow, dog, cat, and mouse all pile into the bed with him",
             "source_ids": [
-              1,
-              3,
-              5
+              3
             ]
           },
           {
-            "beat": "Ned complains about his little bed because his feet stick out all night",
+            "beat": "A bird is found inside someone's ear",
             "source_ids": [
-              5,
-              6
+              3
             ]
           },
           {
-            "beat": "Mike rides on the bike made for three and does all the work pushing it up hills",
+            "beat": "Mike sits at the back of a bike made for three and does the work pushing it up the hills",
             "source_ids": [
-              3,
-              11,
-              12
+              3
             ]
           },
           {
-            "beat": "A cow, dog, cat, and mouse get into Ned's bed",
+            "beat": "The Nook is shown with his hook and cookbook, unable to read or cook",
             "source_ids": [
-              5,
-              6
+              3
             ]
           },
           {
-            "beat": "A bird is found in someone's ear, then removed",
+            "beat": "By moonlight, sheep are seen walking in their sleep",
             "source_ids": [
-              11,
-              14
+              3
             ]
           },
           {
-            "beat": "The Nook tries to cook using a cookbook on a hook, but cannot read so cannot cook",
+            "beat": "The Zans opens lots of cans",
             "source_ids": [
-              11,
-              29
+              3
             ]
           },
           {
-            "beat": "Sheep are seen walking in their sleep by moonlight",
+            "beat": "The narrator boxes the Gox while wearing yellow socks",
             "source_ids": [
-              29,
-              33
+              3
             ]
           },
           {
-            "beat": "The Zans helps open many cans",
+            "beat": "The narrator sings along with the Ying",
             "source_ids": [
-              24,
-              29
-            ]
-          },
-          {
-            "beat": "The narrator boxes a Gox in yellow socks",
-            "source_ids": [
-              24,
-              29
-            ]
-          },
-          {
-            "beat": "The Ying sings with the narrator",
-            "source_ids": [
-              24,
-              29
+              3
             ]
           },
           {
             "beat": "The Yink drinks pink ink and likes to wink",
             "source_ids": [
-              3,
-              24,
-              29
+              3
             ]
           },
           {
-            "beat": "The Yop hops from finger top to finger top",
+            "beat": "The Yop hops from finger tip to finger tip",
             "source_ids": [
-              29,
-              31
+              3
             ]
           },
           {
-            "beat": "A pet with blue hair is fun to brush and comb",
+            "beat": "A pet with blue hair is described as fun to brush and comb",
             "source_ids": [
-              1,
-              29
+              3
             ]
           },
           {
-            "beat": "A girl walks with ten cats on her head",
+            "beat": "The Zeds (yellow, one hair, daily haircut) appear",
             "source_ids": [
-              12,
-              15,
-              27
+              3
             ]
           },
           {
-            "beat": "Someone calls Joe on the phone but a mouse has cut the wire",
+            "beat": "A child walks past with ten cats on her head",
             "source_ids": [
-              15,
-              29
+              3
             ]
           },
           {
-            "beat": "The yellow Zeds have one hair on their heads and need a haircut every day",
+            "beat": "Someone tries to phone Joe, but a mouse has cut the wire",
             "source_ids": [
-              15,
-              29
+              3
             ]
           },
           {
             "beat": "Ish uses his dish to wish for fish",
             "source_ids": [
-              15,
-              31
+              3
             ]
           },
           {
-            "beat": "The children play Ring the Gack in their backyard",
+            "beat": "The backyard game 'Ring the Gack' is played",
             "source_ids": [
-              15,
-              31
+              3
             ]
           },
           {
-            "beat": "The children find Clark in the park in the dark and take him home",
+            "beat": "Clark is found in the park in the dark and taken home",
             "source_ids": [
-              15,
-              29
+              3
             ]
           },
           {
-            "beat": "At bedtime, the children sleep with their pet Zeep",
+            "beat": "At bedtime the narrator sleeps with the pet Zeep",
             "source_ids": [
-              3,
-              15,
-              29
+              3
             ]
           },
           {
-            "beat": "The book ends with: Today is gone, today was fun, tomorrow is another one",
+            "beat": "The book closes with: 'Today is gone. Today was fun. Tomorrow is another one.' and the idea that funny things are everywhere",
             "source_ids": [
-              20,
-              29,
-              32
+              3
             ]
           }
         ],
-        "setting": "An imaginative world where funny creatures are everywhere, including the children's house, backyard, a park, and various fantastical locations",
+        "setting": "A bright, made-up world. Scenes move quickly between the children's home and bedroom, a backyard, a park at night, hills where a bike has to be pushed, and open imaginary space where each new creature appears. There is no single fixed location.",
         "themes": [
-          "Imagination and creativity",
-          "Celebrating differences and diversity",
-          "The joy of reading and rhyming",
-          "Opposites (old/new, sad/glad, high/low)",
-          "Counting",
-          "Fun is good"
+          "Imagination and inventing things",
+          "Celebrating differences",
+          "Opposites (old/new, sad/glad, here/there, thin/fat)",
+          "Counting and numbers",
+          "The fun of rhyme and reading aloud"
         ],
         "specific_facts": [
           {
-            "fact": "Mr. Gump's Wump has seven humps",
+            "fact": "The four title fish are: one fish, two fish, red fish, blue fish",
             "source_ids": [
-              1,
-              3,
-              5
+              3
             ]
           },
           {
-            "fact": "The children's Wump has just one hump",
+            "fact": "Other fish described in the opening: black fish, blue fish, old fish, new fish",
             "source_ids": [
-              1,
-              5,
-              6
-            ]
-          },
-          {
-            "fact": "The bike is made for three",
-            "source_ids": [
-              3,
-              11,
-              6
-            ]
-          },
-          {
-            "fact": "Mike sits up in back of the bike",
-            "source_ids": [
-              3,
-              11,
-              17
-            ]
-          },
-          {
-            "fact": "One creature has eleven fingers",
-            "source_ids": [
-              5,
-              6
-            ]
-          },
-          {
-            "fact": "The Yink drinks pink ink",
-            "source_ids": [
-              3,
-              20,
-              24
-            ]
-          },
-          {
-            "fact": "The Zeds are yellow",
-            "source_ids": [
-              15,
-              29
-            ]
-          },
-          {
-            "fact": "The Zeds have one hair on their heads",
-            "source_ids": [
-              15,
-              29
-            ]
-          },
-          {
-            "fact": "The Zeds need a haircut every day",
-            "source_ids": [
-              15,
-              29
-            ]
-          },
-          {
-            "fact": "The Nook has a hook on his head",
-            "source_ids": [
-              11,
-              29
-            ]
-          },
-          {
-            "fact": "The Nook's book is called 'How to Cook'",
-            "source_ids": [
-              11,
-              29
-            ]
-          },
-          {
-            "fact": "The Nook can't read, so the Nook can't cook",
-            "source_ids": [
-              11,
-              29
-            ]
-          },
-          {
-            "fact": "A girl walks with ten cats on her head",
-            "source_ids": [
-              12,
-              15,
-              27
-            ]
-          },
-          {
-            "fact": "The Gox wears yellow boxing gloves",
-            "source_ids": [
-              12
-            ]
-          },
-          {
-            "fact": "The narrator boxes the Gox in yellow socks",
-            "source_ids": [
-              24,
-              29
-            ]
-          },
-          {
-            "fact": "Clark is found in the park in the dark",
-            "source_ids": [
-              15,
-              29
-            ]
-          },
-          {
-            "fact": "The old fish wears glasses",
-            "source_ids": [
-              12
-            ]
-          },
-          {
-            "fact": "The fat fish wears a hat",
-            "source_ids": [
-              6,
-              12
+              3
             ]
           },
           {
             "fact": "One fish has a little star",
             "source_ids": [
-              3,
-              7
+              3
             ]
           },
           {
             "fact": "One fish has a little car",
             "source_ids": [
-              3,
-              7
+              3
             ]
           },
           {
-            "fact": "A mouse cuts the phone wire",
+            "fact": "Some fish are sad, some are glad, and some are very, very bad",
             "source_ids": [
-              15,
-              29
+              3
             ]
           },
           {
-            "fact": "The pet with blue hair is fun to brush and comb",
+            "fact": "Some fish are thin, some are fat",
             "source_ids": [
-              29,
-              31
+              3
+            ]
+          },
+          {
+            "fact": "The fat fish has a yellow hat",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "A creature in the book has eleven fingers",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The narrator's Wump has one hump",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Mr. Gump's Wump has seven humps",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Riding the Wump sounds like 'Bump! Bump! Bump!'",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Ned's bed is too small; his feet stick out",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Animals that pile into Ned's bed: cow, dog, cat, mouse",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "A bird is found inside someone's ear",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The bike is made for three; Mike sits in the back and does the work uphill",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The Nook has a hook on his head holding the cookbook 'How to Cook'",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The Nook can't read, so he can't cook",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Sheep are seen walking in their sleep by moonlight",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The Zans opens cans",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The narrator boxes the Gox wearing yellow socks; the Gox wears yellow boxing gloves",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The Yink drinks pink ink and likes to wink",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The Yop hops from finger top to finger top",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "A pet has blue hair that is fun to brush and comb",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The Zeds are yellow, have one hair on their heads, and need a haircut every day",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "A girl walks past with ten cats on her head",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "A mouse cuts the phone wire when someone is trying to call Joe",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Ish uses a dish to wish for fish",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The backyard game is called 'Ring the Gack'",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Clark is found in the park in the dark",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The bedtime pet at the end is Zeep",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Closing rhyme: 'Today is gone. Today was fun. Tomorrow is another one.'",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The book closes with the idea that funny things are everywhere",
+            "source_ids": [
+              3
             ]
           }
         ],
         "confidence": "high",
         "unknown_fields": [
-          "exact_number_of_fish_shown",
-          "ages_of_Jay_and_Kay",
-          "what_species_Clark_is",
-          "what_species_Zeep_is",
-          "color_of_the_Wump",
-          "how_many_cats_wear_pink_bows",
-          "exact_number_of_creatures_in_the_book",
-          "what_the_Gack_looks_like",
-          "names_of_the_children_narrators",
-          "specific_names_for_the_human_children"
-        ],
-        "_editorialNotes": [
-          {
-            "ts": "2026-06-09T02:01:37.609Z",
-            "note": "User correction (book owner): \"Jay and Kay are NOT in the book. Multiple online sources (poemanalysis, seuss.fandom) name the kids as Jay and Kay but the book does not. Removed from characters + facts; added to unknown_fields. Confirmed: the Gox illustration DOES show yellow boxing gloves on the Gox; both the Gox-gloves and narrator-yellow-socks facts are valid (text says \"In yellow socks I box my Gox. I box in yellow Gox box socks\" + illustration corroborates the gloves)."
-          }
+          "names_of_child_narrators (the book does not name them; web sources claim 'Jay and Kay' from a different book but the authoritative source confirms they are unnamed in this book)",
+          "exact_species_of_Mike",
+          "exact_species_of_Ned",
+          "exact_species_of_Clark",
+          "color_of_the_bike",
+          "number_of_cats_bows_color (web source mentions pink bows but not confirmed by authoritative source)",
+          "exact_number_of_cans_the_Zans_opens",
+          "exact_number_of_sheep_walking_in_sleep"
         ]
       }
     },
@@ -1082,6 +1027,1915 @@
           "who owns the farm",
           "how long the chase lasts",
           "exact words or rhymes used in the book"
+        ]
+      }
+    },
+    "a01": {
+      "bookId": "a01",
+      "cachedAt": 1780975283946,
+      "sources_found": {
+        "wikipedia": true,
+        "openLibrary": true,
+        "googleBooks": false,
+        "webSearch": true
+      },
+      "source_urls": {
+        "wikipedia": "https://en.wikipedia.org/wiki/The_Tale_of_Peter_Rabbit",
+        "openLibrary": "https://openlibrary.org/isbn/9780723247708"
+      },
+      "searched_urls": [
+        "https://inliterature.net/peter-rabbit/peter-rabbit-menus-recipes/",
+        "https://www.columbianprogress.com/features/adventures-eating-peter-rabbit-describes-food-tea-rural-england",
+        "https://peterrabbit.com/the-gardens-of-peter-rabbit/",
+        "https://www.quirkbooks.com/post/five-delicious-foods-peter-rabbit-could-have-risked-his-life",
+        "http://www.picklesink.com/the-true-tale-of-peter-rabbit/",
+        "https://www.bookey.app/book/the-tale-of-peter-rabbit",
+        "https://ririro.com/bedtime-stories/the-tale-of-peter-rabbit/",
+        "https://en.wikipedia.org/wiki/Peter_Rabbit",
+        "https://www.feastofstarlight.com/the-tale-of-peter-rabbit-crudite-platter/",
+        "https://www.penguin.co.uk/discover/articles/peter-rabbit-brand-evolution",
+        "https://philosophicalsabotage.wordpress.com/2015/06/23/his-little-blue-coat-peter-rabbit-and-the-fragile-line-between-animals-and-human-animals/",
+        "https://www.rjohnwright.com/products/peter-rabbit-copy",
+        "https://jdaniel4smom.com/2018/03/counting-the-buttons-on-peter-rabbits-jacket-activity.html",
+        "https://www.rjohnwright.com/products/peter-rabbit-outfit",
+        "https://www.etsy.com/market/peter_rabbit_buttons",
+        "https://pb.openlcc.net/childrensliteratureatradition/chapter/the-tale-of-peter-rabbit-by-beatrix-potter/",
+        "https://pdsh.fandom.com/wiki/Peter_Rabbit",
+        "https://www.colourlovers.com/color/1596B3/Peter_Rabbits_Coat"
+      ],
+      "record": {
+        "premise": "A small rabbit named Peter ignores his mother's warning and sneaks into a gardener's forbidden garden, where he eats too many vegetables, is chased, loses his clothes, and only just escapes home — ending up sick in bed while his obedient sisters enjoy a proper supper.",
+        "characters": [
+          {
+            "name": "Peter Rabbit",
+            "role": "The naughty young rabbit protagonist who disobeys his mother and sneaks into Mr. McGregor's garden",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "Flopsy",
+            "role": "One of Peter's three obedient sisters",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "Mopsy",
+            "role": "One of Peter's three obedient sisters",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "Cotton-tail",
+            "role": "One of Peter's three obedient sisters",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "Mrs. Rabbit",
+            "role": "Peter's mother who warns the children and cares for Peter when he returns home",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "Peter's father",
+            "role": "Only mentioned; he had an accident in Mr. McGregor's garden and was put in a pie by Mrs. McGregor",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "Mr. McGregor",
+            "role": "The gardener who chases Peter through the garden",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "Mrs. McGregor",
+            "role": "Mr. McGregor's wife; mentioned only as the one who put Peter's father in a pie",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "Friendly sparrows",
+            "role": "Small birds who fly down to Peter when he is stuck in the net and implore him to exert himself",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "A white cat",
+            "role": "Peter sees it staring at some goldfish in a pond; he walks away without speaking to it",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "An old mouse",
+            "role": "Running in and out carrying peas and beans to her family; Peter asks her the way to the gate but she cannot answer because she has a large pea in her mouth",
+            "source_ids": [
+              100
+            ]
+          }
+        ],
+        "key_objects": [
+          {
+            "item": "Peter's blue jacket",
+            "detail": "Blue with brass buttons, described as 'quite new'; gets caught in the gooseberry net and ends up on the scarecrow",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "Peter's shoes",
+            "detail": "One lost among the cabbages, one among the potatoes",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "A loaf of brown bread and five currant buns",
+            "detail": "What Mrs. Rabbit buys at the baker's",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "A cucumber frame",
+            "detail": "Where Peter and Mr. McGregor first meet",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "A gooseberry net",
+            "detail": "Where Peter gets stuck because of his jacket buttons",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "A sieve",
+            "detail": "Mr. McGregor's tool for trying to catch Peter",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "A watering can",
+            "detail": "Peter's hiding place in the tool shed; it has water in it",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "A wheelbarrow",
+            "detail": "Peter climbs on it to see the gate",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "A scare-crow",
+            "detail": "Mr. McGregor hangs Peter's jacket and shoes on it to frighten blackbirds",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "Camomile tea",
+            "detail": "Peter's bedtime medicine, one tablespoonful",
+            "source_ids": [
+              3
+            ]
+          }
+        ],
+        "plot_beats": [
+          {
+            "beat": "Mrs. Rabbit warns Flopsy, Mopsy, Cotton-tail, and Peter not to go into Mr. McGregor's garden because their father had an accident there and was put in a pie by Mrs. McGregor",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Mrs. Rabbit goes through the wood to the baker's and buys a loaf of brown bread and five currant buns",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Flopsy, Mopsy, and Cotton-tail go off to gather blackberries",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Peter disobeys and runs straight to Mr. McGregor's garden, squeezing under the gate",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Peter eats lettuces, then French beans, then radishes; feeling sick, he looks for parsley",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Round the end of a cucumber frame, Peter meets Mr. McGregor, who chases him shouting 'Stop thief!'",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Peter loses one shoe among the cabbages and the other shoe amongst the potatoes",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Peter gets stuck in a gooseberry net when the large buttons on his jacket catch",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Friendly sparrows fly to Peter and beg him to exert himself",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Mr. McGregor comes with a sieve to catch Peter, but Peter wriggles out just in time, leaving his jacket behind",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Peter rushes into a tool shed and jumps into a watering can that has water in it",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Peter sneezes ('Kertyschoo!') and Mr. McGregor begins searching the shed",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Peter jumps out a window, upsetting three plants; Mr. McGregor cannot fit through and goes back to work",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Peter sees a white cat staring at goldfish by a pond and decides to walk away without speaking to it",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Peter climbs onto a wheelbarrow and spots the gate beyond Mr. McGregor",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Peter runs as fast as he can and slips underneath the gate to safety",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Mr. McGregor hangs the lost jacket and shoes on a scare-crow to frighten the blackbirds",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Peter runs home and flops down; his mother wonders what he has done with his clothes — it is the second jacket and shoes he has lost in a fortnight",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Peter is not well; Mrs. Rabbit puts him to bed and gives him camomile tea — one tablespoonful at bedtime",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Flopsy, Mopsy, and Cotton-tail have bread and milk and blackberries for supper",
+            "source_ids": [
+              3
+            ]
+          }
+        ],
+        "setting": "The countryside. The rabbits live in a sand-bank, underneath the root of a very big fir tree. Most of the story takes place in Mr. McGregor's garden, which contains rows of vegetables, a cucumber frame, gooseberry nets, a tool shed, and a gate.",
+        "themes": [
+          "Obedience versus disobedience",
+          "Curiosity and temptation",
+          "Consequences of misbehavior",
+          "Family contrast between obedient and naughty children"
+        ],
+        "specific_facts": [
+          {
+            "fact": "The four rabbit children's names in order: Flopsy, Mopsy, Cotton-tail, and Peter",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The rabbit family lives in a sand-bank, underneath the root of a very big fir tree",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Peter wears a blue jacket with brass buttons (described as 'quite new') and shoes",
+            "source_ids": [
+              3,
+              100
+            ]
+          },
+          {
+            "fact": "Peter's father was put in a pie by Mrs. McGregor",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Mrs. Rabbit buys a loaf of brown bread and five currant buns at the baker's",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The three good sisters gather blackberries",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Peter eats lettuces, French beans, and radishes, in that order",
+            "source_ids": [
+              3,
+              100
+            ]
+          },
+          {
+            "fact": "Peter looks for parsley after eating too much",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Peter meets Mr. McGregor round the end of a cucumber frame",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Mr. McGregor shouts 'Stop thief!'",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Peter loses one shoe among the cabbages and the other shoe among the potatoes",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Peter gets stuck in a gooseberry net",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The large brass buttons on Peter's jacket get caught in the net",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Sparrows encourage Peter to exert himself",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Mr. McGregor tries to trap Peter with a sieve",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Peter hides inside a watering can that has water in it",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Peter sneezes 'Kertyschoo!' which gives him away",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Peter upsets three plants when jumping out the window",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Peter sees a white cat staring at goldfish by a pond",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Peter climbs on a wheelbarrow to see the gate",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Peter escapes by slipping underneath the gate",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Mr. McGregor hangs Peter's clothes on a scare-crow to frighten blackbirds",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "This is the second little jacket and pair of shoes Peter has lost in a fortnight",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Mrs. Rabbit gives Peter camomile tea — one tablespoonful at bedtime",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Flopsy, Mopsy, and Cotton-tail have bread and milk and blackberries for supper",
+            "source_ids": [
+              3
+            ]
+          }
+        ],
+        "confidence": "high",
+        "unknown_fields": [
+          "Peter's age",
+          "exact number of buttons on Peter's jacket",
+          "color of Peter's shoes",
+          "names of the sparrows",
+          "name of the white cat",
+          "exact time of day the story takes place",
+          "season when the story takes place"
+        ]
+      }
+    },
+    "a02": {
+      "bookId": "a02",
+      "cachedAt": 1780975365689,
+      "sources_found": {
+        "wikipedia": true,
+        "openLibrary": true,
+        "googleBooks": false,
+        "webSearch": true
+      },
+      "source_urls": {
+        "wikipedia": "https://en.wikipedia.org/wiki/Arnold_Lobel",
+        "openLibrary": "https://openlibrary.org/isbn/9780064440349"
+      },
+      "searched_urls": [],
+      "record": {
+        "premise": "Five gentle, slightly silly short stories about a sweet and slightly anxious Owl who lives by himself in a small house. Owl gets into small misadventures — letting Winter inside, being afraid of the bumps at the bottom of his bed, making tea out of tears, trying to be in two places at once, and befriending the moon.",
+        "characters": [
+          {
+            "name": "Owl",
+            "role": "Main character who lives alone in a small house; appears in every story as the gentle, worried hero",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "Winter",
+            "role": "A guest in the first story who knocks on the door and is invited in; treated as a character who can knock, be invited in, and be shouted out",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "The Moon",
+            "role": "Owl's friend in the last story; treated as a character rather than just scenery",
+            "source_ids": [
+              3
+            ]
+          }
+        ],
+        "key_objects": [
+          {
+            "item": "The fire",
+            "detail": "In Owl's hearth; important in The Guest and Strange Bumps",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "Buttered toast",
+            "detail": "What Owl serves Winter",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "Hot pea soup",
+            "detail": "What Owl serves Winter; Winter freezes it into hard green ice",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "Owl's bed",
+            "detail": "The bed Owl jumps on and that crashes down in Strange Bumps",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "The kettle",
+            "detail": "Owl cries into it to make tear-water tea",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "The staircase",
+            "detail": "Has twenty steps; Owl runs up and down it in Upstairs and Downstairs",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "The tenth step",
+            "detail": "Where Owl finally sits down to rest",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "The large rock at the seashore",
+            "detail": "Where Owl meets the moon",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "The bedroom window",
+            "detail": "Where the moon shines in at the very end",
+            "source_ids": [
+              3
+            ]
+          }
+        ],
+        "plot_beats": [
+          {
+            "beat": "Story 1 (The Guest): Owl is at home by his fire when something knocks at the door; he invites Winter in",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Story 1: Owl serves Winter buttered toast and hot pea soup",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Story 1: Winter blows out the fire, whirls snow up the stairs, makes window shades flap, and turns the pea soup into hard green ice",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Story 1: Owl shouts at Winter to leave; Winter rushes out and slams the door",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Story 2 (Strange Bumps): In bed at night, Owl notices two strange bumps at the bottom of his bed under the blanket",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Story 2: Owl tries to get rid of the bumps by pulling off covers, moving his feet, and jumping on the bed until the bed crashes down",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Story 2: Frightened, Owl goes downstairs and sleeps in his chair near the fire; the bumps were his own two feet",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Story 3 (Tear-Water Tea): Owl puts a kettle on his lap and thinks of sad things until he cries enough tears to fill it",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Story 3: Owl boils the kettle and drinks his tea, saying it tastes a little bit salty",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Story 4 (Upstairs and Downstairs): Owl tries to be upstairs and downstairs at the same time by running up and down his twenty-step staircase",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Story 4: Tired out, Owl sits down on the tenth step (the middle) and rests",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Story 5 (Owl and the Moon): Owl sits on a large rock at the seashore and talks to the moon, saying they must be very good friends",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Story 5: A cloud covers the moon and Owl feels sad, thinking the moon has gone away",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Story 5: Owl walks home; the moon shines through his bedroom window and Owl falls asleep no longer feeling sad",
+            "source_ids": [
+              3
+            ]
+          }
+        ],
+        "setting": "Owl's own house — a cosy home with a fire, a chair, a bed upstairs, a staircase, a kettle and a pea-soup pot. One story also takes place at the seashore, on a large rock, looking out at the moon.",
+        "themes": [
+          "Being on your own and quiet solitary domestic life",
+          "Small worries and small comforts",
+          "Feelings — being scared, sad, lonely, and satisfied",
+          "Friendship",
+          "Accepting you can't be in two places at once"
+        ],
+        "specific_facts": [
+          {
+            "fact": "The book contains five short stories",
+            "source_ids": [
+              2,
+              3
+            ]
+          },
+          {
+            "fact": "The five story titles in order are: The Guest, Strange Bumps, Tear-Water Tea, Upstairs and Downstairs, Owl and the Moon",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Owl lives by himself",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "In The Guest, the visitor Owl invites in is Winter",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Owl serves Winter buttered toast and hot pea soup",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Winter turns the pea soup into hard green ice",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Winter blows out the fire, whirls snow up the stairs, and slams the door when he leaves",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "In Strange Bumps, Owl sees two strange bumps at the bottom of his bed",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Owl is afraid the bumps will grow bigger in the night",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The bumps are actually Owl's own two feet",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "After his bed crashes, Owl sleeps in his chair near the fire downstairs",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "In Tear-Water Tea, Owl makes tea by crying into a kettle",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Sad things Owl thinks about include: chairs with broken legs, forgotten songs, spoons behind the stove, books with torn pages, stopped clocks, mornings nobody saw, uneaten mashed potatoes, and pencils too short to use",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Owl says the tear-water tea tastes a little bit salty",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "In Upstairs and Downstairs, Owl's staircase has twenty steps",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Owl wants to be upstairs and downstairs at the same time",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Owl rests on the tenth step, which is the middle",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "In Owl and the Moon, Owl is sitting on a large rock at the seashore",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Owl says to the moon: We must be very good friends",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "When a cloud covers the moon, Owl feels sad",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "At the very end, the moon shines through Owl's bedroom window and Owl falls asleep",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Owl says it is always a little sad to say goodbye to a friend",
+            "source_ids": [
+              3
+            ]
+          }
+        ],
+        "confidence": "high",
+        "unknown_fields": [
+          "Owl's age",
+          "Color of Owl's house",
+          "What season or time of year the other stories take place (besides Winter in The Guest)",
+          "Whether Owl has any family members",
+          "The exact color of Owl's feathers or clothing",
+          "How long Owl has lived in his house",
+          "Names of any neighbors or other animals nearby"
+        ]
+      }
+    },
+    "a03": {
+      "bookId": "a03",
+      "cachedAt": 1780975430542,
+      "sources_found": {
+        "wikipedia": true,
+        "openLibrary": true,
+        "googleBooks": false,
+        "webSearch": true
+      },
+      "source_urls": {
+        "wikipedia": "https://en.wikipedia.org/wiki/Frog_and_Toad_Are_Friends",
+        "openLibrary": "https://openlibrary.org/isbn/9780064440202"
+      },
+      "searched_urls": [
+        "https://en.wikipedia.org/wiki/Frog_and_Toad_Are_Friends",
+        "https://www.goodreads.com/book/show/537296.Frog_and_Toad_Are_Friends",
+        "https://www.wheelockfamilytheatre.org/wp-content/uploads/2020/07/a-year-with-frog-and-toad-study-guide.pdf",
+        "https://www.bookey.app/book/frog-and-toad-are-friends",
+        "https://www.commonsensemedia.org/book-reviews/frog-and-toad-are-friends",
+        "https://en.wikipedia.org/wiki/Frog_and_Toad",
+        "https://grokipedia.com/page/Frog_and_Toad_Are_Friends",
+        "https://www.readingrockets.org/books-and-authors/books/frog-and-toad-are-friends",
+        "https://verilymag.com/2019/03/what-frog-and-toad-can-teach-readers-of-all-ages",
+        "https://shop.scholastic.com/teachers-ecommerce/teacher/books/frog-and-toad-are-friends-9780590045292.html",
+        "https://www.psi-solutions.org/wp-content/uploads/2014/09/Frog-and-Toad-Spring.doc",
+        "https://sherlockcenter.ric.edu/sites/sherlock/files/files/2024-01/frog-toad-friends-bk.pdf",
+        "https://accessibletheatreproject.wordpress.com/our-past-shows/2017-2/dmr-adventures-frog-and-toad/plot-synopsis/",
+        "https://frog-and-toad.fandom.com/wiki/Frog_and_Toad_Are_Friends_(book)",
+        "https://www.drttmk.com/books/frog-and-toad-are-friends",
+        "https://www.pluggedin.com/book-reviews/frog-and-toad-are-friends/",
+        "https://www.mtishows.com/print/node/1285",
+        "https://www.mtishows.com/full-synopsis/1285",
+        "https://www.richlandlibrary.com/blog/2020-07-24/iread-50-years-frog-and-toad"
+      ],
+      "record": {
+        "premise": "Five gentle short stories about two friends — Frog and Toad — who do everything together even though they have very different temperaments. Frog is usually calm, helpful, and patient; Toad is grumpy, anxious, and easily worried. Each story is built around something simple in their friendship: waking up in spring, telling a story, losing a button, going for a swim, and waiting for the mail.",
+        "characters": [
+          {
+            "name": "Frog",
+            "role": "Main character; the taller, greener, more cheerful of the two friends. Patient, kind, and a fixer of problems.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "Toad",
+            "role": "Main character; the shorter, browner, grumpier friend. Worries, gets cross, and is the more emotional of the pair.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "Sparrow",
+            "role": "Minor character who appears in A Lost Button; hands Toad a wrong button (two-holed).",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "Raccoon",
+            "role": "Minor character who appears in A Lost Button; hands Toad a wrong button (square).",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "Turtle",
+            "role": "Minor character who appears in A Swim; watches Toad from the riverbank.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "Lizards",
+            "role": "Minor characters who appear in A Swim; watch Toad from the riverbank.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "Snake",
+            "role": "Minor character who appears in A Swim; watches Toad from the riverbank.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "Dragonflies",
+            "role": "Minor characters who appear in A Swim; watch Toad from the riverbank.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "Field Mouse",
+            "role": "Minor character who appears in A Swim; watches Toad from the riverbank.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "Snail",
+            "role": "Minor character in The Letter; Frog asks Snail to carry the letter to Toad.",
+            "source_ids": [
+              3
+            ]
+          }
+        ],
+        "key_objects": [
+          {
+            "item": "Toad's calendar",
+            "detail": "Frog tears off the pages for November, December, January, February, March, and April to trick Toad into thinking it is May.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "Toad's jacket",
+            "detail": "Loses a button; later ends up covered in wrong buttons and given to Frog as a present.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "The lost button",
+            "detail": "White, big, round, thick, with four holes; eventually found on Toad's own floor.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "Toad's bathing suit",
+            "detail": "The source of all the embarrassment in A Swim; Toad thinks he looks funny in it.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "The letter",
+            "detail": "Short letter from Frog to Toad, signed 'Your best friend, Frog.'",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "The mailbox",
+            "detail": "Toad's mailbox is always empty until the snail finally arrives.",
+            "source_ids": [
+              3
+            ]
+          }
+        ],
+        "plot_beats": [
+          {
+            "beat": "Story 1 (Spring): Frog wakes up on a sunny spring morning and runs to Toad's house to wake him up.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Toad refuses to get up and tells Frog to come back and wake him up at about half past May.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Frog tears off six calendar pages (November, December, January, February, March, and April) so Toad will think it is already May.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Toad gets up and they go outside together.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Story 2 (The Story): Frog is not feeling well; Toad says he looks quite green.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Toad tries hard to think of a story: he walks up and down the porch, stands on his head, pours a glass of water over his head, and bangs his head against the wall.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Toad cannot think of a story and goes to bed feeling unwell. Frog is feeling better and tells Toad a story instead.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Story 3 (A Lost Button): Frog and Toad go on a long walk across a meadow, through the woods, and along the river.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "When they get home, Toad realizes a button has come off his jacket. He describes it as white, big, round, thick, and four-holed.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "They retrace their walk. Frog finds a black button, Sparrow brings a two-holed button, Frog finds a small button, Raccoon brings a square button, and Frog finds a thin button — all wrong.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Toad gets crosser and crosser, throws the wrong buttons up in the air, and stomps home.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Toad finds his real button lying on the floor of his house.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Toad feels guilty for shouting, sews all the wrong buttons onto his jacket, and gives the jacket to Frog as a present.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Story 4 (A Swim): Frog and Toad go to the river for a swim. Toad puts on a bathing suit and thinks he looks funny in it.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "While Toad is in the water, animals arrive on the bank one by one: Turtle, Lizards, Snake, Dragonflies, Field Mouse — all curious to see Toad in his bathing suit.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Toad stays in the water a long time and gets cold. When he finally gets out, all the animals and Frog laugh at him because he does look funny.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Toad picks up his clothes and goes home.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Story 5 (The Letter): Toad sits sadly on the front porch because he has never had any mail — his mailbox is always empty.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Frog runs home and writes Toad a letter, then gives it to a snail to deliver.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Frog goes back and sits on Toad's porch with him to wait. Frog tells Toad what the letter says: 'Dear Toad, I am glad that you are my best friend. Your best friend, Frog.'",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Toad says it is a very good letter. They sit on the porch together feeling happy.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Four days later the snail arrives at Toad's door with the letter. Toad is very pleased to have it.",
+            "source_ids": [
+              3
+            ]
+          }
+        ],
+        "setting": "A gentle, illustrated world of small woodland houses, porches, paths through a meadow, woods, and a river. Frog and Toad each live in their own small house, and they visit each other often. The setting is calm, rural, and out of any specific time.",
+        "themes": [
+          "Friendship through differences",
+          "Kindness and patience",
+          "Small feelings matter",
+          "Saying sorry without saying sorry",
+          "The pleasure of waiting"
+        ],
+        "specific_facts": [
+          {
+            "fact": "The book has five short stories.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Story titles, in order: Spring, The Story, A Lost Button, A Swim, The Letter.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The two main friends are Frog and Toad.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "In Spring, Toad wants to keep sleeping until 'half past May.'",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Frog tricks Toad by tearing off six calendar pages: November, December, January, February, March, and April.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "In The Story, Frog feels ill and Toad says he looks 'quite green.'",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Four things Toad does trying to think of a story: walks up and down the porch, stands on his head, pours a glass of water over his head, bangs his head against the wall.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "At the end of The Story, Frog tells Toad a story (not Toad telling Frog).",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "In A Lost Button, Toad's missing button is: white, big, round, thick, and has four holes.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The order of wrong buttons found: black (by Frog), two-holed (by Sparrow), small (by Frog), square (by Raccoon), thin (by Frog).",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Toad finally finds his real button on the floor of his own house.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Toad sews all the wrong buttons on a jacket and gives the jacket to Frog.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "In A Swim, Frog and Toad swim in the river.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Toad is embarrassed because he thinks he looks funny in his bathing suit.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Animals who come to look at Toad, in order: Turtle, Lizards, Snake, Dragonflies, Field Mouse.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "At the end of A Swim, everyone laughs at Toad — including Frog.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "In The Letter, Toad is sad because his mailbox is always empty.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Frog asks a snail to deliver his letter.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The snail takes four days to deliver the letter.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The text of Frog's letter: 'Dear Toad, I am glad that you are my best friend. Your best friend, Frog.'",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Frog and Toad sit on the porch together feeling happy while waiting for the letter.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Frog is taller and green; Toad is shorter and brown.",
+            "source_ids": [
+              3
+            ]
+          }
+        ],
+        "confidence": "high",
+        "unknown_fields": [
+          "exact_color_of_toads_bathing_suit",
+          "exact_color_of_toads_jacket",
+          "frog_and_toad_ages",
+          "names_of_frog_and_toads_houses",
+          "what_season_the_story_and_a_lost_button_take_place_in",
+          "exact_number_of_lizards_in_a_swim",
+          "exact_number_of_dragonflies_in_a_swim"
+        ]
+      }
+    },
+    "a04": {
+      "bookId": "a04",
+      "cachedAt": 1780975888263,
+      "sources_found": {
+        "wikipedia": true,
+        "openLibrary": true,
+        "googleBooks": false,
+        "webSearch": true
+      },
+      "source_urls": {
+        "wikipedia": "https://en.wikipedia.org/wiki/Nate_the_Great",
+        "openLibrary": "https://openlibrary.org/isbn/9780440461265"
+      },
+      "searched_urls": [
+        "https://en.wikipedia.org/wiki/Nate_the_Great",
+        "https://study.com/academy/lesson/nate-the-great-order-books-authors.html",
+        "https://www.penguinrandomhouse.com/series/NTG/nate-the-great/",
+        "https://www.librarything.com/character/Nate+the+Great",
+        "https://kidskonnect.com/literature/nate-the-great/",
+        "https://www.theatricalrights.com/show/nate-the-great/",
+        "https://tvtropes.org/pmwiki/pmwiki.php/Literature/NateTheGreat",
+        "https://characters.fandom.com/wiki/Nate_the_Great",
+        "https://newbookrecommendation.com/summary-of-nate-the-great-by-marjorie-weinman-sharmat/",
+        "https://toppsta.com/books/series/6132/nate-the-great",
+        "https://jestressforgottenstories.com/2018/05/02/nate-the-great-goes-undercover/",
+        "https://www.goodreads.com/book/show/93492.Nate_the_Great_and_the_Big_Sniff",
+        "https://www.pluggedin.com/book-reviews/nate-the-great-goes-undercover/",
+        "https://www.spaghettibookclub.org/title.php?bookId=6560",
+        "https://www.amazon.com/Great-Sniff-Marjorie-Weinman-Sharmat/dp/0440415020",
+        "https://www.bookshare.org/browse/collection/371531?resultsView=LIST"
+      ],
+      "record": {
+        "premise": "A young boy who calls himself Nate the Great is a self-styled detective. His friend Annie loses a picture she has painted, and Nate takes the case. He questions everyone who has seen the picture, follows his clues, and — between pancake breaks — works out what happened to it.",
+        "characters": [
+          {
+            "name": "Nate the Great",
+            "role": "The boy detective and narrator who talks in short, serious sentences as if he were a grown-up detective. He works alone and loves pancakes.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "Annie",
+            "role": "Nate's friend who has painted a picture and lost it. Her whole bedroom is yellow and she likes the color yellow.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "Fang",
+            "role": "Annie's big yellow dog who buries things (including bones) in the yard.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "Rosamond",
+            "role": "Annie's friend, described as strange. She has four cats.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "Super Hex",
+            "role": "One of Rosamond's four cats.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "Big Hex",
+            "role": "One of Rosamond's four cats.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "Plain Hex",
+            "role": "One of Rosamond's four cats.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "Little Hex",
+            "role": "One of Rosamond's four cats.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "Harry",
+            "role": "Annie's little brother who has been painting his own pictures using red paint.",
+            "source_ids": [
+              3
+            ]
+          }
+        ],
+        "key_objects": [
+          {
+            "item": "Pancakes",
+            "detail": "Nate's signature food. He eats them at the start and is offered more by Annie.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "The lost picture",
+            "detail": "Painted in yellow by Annie; a picture of her dog Fang.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "Harry's red paint",
+            "detail": "The cause of the mystery.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "The orange monster painting",
+            "detail": "Harry's painted-over version, which solves the case.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "Annie's yellow room",
+            "detail": "The clue that Annie paints in yellow. Has yellow walls, yellow bed, yellow chair, and yellow desk.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "The yard",
+            "detail": "Where Fang buries bones, dug up looking for the picture.",
+            "source_ids": [
+              3
+            ]
+          }
+        ],
+        "plot_beats": [
+          {
+            "beat": "Nate is eating breakfast at home: pancakes, juice, pancakes, milk, and pancakes.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Annie phones Nate for help because she has lost a picture she painted.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Nate walks over to Annie's house and announces: 'Now I, Nate the Great, will find a lost picture.'",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Annie tells Nate the picture is of her dog Fang, which she painted yesterday.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Nate sees Annie's room, which is big with a yellow bed, yellow chair, yellow desk, and yellow walls. He concludes Annie likes yellow.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Nate notices Fang is a big yellow dog who buries things in the yard and wonders if Fang buried the picture.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Nate and Annie dig up the yard and find buried bones, but no picture.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Nate and Annie go to Rosamond's house. Rosamond has four cats all named with 'Hex' in their names: Super Hex, Big Hex, Plain Hex, and Little Hex. Nate decides Rosamond is strange but did not take the picture.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Back at Annie's, Nate questions her little brother Harry, who has been painting his own pictures with red paint, including a red monster.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Nate looks at Harry's painting and realizes yellow and red make orange. Harry painted over Annie's yellow picture of Fang with red paint, turning it into an orange monster.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Annie is upset at first that her picture has been painted over, but she forgives Harry. Nate has solved another case.",
+            "source_ids": [
+              3
+            ]
+          }
+        ],
+        "setting": "The neighbourhood where Nate, Annie, and their friend Rosamond all live. The story moves between three houses (Nate's house, Annie's house, Rosamond's house) and the yard outside Annie's. There are no exact place names.",
+        "themes": [
+          "Being a detective",
+          "Logic and clues",
+          "Colors and mixing (yellow + red = orange)",
+          "Family and friends",
+          "Routine and self-importance"
+        ],
+        "specific_facts": [
+          {
+            "fact": "Nate calls himself 'Nate the Great'.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Nate's self-description: 'I am a detective. I work alone.'",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Nate's favorite food is pancakes.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Nate's breakfast at the start: 'Pancakes, juice, pancakes, milk, and pancakes.'",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Annie calls Nate for help.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Annie has lost a picture she painted.",
+            "source_ids": [
+              2,
+              3
+            ]
+          },
+          {
+            "fact": "The picture is of Annie's dog Fang.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Fang is a big yellow dog.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Fang buries things (including bones) in the yard.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Nate and Annie dig in the yard looking for the picture.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "They find bones when they dig, but not the picture.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Annie's bedroom has yellow walls, a yellow bed, a yellow chair, and a yellow desk.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Nate concludes that Annie likes yellow.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Rosamond is described as strange.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Rosamond has four cats.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "All four cats have 'Hex' in their names.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The four cats' names are Super Hex, Big Hex, Plain Hex, and Little Hex.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Harry is Annie's little brother.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Harry has been painting his own pictures with red paint.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Harry painted what he calls a red monster.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Yellow + red = orange is the key color fact that solves the mystery.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Harry painted over Annie's yellow picture with red paint, turning it into an orange monster.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Annie is upset at first but forgives Harry.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Nate's catchphrase in narration is 'I, Nate the Great...'",
+            "source_ids": [
+              3
+            ]
+          }
+        ],
+        "confidence": "high",
+        "unknown_fields": [
+          "nate_age",
+          "harry_age",
+          "annie_age",
+          "rosamond_age",
+          "what_nate_wears",
+          "color_of_rosamond_cats",
+          "exact_time_of_day_story_takes_place",
+          "sludge_the_dog (NOTE: Sludge is NOT in the first book - he is introduced in the second book 'Nate the Great Goes Undercover')"
+        ]
+      }
+    },
+    "a05": {
+      "bookId": "a05",
+      "cachedAt": 1780975956700,
+      "sources_found": {
+        "wikipedia": false,
+        "openLibrary": true,
+        "googleBooks": false,
+        "webSearch": true
+      },
+      "source_urls": {
+        "openLibrary": "https://openlibrary.org/isbn/9780689810046"
+      },
+      "searched_urls": [],
+      "record": {
+        "premise": "A lonely little boy named Henry has no brothers or sisters and no other children on his street. His parents agree he can have a dog. Henry picks out a puppy he calls Mudge, and Mudge grows into an enormous 180-pound dog. The book follows them from picking the puppy out, through Mudge growing up, through the day Mudge gets lost and Henry has to look for him.",
+        "characters": [
+          {
+            "name": "Henry",
+            "role": "Main character, a small lonely boy who is an only child with no other children on his street",
+            "source_ids": [
+              1,
+              2
+            ]
+          },
+          {
+            "name": "Mudge",
+            "role": "Henry's dog, starts as a puppy and grows to 180 pounds with straight fur and floppy ears",
+            "source_ids": [
+              1,
+              2
+            ]
+          },
+          {
+            "name": "Henry's parents",
+            "role": "Minor characters who eventually say yes to Henry getting a dog",
+            "source_ids": [
+              2
+            ]
+          }
+        ],
+        "key_objects": [
+          {
+            "item": "Seven collars",
+            "detail": "The collars Mudge grows out of as he grows up",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "item": "Mudge's drool",
+            "detail": "A recurring detail about Mudge",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "item": "Mudge's floppy ears and straight fur",
+            "detail": "The features Henry was looking for in a dog",
+            "source_ids": [
+              2
+            ]
+          }
+        ],
+        "plot_beats": [
+          {
+            "beat": "Henry is lonely because he has no brothers, no sisters, and no other children live on his street",
+            "source_ids": [
+              1,
+              2
+            ]
+          },
+          {
+            "beat": "Henry asks his parents for a dog, and after a while they say yes",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "beat": "Henry looks for a dog — he does not want curly hair or pointy ears",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "beat": "Henry finds a dog with straight fur and floppy ears and names him Mudge",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "beat": "Mudge grows very fast and goes through seven collars before reaching full size",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "beat": "Mudge grows to 180 pounds and about three feet tall",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "beat": "Henry and Mudge walk to school together every day, and Henry is no longer scared or lonely",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "beat": "Henry worries while at school that Mudge will not be there when he gets home",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "beat": "One day Mudge wanders off and gets lost",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "beat": "Both Henry and Mudge are sad while they are apart",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "beat": "Henry and Mudge find each other and are reunited",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "beat": "Henry hugs Mudge and promises never to go off without him again; they are best friends",
+            "source_ids": [
+              2
+            ]
+          }
+        ],
+        "setting": "Henry's neighbourhood — a street where Henry is the only child. The action moves between Henry's house and yard, the walk Henry and Mudge take together each day, and the wider neighbourhood where Mudge wanders off. The setting is small, suburban, and gentle.",
+        "themes": [
+          "Loneliness and friendship",
+          "A boy and his dog",
+          "Worry and reassurance",
+          "Loss and reunion",
+          "Growing up"
+        ],
+        "specific_facts": [
+          {
+            "fact": "Henry has no brothers and no sisters",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "fact": "No other children live on Henry's street",
+            "source_ids": [
+              1,
+              2
+            ]
+          },
+          {
+            "fact": "Henry did not want a dog with curly hair",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "fact": "Henry did not want a dog with pointy ears",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "fact": "Mudge has floppy ears",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "fact": "Mudge has straight fur",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "fact": "Mudge grows out of seven collars",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "fact": "Mudge weighs 180 pounds when fully grown",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "fact": "Mudge is about three feet tall when fully grown",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "fact": "Mudge drools",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "fact": "Henry and Mudge walk to school together every day",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "fact": "Henry worries that Mudge will not be there when he gets home from school",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "fact": "Mudge gets lost and wanders off",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "fact": "Mudge feels sad when he is lost, just like Henry",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "fact": "Henry promises never to leave Mudge again after they reunite",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "fact": "Mudge becomes Henry's best friend",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "fact": "The book has seven short chapters",
+            "source_ids": [
+              2
+            ]
+          }
+        ],
+        "confidence": "high",
+        "unknown_fields": [
+          "Henry's age",
+          "Henry's parents' names",
+          "Mudge's breed",
+          "Mudge's color",
+          "Name of Henry's street or town",
+          "Name of Henry's school",
+          "How long Mudge is lost",
+          "Where exactly Mudge is found",
+          "What grade Henry is in"
         ]
       }
     }
