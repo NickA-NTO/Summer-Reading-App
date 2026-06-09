@@ -5118,6 +5118,24 @@ const quizState = {
   seenQTexts: [],    // question texts shown on attempt 1 (for 1d.1 rotation)
 };
 
+// Pre-quiz warning threshold for a specific book, in milliseconds.
+// PK/K → 15 min, G1 → 30 min, G2+ → 60 min. Server is the source of
+// truth via state.session.startedRecentlyHoldMsRules (see /api/auth/me);
+// falls back to the legacy single value, then 1 hour, if either is
+// missing. Resolves the book from BOOK_BY_ID so callers only need the id.
+function startedRecentlyHoldMsForBookId(bookId) {
+  const book = bookId ? BOOK_BY_ID[bookId] : null;
+  const rules = state.session?.startedRecentlyHoldMsRules || null;
+  const legacy = Number(state.session?.startedRecentlyHoldMs) || (60 * 60 * 1000);
+  if (!rules || typeof rules !== "object") return legacy;
+  const grade = book?.grade ? String(book.grade) : null;
+  if (grade && grade in rules && Number(rules[grade]) > 0) {
+    return Number(rules[grade]);
+  }
+  if (Number(rules.default) > 0) return Number(rules.default);
+  return legacy;
+}
+
 document.getElementById("quizBtn").addEventListener("click", () => {
   if (!activeBookId) return;
   // Defensive gate (matches the disabled state in refreshInteractiveBits):
@@ -5132,11 +5150,11 @@ document.getElementById("quizBtn").addEventListener("click", () => {
   }
   // #21 — Pre-quiz warning. If the kid clicked "I'm reading this" less
   // than the server's hold threshold ago, give them a chance to back
-  // out before the server queues their XP for review. Threshold comes
-  // from /api/auth/me (startedRecentlyHoldMs) — server is the source
-  // of truth; falls back to 1 hour if the session didn't include it.
-  const warnMs =
-    Number(state.session?.startedRecentlyHoldMs) || 60 * 60 * 1000;
+  // out before the server queues their XP for review. Threshold is
+  // per-book-grade (PK/K → 15 min, G1 → 30 min, G2+ → 60 min). Server
+  // is the source of truth via the rules map on /api/auth/me. Falls
+  // back to the legacy single value, then 1 hour, if either is missing.
+  const warnMs = startedRecentlyHoldMsForBookId(activeBookId);
   const gap = active?.startedAt ? Date.now() - Number(active.startedAt) : Infinity;
   if (gap >= 0 && gap < warnMs) {
     showTooSoonWarning(gap, () => openQuiz(activeBookId));
@@ -8585,8 +8603,13 @@ function _retellShowResult(data) {
         : {},
       // Server-derived constants (drift fix). Pre-quiz warning threshold
       // and any other server-authoritative timings land here so the
-      // client never gets out of sync.
+      // client never gets out of sync. Rules map is the per-grade
+      // override table — picked by active book's grade at warn time.
       startedRecentlyHoldMs: Number(me.startedRecentlyHoldMs) || null,
+      startedRecentlyHoldMsRules:
+        me.startedRecentlyHoldMsRules && typeof me.startedRecentlyHoldMsRules === "object"
+          ? me.startedRecentlyHoldMsRules
+          : null,
     });
 
     // First-run onboarding: voice picker → spotlight tour. Only shows

@@ -37,6 +37,7 @@ import {
   FRAUD_FRESHNESS_WINDOW_MS,
   FIRST_OPEN_SUSPICION_HOURS,
   STARTED_RECENTLY_HOLD_MS,
+  startedRecentlyHoldMsForGrade,
   QUIZ_DAILY_ATTEMPT_LIMIT,
 } from "../lib/store.js";
 import { getBook } from "../lib/books.js";
@@ -662,7 +663,14 @@ export default async function handler(req, res) {
           gapSec: Math.round(gap / 1000),
           gapMin: +(gap / 60000).toFixed(2),
         };
-        if (gap >= 0 && gap < STARTED_RECENTLY_HOLD_MS) {
+        // Per-book threshold (#21 v2): PK/K → 15min, G1 → 30min, G2+ → 60min.
+        // Falls back to the default if the book lookup didn't return one.
+        const holdMs = book
+          ? startedRecentlyHoldMsForGrade(book.grade)
+          : STARTED_RECENTLY_HOLD_MS;
+        recentStartDebug.holdMs = holdMs;
+        recentStartDebug.holdMin = +(holdMs / 60000).toFixed(2);
+        if (gap >= 0 && gap < holdMs) {
           recentStartStatus = "hold";
         }
       }

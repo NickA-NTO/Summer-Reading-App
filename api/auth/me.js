@@ -10,6 +10,7 @@ import {
   evaluateAchievementsForUser,
   setInitialGradeIfMissing,
   STARTED_RECENTLY_HOLD_MS,
+  STARTED_RECENTLY_HOLD_MS_RULES,
   exportUserData,
   deleteUserData,
 } from "../../lib/store.js";
@@ -229,11 +230,19 @@ export default async function handler(req, res) {
       env: (process.env.VERCEL_ENV || "production").toLowerCase(),
       // Server-derived constants exposed so the client doesn't have to
       // mirror them in hardcoded constants (low-tier drift risk).
-      // startedRecentlyHoldMs is the threshold the server uses to
-      // auto-hold quizzes submitted too soon after "I'm reading this";
-      // the pre-quiz "Slow down a sec" warning fires under the same
-      // window so the kid never gets surprised by a held submission.
+      // The pre-quiz "Slow down a sec" warning fires under the same
+      // window the server uses to auto-hold quizzes submitted too soon
+      // after "I'm reading this" — kid never gets surprised by a held
+      // submission.
+      //
+      // startedRecentlyHoldMs: legacy single-value default (1 hour),
+      //   kept so older client revisions still get a sensible value
+      //   before they pick up the per-grade rules.
+      // startedRecentlyHoldMsRules: per-book-grade overrides. Client
+      //   picks rules[book.grade] ?? rules.default. PK/K → 15 min,
+      //   G1 → 30 min, G2+ → 60 min (default).
       startedRecentlyHoldMs: STARTED_RECENTLY_HOLD_MS,
+      startedRecentlyHoldMsRules: STARTED_RECENTLY_HOLD_MS_RULES,
       // Onboarding state (#17) — client uses these to decide whether to
       // show the first-run voice picker + spotlight tour. tourCompleted=true
       // suppresses it forever (admin can reset via the admin endpoint).
