@@ -2927,18 +2927,43 @@ function gradeBadgeLabel(book) {
   return "Grade " + g;
 }
 
-function coverUrl(book) {
-  return `https://covers.openlibrary.org/b/isbn/${book.isbn}-L.jpg?default=false`;
+// Per-book primary cover-source override. Books where OpenLibrary
+// doesn't have the cover (or serves it slowly) should be flagged
+// here so we go straight to Google Books — skipping the OL roundtrip
+// saves ~500ms-1s on the first paint. Reports of slow loads:
+//   e03 Are You Ready to Play Outside? — Mo Willems, Hyperion
+//   e04 There Is a Bird on Your Head!  — Mo Willems, Hyperion
+//   e06 Hop on Pop                     — Dr. Seuss, Random House
+// All three are popular trade titles Google Books has reliably.
+const COVER_PRIMARY_GOOGLE_BOOKS = new Set([
+  "e03", "e04", "e06",
+]);
+function googleBooksCoverUrl(book) {
+  if (!book || !book.isbn) return "";
+  // zoom=2 is medium-size (~240px wide), matches our card width and
+  // loads faster than zoom=3 (~480px). zoom=1 is too small.
+  return `https://books.google.com/books/content?vid=ISBN${book.isbn}&printsec=frontcover&img=1&zoom=2`;
 }
-// Secondary cover source — Google Books returns a thumbnail by ISBN via
-// the public Books API. We try this when OpenLibrary 404s (and CSP
-// allows books.google.com images, see vercel.json). This dramatically
-// reduces the "many covers missing" symptom — OL's catalog is patchy
-// for newer or less-popular titles, but Google Books almost always has
-// a thumbnail. Returns "" if no ISBN.
+function coverUrl(book) {
+  if (book && COVER_PRIMARY_GOOGLE_BOOKS.has(book.id)) {
+    return googleBooksCoverUrl(book);
+  }
+  // -M.jpg (medium, ~240px) is plenty for our 210px-wide cards and
+  // loads roughly half the bytes of -L.jpg (~480px). Bandwidth win
+  // across the whole catalog.
+  return `https://covers.openlibrary.org/b/isbn/${book.isbn}-M.jpg?default=false`;
+}
+// Secondary cover source — when the primary source 404s / fails,
+// onerror swaps to this. The fallback is whichever source we didn't
+// use as primary, so we always try BOTH OL and Google Books before
+// giving up to the gradient.
 function coverUrlFallback(book) {
   if (!book || !book.isbn) return "";
-  return `https://books.google.com/books/content?vid=ISBN${book.isbn}&printsec=frontcover&img=1&zoom=1`;
+  if (COVER_PRIMARY_GOOGLE_BOOKS.has(book.id)) {
+    // Primary was Google Books — fall back to OpenLibrary.
+    return `https://covers.openlibrary.org/b/isbn/${book.isbn}-M.jpg?default=false`;
+  }
+  return googleBooksCoverUrl(book);
 }
 // onerror chain handler — moves from OL → Google Books → gradient.
 // Inlined into the img tag via a data-attribute step counter so a
