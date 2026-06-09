@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generatedAt": "2026-06-09T03:39:26.974Z",
+  "generatedAt": "2026-06-09T03:48:42.899Z",
   "comment": "Auto-populated by scripts/enrich-catalog.js. Each record carries source-cited structured data per book (characters/items/plot_beats/specific_facts/unknown_fields). The quiz generator + QC enforce a closed-list citation contract against this data when a record exists. Run `node scripts/enrich-catalog.js` to populate.",
   "records": {
     "e07": {
@@ -3259,6 +3259,392 @@
           "Color of Vashti's hair or clothing",
           "Name of Vashti's school",
           "What day of the week events occur on"
+        ]
+      }
+    },
+    "a07": {
+      "bookId": "a07",
+      "cachedAt": 1780976922899,
+      "sources_found": {
+        "wikipedia": true,
+        "openLibrary": true,
+        "googleBooks": false,
+        "webSearch": true
+      },
+      "source_urls": {
+        "wikipedia": "https://en.wikipedia.org/wiki/Where_the_Wild_Things_Are",
+        "openLibrary": "https://openlibrary.org/isbn/9780064431781"
+      },
+      "searched_urls": [],
+      "record": {
+        "premise": "A small boy named Max is sent to bed without his supper for being too wild. From his bedroom, a magical forest grows, an ocean appears, and Max sails away to a far-off island where the wild things are. The wild things make him their king, there is a great wild rumpus, and then Max sails home to find his supper still waiting for him in his room, still hot.",
+        "characters": [
+          {
+            "name": "Max",
+            "role": "The hero of the story; a small boy who wears a wolf suit and becomes king of the wild things",
+            "source_ids": [
+              2,
+              3
+            ]
+          },
+          {
+            "name": "Max's mother",
+            "role": "Heard but never seen; she calls Max a 'wild thing' and sends him to bed without supper",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "The wild things",
+            "role": "A group of large, monstrous creatures with horns, claws, and yellow eyes who become Max's loyal subjects; they are not given individual names in the book",
+            "source_ids": [
+              3
+            ]
+          }
+        ],
+        "key_objects": [
+          {
+            "item": "Max's wolf suit",
+            "detail": "The suit with ears and a tail that Max wears throughout the story",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "The fork",
+            "detail": "Max uses it to chase the family dog",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "The hammer and nail",
+            "detail": "Max hammers a nail into the wall as mischief",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "The forest",
+            "detail": "Grows in Max's bedroom from the walls and ceiling",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "The ocean",
+            "detail": "Tumbles by in Max's room",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "The private boat",
+            "detail": "Has Max's name on it; he uses it to sail to and from the island",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "The wild things' yellow eyes",
+            "detail": "What Max stares into without blinking to tame them",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "The crown and king's costume",
+            "detail": "Max wears once he is made king",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "Max's supper",
+            "detail": "Waiting for him at the end, still hot",
+            "source_ids": [
+              3
+            ]
+          }
+        ],
+        "plot_beats": [
+          {
+            "beat": "Max, dressed in his wolf suit, makes mischief around the house: chasing the dog with a fork, hammering a nail into the wall, and building a tent with a sheet",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Max's mother calls him 'WILD THING!' and Max yells back 'I'll eat you up!'",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Max is sent to bed without eating anything",
+            "source_ids": [
+              2,
+              3
+            ]
+          },
+          {
+            "beat": "A forest grows in Max's room — trees and vines push up out of the walls and ceiling",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "An ocean tumbles by and a private boat with Max's name on it appears",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Max sails through night and day, in and out of weeks, and almost over a year to the place where the wild things are",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "The wild things meet Max with terrifying behavior: roaring their terrible roars, gnashing their terrible teeth, rolling their terrible eyes, and showing their terrible claws",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Max tames the wild things by staring into their yellow eyes without blinking once",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "The wild things call Max the most wild thing of all and make him king",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Max commands 'Let the wild rumpus start!' and a great wild rumpus begins with dancing, swinging from trees, parading, and howling",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Max says stop and sends the wild things to bed without their supper",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Max feels lonely and wants to be where someone loves him best of all",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Max smells good things to eat from far away across the world",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "The wild things beg Max not to go, saying 'Oh please don't go—we'll eat you up—we love you so!' but Max says 'No!'",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Max sails back in and out of weeks and through a day and into the night of his very own room",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Max finds his supper waiting for him in his room, and it was still hot",
+            "source_ids": [
+              3
+            ]
+          }
+        ],
+        "setting": "Two settings that swap into each other: Max's home/bedroom where the story begins and ends, and an imaginary island 'where the wild things are' reached by a long sea voyage. The island has its own forest and is home to the wild things. The journey is told as if the ocean and boat appear inside Max's room and the forest grows out of the bedroom walls.",
+        "themes": [
+          "Anger and imagination",
+          "Big feelings, safe space",
+          "Power and loneliness",
+          "Forgiveness and home",
+          "The wild rumpus as celebration of pure noisy joy"
+        ],
+        "specific_facts": [
+          {
+            "fact": "The boy's name is Max",
+            "source_ids": [
+              2,
+              3
+            ]
+          },
+          {
+            "fact": "Max wears a wolf suit with ears and a tail",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Max makes three pieces of mischief: hammering a nail into the wall, chasing the dog with a fork, and building a tent with a sheet",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Max's mother calls him 'WILD THING!'",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Max says 'I'll eat you up!' to his mother",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Max is sent to bed without anything to eat / without his supper",
+            "source_ids": [
+              2,
+              3
+            ]
+          },
+          {
+            "fact": "A forest grows in Max's bedroom",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "An ocean and a private boat with Max's name on it appear",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Max sails 'in and out of weeks, and almost over a year' to reach the wild things",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The wild things have horns, claws, and yellow eyes",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The four terrible things the wild things do in order: roar their terrible roars, gnash their terrible teeth, roll their terrible eyes, show their terrible claws",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Max tames the wild things by staring into their yellow eyes without blinking once",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The wild things call Max 'the most wild thing of all'",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Max becomes king of the wild things",
+            "source_ids": [
+              2,
+              3
+            ]
+          },
+          {
+            "fact": "Max's famous command is 'Let the wild rumpus start!'",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The wild rumpus spans three picture spreads with no words",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Max sends the wild things to bed without their supper after the rumpus",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Max wants to leave because he wants to be 'where someone loves him best of all'",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Max smells good things to eat from far away",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The wild things say 'Oh please don't go—we'll eat you up—we love you so!' when Max leaves",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Max sails home in his private boat",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Max's supper is waiting for him in his room when he returns",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The last line of the book is 'And it was still hot.'",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The wild things are not given individual names in the book",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Max's mother is heard but never seen in the pictures",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Max chases the family dog with a fork",
+            "source_ids": [
+              3
+            ]
+          }
+        ],
+        "confidence": "high",
+        "unknown_fields": [
+          "Max's age",
+          "Name of Max's dog",
+          "Number of wild things on the island",
+          "Individual names of any wild things",
+          "What specific food Max's supper consists of",
+          "Color of Max's wolf suit",
+          "Whether Max has siblings",
+          "Name of Max's father or whether he appears"
         ]
       }
     }
