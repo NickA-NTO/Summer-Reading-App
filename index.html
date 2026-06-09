@@ -3346,45 +3346,18 @@ async function speak(text, opts = {}) {
 
   const voice = chosenPollyVoice || "nova";
   try {
-    const r = await fetch(
-      `/api/tts?voice=${encodeURIComponent(voice)}&text=${encodeURIComponent(t)}`,
-      { credentials: "same-origin", signal: myAbort.signal }
-    );
+    // Reuse the prewarm's in-flight promise via the client cache so we
+    // never double-fire /api/tts for the same (voice, text).
+    const url = await _fetchTtsUrl(voice, t);
     const fetchMs = Date.now() - startedAt;
-    console.log(`${tag} fetch returned in ${fetchMs}ms status=${r.status}`);
-    // Bail out if a newer speak() call superseded us during the fetch.
+    console.log(`${tag} url ${url ? "ok" : "null"} in ${fetchMs}ms (cache reuse: ${_ttsClientCache.has(`${voice}|${t}`)})`);
     if (mySeq !== _ttsSeq) { console.log(`${tag} superseded during fetch`); return; }
-    // ALL fallback paths check mySeq first — if a newer speak() fired
-    // during this fetch, we MUST NOT start browser TTS for the stale
-    // text (otherwise Q1's fallback audio races Q2's primary audio).
-    if (r.status === 429) {
-      const data = await r.json().catch(() => ({}));
-      ttsBudgetReached = true;
-      showBudgetBanner(data);
-      console.warn("[tts] budget reached — falling back to browser voice");
+    if (!url) {
+      console.warn(`${tag} /api/tts returned null — falling back to browser`);
       if (mySeq !== _ttsSeq) return;
       return browserFallback();
     }
-    if (r.status === 503) {
-      console.warn("[tts] TTS not configured — falling back to browser voice");
-      if (mySeq !== _ttsSeq) return;
-      return browserFallback();
-    }
-    if (!r.ok) {
-      const body = await r.text().catch(() => "");
-      console.warn(`[tts] ${r.status} from /api/tts — falling back to browser`, body);
-      if (mySeq !== _ttsSeq) return;
-      return browserFallback();
-    }
-    const data = await r.json();
-    if (!data.url) {
-      console.warn("[tts] no URL in response — falling back", data);
-      if (mySeq !== _ttsSeq) return;
-      return browserFallback();
-    }
-    // One more seq check after the json parse — small window but real.
-    if (mySeq !== _ttsSeq) { console.log(`${tag} superseded after json`); return; }
-    console.log(`${tag} url ok cached=${data.cached} voice=${data.voice}`);
+    const data = { url, voice, cached: true };
 
     const audio = new Audio(data.url);
     currentTtsAudio = audio;
@@ -3461,19 +3434,40 @@ async function speak(text, opts = {}) {
 // Re-opens of the same modal hit the cache and cost zero. Pre-warming is
 // also effectively free at scale: first kid pays Polly, every other kid
 // reading that same book + voice pair hits the shared Blob cache.
-let _ttsPrewarmInFlight = new Set();
+// Client-side TTS URL cache. Maps "voice|text" → Promise<url|null>.
+// Both prewarmTts AND speak() consult this map FIRST. The first caller
+// for a (voice, text) pair makes the actual /api/tts request and stores
+// the Promise; subsequent callers (including speak() racing the prewarm)
+// await the same Promise. Without this, a kid clicking "Hear it" while
+// the prewarm was still in-flight would fire a SECOND /api/tts request
+// for the same text, doubling OpenAI synth load and causing the long
+// "20+ second" silences user reported between Q1 narration parts.
+const _ttsClientCache = new Map();
+function _fetchTtsUrl(voice, text) {
+  const key = `${voice}|${text}`;
+  const existing = _ttsClientCache.get(key);
+  if (existing) return existing;
+  const p = fetch(
+    `/api/tts?voice=${encodeURIComponent(voice)}&text=${encodeURIComponent(text)}`,
+    { credentials: "same-origin" }
+  )
+    .then((r) => (r.ok ? r.json() : null))
+    .then((data) => (data && data.url ? data.url : null))
+    .catch(() => null);
+  _ttsClientCache.set(key, p);
+  // If the fetch returns null (error), remove from cache so a future
+  // call can retry. Only KEEP on success.
+  p.then((url) => {
+    if (!url) _ttsClientCache.delete(key);
+  });
+  return p;
+}
 function prewarmTts(text, voice) {
   if (!text || !text.trim()) return;
   const v = voice || chosenPollyVoice || "nova";
-  const key = `${v}|${text}`;
-  if (_ttsPrewarmInFlight.has(key)) return;
-  _ttsPrewarmInFlight.add(key);
-  fetch(
-    `/api/tts?voice=${encodeURIComponent(v)}&text=${encodeURIComponent(text)}`,
-    { credentials: "same-origin" }
-  )
-    .catch(() => {})
-    .finally(() => _ttsPrewarmInFlight.delete(key));
+  // Fire and forget — populates _ttsClientCache so the eventual speak()
+  // call hits the cached promise instead of starting a duplicate fetch.
+  _fetchTtsUrl(v, text);
 }
 function prewarmTtsForBook(book) {
   if (!book) return;
@@ -4351,6 +4345,22 @@ function closeModal() {
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
     try { cancelSpeech(); } catch {}
+    // Restore the quiz "Hear it" button if it was stuck in a Loading
+    // state when the kid navigated away. Without this, the click
+    // handler's finally never fires (the page is hidden, the audio
+    // pause event might not propagate reliably) and the kid comes
+    // back to a permanently-disabled button.
+    try {
+      const qb = document.getElementById("qSpeak");
+      if (qb && qb.disabled) {
+        qb.disabled = false;
+        qb.classList.remove("playing");
+        const lab = qb.querySelector(":scope span:last-child");
+        const ico = qb.querySelector(".qh-icon");
+        if (lab) lab.textContent = "Hear it";
+        if (ico) ico.textContent = "🔊";
+      }
+    } catch {}
   }
 });
 window.addEventListener("pagehide", () => {
@@ -5789,20 +5799,35 @@ function renderQuizQuestion() {
     if (speakLabel) speakLabel.textContent = "Loading…";
     if (speakIcon) speakIcon.textContent = "⏳";
     // Reset the audible-flag so we can tell whether audio fired during
-    // THIS click vs an older speak() call. Then escalate the label to
-    // "Still loading…" at 3s so the kid knows the app didn't freeze.
+    // THIS click vs an older speak() call. Poll it so the button
+    // label can transition Loading → Playing… as soon as the first
+    // audio chunk actually starts (not just at the end of the whole
+    // narration). Cleared in the finally block.
     resetTtsAudibleFlag();
-    const stillLoadingTimer = setTimeout(() => {
-      if (document.getElementById("qSpeak") === speakBtn && !_ttsAudibleSinceLastReset) {
+    const clickStart = Date.now();
+    let labelState = "loading"; // "loading" | "still" | "playing"
+    const labelTimer = setInterval(() => {
+      if (document.getElementById("qSpeak") !== speakBtn) return;
+      if (_ttsAudibleSinceLastReset && labelState !== "playing") {
+        labelState = "playing";
+        if (speakLabel) speakLabel.textContent = "Playing…";
+        if (speakIcon) speakIcon.textContent = "🔊";
+      } else if (
+        !_ttsAudibleSinceLastReset &&
+        labelState === "loading" &&
+        Date.now() - clickStart > 3000
+      ) {
+        labelState = "still";
         if (speakLabel) speakLabel.textContent = "Still loading…";
       }
-    }, 3000);
+    }, 250);
     try {
-      // speakQuizQuestion resolves when BOTH the question and choices
-      // audio have finished playing (or got cancelled by a newer call).
+      // speakQuizQuestion resolves when all three narration parts
+      // (question / intro / options) have finished playing or got
+      // cancelled by a newer call / visibility change.
       await speakQuizQuestion(q, { force: true });
     } finally {
-      clearTimeout(stillLoadingTimer);
+      clearInterval(labelTimer);
       // Restore button state once narration completes. Guard against a
       // re-render swapping the button out from under us mid-await.
       if (document.getElementById("qSpeak") === speakBtn) {

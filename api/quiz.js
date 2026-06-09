@@ -523,7 +523,7 @@ const QCSchema = z.object({
 //
 // Previous versions retired in commit history; see git log for
 // per-version rationale.
-const SCHEMA_VERSION = 17;
+const SCHEMA_VERSION = 18;
 // Exported alias so api/activity.js can build the same cache key when it
 // validates a quiz_submit. Kept as a renamed export so the local const can
 // be reassigned independently if we ever split client / server schemas.
