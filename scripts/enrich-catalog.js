@@ -200,8 +200,12 @@ async function fetchWikipedia(title, author) {
 }
 
 async function fetchWikipediaSections(title) {
-  // Pull section text — Plot, Synopsis, Characters, Story
-  // The mobile-sections endpoint returns structured sections.
+  // Pull section text. First try to isolate plot-ish sections by header
+  // name (Plot, Synopsis, Characters, Story, Summary, Content,
+  // Description, Storyline). If NONE match (common for vignette
+  // picture books that don't have a plot section at all), fall back to
+  // the first ~5000 chars of body text from non-meta sections (skipping
+  // Reception, Publication, Adaptations, References, etc.).
   const slug = encodeURIComponent(title.replace(/ /g, "_"));
   try {
     const r = await fetchWithTimeout(
@@ -209,12 +213,23 @@ async function fetchWikipediaSections(title) {
     );
     if (!r.ok) return "";
     const data = await r.json();
-    const wanted = /plot|synopsis|characters|story|summary/i;
-    const sections = (data.remaining?.sections || [])
-      .filter((s) => wanted.test(s.line || ""))
+    const all = data.remaining?.sections || [];
+    const want = /plot|synopsis|characters|story|summary|content|description|storyline/i;
+    const reject = /reception|publication|adapt|legacy|reference|external|further|award|sequel|see also/i;
+
+    // Pass 1: explicit plot/content matches.
+    const plotMatches = all
+      .filter((s) => want.test(s.line || ""))
       .map((s) => stripHtml(s.text || ""))
       .join("\n\n");
-    return sections.slice(0, 5000);
+    if (plotMatches.length > 200) return plotMatches.slice(0, 5000);
+
+    // Pass 2: anything that isn't obviously meta-about-the-book.
+    const bodyText = all
+      .filter((s) => !reject.test(s.line || ""))
+      .map((s) => stripHtml(s.text || ""))
+      .join("\n\n");
+    return bodyText.slice(0, 5000);
   } catch {
     return "";
   }
@@ -367,6 +382,23 @@ async function synthesize(book, sources) {
       text: `Title: ${sources.googleBooks.title}\nAuthors: ${(sources.googleBooks.authors || []).join(", ")}\nDescription: ${sources.googleBooks.description}\nCategories: ${(sources.googleBooks.categories || []).join(", ")}`,
     });
   }
+  // App's existing editorial summary (api/quiz.js QUIZ_BOOKS[id].summary).
+  // Hand-written by the app team and includes plot detail the public
+  // sources may miss — especially valuable for vignette picture books
+  // where Wikipedia has no plot section. The synthesizer is instructed
+  // to TREAT THIS LIKE THE OTHER SOURCES: cross-validate against the
+  // others, drop or mark `unknown` any fact this source asserts that no
+  // other source confirms. So a wrong claim in our summary (e.g. "fight
+  // with Ned" in One Fish Two Fish) gets filtered out because no public
+  // source confirms it. A correct claim (e.g. characters Mike, Yink)
+  // gets included because Wikipedia/OL list them too.
+  if (sources.editorialSummary) {
+    numbered.push({
+      id: id++,
+      name: "App editorial summary (cross-validate against the others)",
+      text: sources.editorialSummary,
+    });
+  }
 
   if (numbered.length === 0) {
     return { error: "no_sources" };
@@ -377,29 +409,55 @@ async function synthesize(book, sources) {
     .join("\n\n");
 
   const system = `You extract verifiable facts from provided sources about a
-children's book. Your output grounds a quiz generator that MUST cite a
-source for every claim it makes. You enforce the citation contract.
+children's book. Your output grounds a quiz generator that builds
+reading-COMPREHENSION questions for kids in kindergarten through
+grade 3. The kid has just read the book — your record tells the
+generator what they should be able to answer.
 
 CRITICAL RULES:
 1. Use ONLY the sources provided. If a fact is not in the sources, list
-   it under "unknown_fields" — do NOT use your own knowledge of the book.
-2. Every array item must cite at least one source_id (1, 2, or 3 depending
-   on which sources were provided).
-3. For specific_facts: ONLY include counts, colors, names, locations,
-   and other concrete specifics if a source explicitly states the value.
-   If a source says "many" or "several", that is NOT a specific count.
-4. If two sources contradict, list both with both source_ids and set
+   it under "unknown_fields" — do NOT use your own knowledge.
+2. Every array item MUST cite at least one source_id.
+3. For specific_facts: include CONCRETE counts, colors, names, locations,
+   relationships, and similar specifics IF a source explicitly states
+   the value. "many" or "several" is NOT a specific count — don't
+   convert it.
+4. CRITICAL: focus on CONTENT-of-the-book facts, NOT facts ABOUT the
+   book (publication metadata). Examples:
+     GOOD specific_facts:
+       - "Jack is eight years old"
+       - "The wolf eats the grandmother"
+       - "Peter wears a blue jacket"
+       - "The caterpillar eats five oranges on Friday"
+     BAD specific_facts (do NOT include unless absolutely nothing else):
+       - "Published in 1960"
+       - "Won the Caldecott Medal"
+       - "Sold six million copies"
+       - "Illustrated by X until 2016"
+   Publication metadata is useless for a kid quiz. Filter it out and
+   focus on plot/character/setting specifics.
+5. characters: include EVERY character the sources mention, including
+   minor ones (a quiz generator needs distractor names). If the
+   sources name an unusual creature ("Yink", "Wump", "Gruffalo"), that
+   counts as a character.
+6. plot_beats: capture the ordered events that happen IN the book, not
+   the book's reception. Aim for 5-10 beats for a story; fewer for
+   vignette/rhyming books that don't have a plot.
+7. If two sources contradict, list both with both source_ids and set
    confidence to "medium" or "low".
-5. confidence:
-   - "high": multiple sources agree, plot beats and characters are well-
-     established, specific_facts has multiple verifiable items.
-   - "medium": one source dominates, some specifics are inferred or
-     sparse.
-   - "low": sources are thin (mostly bibliographic), specifics are
-     mostly unknown.
-6. unknown_fields: list any common quiz topics the sources don't cover.
-   Examples: "main_character_age", "number_of_siblings",
-   "color_of_house". The quiz generator will avoid these.`;
+8. confidence:
+   - "high": multiple sources agree on plot content; specific_facts has
+     5+ verifiable CONTENT items (not metadata).
+   - "medium": one source dominates, plot is sparse but characters and
+     setting are established.
+   - "low": sources are thin (mostly bibliographic), almost no CONTENT
+     specifics. The generator will fall back to prose summary in this
+     case, so prefer setting confidence: low over inventing facts.
+9. unknown_fields: list any common quiz topics the sources don't cover.
+   The quiz generator will refuse to ask about anything in this list.
+   Examples: "main_character_age" (if no source gives an age),
+   "number_of_siblings", "color_of_house". Be GENEROUS with this list —
+   "I think but am not sure" goes here.`;
 
   const prompt = `Book: "${book.title}" by ${book.author}
 Grade level: ${book.grade}
@@ -438,9 +496,18 @@ async function enrichOne(bookId, book, isbn) {
     fetchGoogleBooks(isbn).catch(() => null),
   ]);
 
-  console.log(`   wiki:${wikipedia ? "✓" : "✗"} OL:${openLibrary ? "✓" : "✗"} GB:${googleBooks ? "✓" : "✗"}`);
+  // The app's existing hand-written summary in api/quiz.js QUIZ_BOOKS.
+  // Passed as a 4th source for cross-validation, especially valuable
+  // for vignette picture books where Wikipedia has no plot section.
+  const editorialSummary = book.summary || null;
+  const editorialAvailable = !!(editorialSummary && editorialSummary.length > 50);
 
-  const result = await synthesize(book, { wikipedia, openLibrary, googleBooks });
+  console.log(`   wiki:${wikipedia ? "✓" : "✗"} OL:${openLibrary ? "✓" : "✗"} GB:${googleBooks ? "✓" : "✗"} editorial:${editorialAvailable ? "✓" : "✗"}`);
+
+  const result = await synthesize(book, {
+    wikipedia, openLibrary, googleBooks,
+    editorialSummary: editorialAvailable ? editorialSummary : null,
+  });
   if (result.error) {
     console.log(`   ✗ ${result.error}: ${result.message || ""}`);
     return {

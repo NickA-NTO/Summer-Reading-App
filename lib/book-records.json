@@ -1,6 +1,737 @@
 {
   "schema": 1,
-  "generatedAt": null,
+  "generatedAt": "2026-06-09T00:58:49.320Z",
   "comment": "Auto-populated by scripts/enrich-catalog.js. Each record carries source-cited structured data per book (characters/items/plot_beats/specific_facts/unknown_fields). The quiz generator + QC enforce a closed-list citation contract against this data when a record exists. Run `node scripts/enrich-catalog.js` to populate.",
-  "records": {}
+  "records": {
+    "e07": {
+      "bookId": "e07",
+      "cachedAt": 1780966261925,
+      "sources_found": {
+        "wikipedia": true,
+        "openLibrary": true,
+        "googleBooks": false
+      },
+      "source_urls": {
+        "wikipedia": "https://en.wikipedia.org/wiki/One_Fish%2C_Two_Fish%2C_Red_Fish%2C_Blue_Fish",
+        "openLibrary": "https://openlibrary.org/isbn/9780394800134"
+      },
+      "record": {
+        "premise": "A rhyming picture book that counts and describes colorful fish, then introduces a parade of silly invented creatures with rhyming names doing silly things, page by page.",
+        "characters": [
+          {
+            "name": "Nook",
+            "role": "Unusual animal/creature",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "name": "Wump",
+            "role": "Creature with seven humps that you can ride",
+            "source_ids": [
+              2,
+              3
+            ]
+          },
+          {
+            "name": "Yink",
+            "role": "Creature who likes to wink and drink pink ink",
+            "source_ids": [
+              2,
+              3
+            ]
+          },
+          {
+            "name": "Yap",
+            "role": "Unusual animal/creature",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "name": "Gack",
+            "role": "Unusual animal/creature",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "name": "Zeds",
+            "role": "Unusual animal/creature",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "name": "Mike",
+            "role": "Creature with many legs who pedals his bike while others sit on top",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "Yop",
+            "role": "Creature on top",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "Zans",
+            "role": "Creatures that brush their teeth",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "Yeps",
+            "role": "Creature",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "Clark",
+            "role": "Character who never goes to school",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "Mr. Gump",
+            "role": "A Wump with seven humps",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "Zeep",
+            "role": "Creature the children put their cold feet on at bedtime to keep warm",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "Narrator",
+            "role": "Narrator who counts and describes fish and creatures",
+            "source_ids": [
+              3
+            ]
+          }
+        ],
+        "key_objects": [
+          {
+            "item": "Fish",
+            "detail": "Red, blue, black, old, new; some sad, some glad, some bad",
+            "source_ids": [
+              1,
+              3
+            ]
+          },
+          {
+            "item": "Little star",
+            "detail": "Some fish have a little star",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "Little car",
+            "detail": "Some fish have a little car",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "Bike",
+            "detail": "Mike pedals his bike",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "Pink ink",
+            "detail": "The Yink drinks pink ink",
+            "source_ids": [
+              3
+            ]
+          }
+        ],
+        "plot_beats": [
+          {
+            "beat": "The narrator counts fish: one fish, two fish",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "The narrator describes colorful fish: red fish, blue fish, black fish, old fish, new fish",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Fish are described by their feelings: some are sad, some are glad, some are bad",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Fish are described by what they have: some have a little star, some have a little car",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "A parade of silly invented creatures with rhyming names is introduced",
+            "source_ids": [
+              2,
+              3
+            ]
+          },
+          {
+            "beat": "The Wump with seven humps is shown as something you can ride",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Mike with many legs pedals his bike while others sit on top of him",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "The Yink winks and drinks pink ink",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "The Zans brush their teeth",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "At bedtime, the narrator and children put their cold feet on the Zeep to keep warm",
+            "source_ids": [
+              3
+            ]
+          }
+        ],
+        "setting": "Imaginative/fantasy world with colorful fish and silly invented creatures",
+        "themes": [
+          "Counting",
+          "Colors",
+          "Rhyming",
+          "Imagination",
+          "Silly creatures",
+          "Opposites (old/new, sad/glad)"
+        ],
+        "specific_facts": [
+          {
+            "fact": "The Wump has seven humps",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The Yink likes to wink and drink pink ink",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Mike has many legs and pedals his bike",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The Zans brush their teeth",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Clark never goes to school",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Mr. Gump is a Wump with seven humps",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Children put their cold feet on the Zeep at bedtime to keep warm",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Some fish are sad, some are glad, some are bad",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Some fish have a little star and some have a little car",
+            "source_ids": [
+              3
+            ]
+          }
+        ],
+        "confidence": "medium",
+        "unknown_fields": [
+          "exact_number_of_fish_counted",
+          "colors_of_specific_creatures_beyond_fish",
+          "names_of_the_children_in_the_book",
+          "exact_number_of_Mike's_legs",
+          "what_the_Nook_does",
+          "what_the_Yap_does",
+          "what_the_Gack_does",
+          "what_the_Zeds_do",
+          "order_of_pages",
+          "exact_rhyming_text",
+          "number_of_creatures_total"
+        ]
+      }
+    },
+    "c01": {
+      "bookId": "c01",
+      "cachedAt": 1780966729320,
+      "sources_found": {
+        "wikipedia": true,
+        "openLibrary": true,
+        "googleBooks": false
+      },
+      "source_urls": {
+        "wikipedia": "https://en.wikipedia.org/wiki/Magic_Tree_House",
+        "openLibrary": "https://openlibrary.org/isbn/9780679824114"
+      },
+      "record": {
+        "premise": "Eight-year-old Jack and his seven-year-old sister Annie discover a magic tree house in the woods that transports them back in time to the age of dinosaurs, where they have adventures and find a mysterious gold medallion.",
+        "characters": [
+          {
+            "name": "Jack",
+            "role": "Main character, eight-year-old boy, Annie's older brother",
+            "source_ids": [
+              2,
+              3
+            ]
+          },
+          {
+            "name": "Annie",
+            "role": "Main character, seven-year-old girl, Jack's younger sister",
+            "source_ids": [
+              2,
+              3
+            ]
+          },
+          {
+            "name": "Pteranodon",
+            "role": "Friendly flying dinosaur who helps Jack escape from the T-Rex",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "Triceratops",
+            "role": "Peaceful dinosaur the children encounter",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "Anatosaurus",
+            "role": "Duck-billed dinosaur the children encounter",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "T-Rex",
+            "role": "Fearsome dinosaur who chases Jack",
+            "source_ids": [
+              3
+            ]
+          }
+        ],
+        "key_objects": [
+          {
+            "item": "Tree house",
+            "detail": "Located high in an oak tree, full of books",
+            "source_ids": [
+              2,
+              3
+            ]
+          },
+          {
+            "item": "Rope ladder",
+            "detail": "Used to climb up to the tree house",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "Dinosaur book",
+            "detail": "Jack picks it up and wishes to see a dinosaur",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "Gold medallion",
+            "detail": "Has the letter M engraved on it",
+            "source_ids": [
+              3
+            ]
+          }
+        ],
+        "plot_beats": [
+          {
+            "beat": "Jack and Annie are walking in the woods near their home when Annie spots a tree house high in an oak tree",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "They climb up to the tree house using a rope ladder and find it full of books",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Jack picks up a book about dinosaurs and wishes he could see one",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "The tree house starts to spin and transports them to a prehistoric world",
+            "source_ids": [
+              2,
+              3
+            ]
+          },
+          {
+            "beat": "They meet friendly dinosaurs including a Pteranodon, Triceratops, and Anatosaurus",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "A fearsome T-Rex chases Jack",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "The Pteranodon helps Jack escape by carrying him through the air back to the tree house",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Jack and Annie find a gold medallion with the letter M engraved on it",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "They wish to go home and the tree house spins again, returning them to Frog Creek",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Jack keeps the medallion as proof of their adventure",
+            "source_ids": [
+              3
+            ]
+          }
+        ],
+        "setting": "The town of Frog Creek, Pennsylvania, and a prehistoric world with dinosaurs",
+        "themes": [
+          "Time travel",
+          "Sibling adventure",
+          "Dinosaurs",
+          "Magic",
+          "Discovery and curiosity",
+          "Bravery"
+        ],
+        "specific_facts": [
+          {
+            "fact": "Jack is eight years old",
+            "source_ids": [
+              2,
+              3
+            ]
+          },
+          {
+            "fact": "Annie is seven years old",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Annie is Jack's younger sister",
+            "source_ids": [
+              2,
+              3
+            ]
+          },
+          {
+            "fact": "Jack and Annie live in Frog Creek, Pennsylvania",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The tree house is in an oak tree",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The gold medallion has the letter M engraved on it",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The Pteranodon is described as a friendly herbivore",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The Triceratops is described as peaceful",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The Anatosaurus is described as duck-billed",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Hardly any time has passed at home when they return",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Jack keeps the medallion as proof of their adventure",
+            "source_ids": [
+              3
+            ]
+          }
+        ],
+        "confidence": "medium",
+        "unknown_fields": [
+          "identity of the mysterious owner of the tree house (only hinted with letter M)",
+          "parents' names",
+          "what grade Jack and Annie are in at school",
+          "exact location of the woods",
+          "how long they spend in the dinosaur world",
+          "what other books are in the tree house",
+          "color of the tree house",
+          "what Jack and Annie look like (hair color, clothing)",
+          "time of day when they find the tree house",
+          "season when the story takes place"
+        ]
+      }
+    },
+    "e11": {
+      "bookId": "e11",
+      "cachedAt": 1780966681977,
+      "sources_found": {
+        "wikipedia": false,
+        "openLibrary": true,
+        "googleBooks": false
+      },
+      "source_urls": {
+        "openLibrary": "https://openlibrary.org/isbn/9780746077207"
+      },
+      "record": {
+        "premise": "A goose escapes from its pen on a farm and a boy must chase it and find a clever way to get it back.",
+        "characters": [
+          {
+            "name": "Goose",
+            "role": "Main character who escapes from its pen",
+            "source_ids": [
+              1,
+              2
+            ]
+          },
+          {
+            "name": "Boy",
+            "role": "Chases the goose and tries to get it back to its pen",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "name": "Pig",
+            "role": "Farm animal the goose runs past",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "name": "Cow",
+            "role": "Farm animal the goose runs past",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "name": "Sheep",
+            "role": "Farm animal the goose runs past",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "name": "Duck",
+            "role": "Farm animal the goose runs past",
+            "source_ids": [
+              2
+            ]
+          }
+        ],
+        "key_objects": [
+          {
+            "item": "Broom",
+            "detail": "Used by the boy to chase the goose",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "item": "Pen",
+            "detail": "Where the goose escapes from and returns to",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "item": "Corn",
+            "detail": "Food used to lead the goose back to its pen",
+            "source_ids": [
+              2
+            ]
+          }
+        ],
+        "plot_beats": [
+          {
+            "beat": "A goose escapes from its pen on a farm",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "beat": "A boy chases the goose with a broom",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "beat": "The goose runs past the pig, the cow, the sheep, and the duck",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "beat": "The animals all watch the chase",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "beat": "The goose is too fast for the boy to catch",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "beat": "The boy gets clever and uses corn to lead the goose",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "beat": "The goose calmly follows the corn back to its pen",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "beat": "The boy is happy and the goose is happy too",
+            "source_ids": [
+              2
+            ]
+          }
+        ],
+        "setting": "A farm",
+        "themes": [
+          "Problem-solving",
+          "Cleverness over force",
+          "Farm life"
+        ],
+        "specific_facts": [
+          {
+            "fact": "The goose escapes from a pen",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "fact": "The boy uses a broom to chase the goose",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "fact": "The goose runs past four animals: pig, cow, sheep, and duck",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "fact": "The boy uses corn (food) to lead the goose back",
+            "source_ids": [
+              2
+            ]
+          },
+          {
+            "fact": "The goose returns to its pen at the end",
+            "source_ids": [
+              2
+            ]
+          }
+        ],
+        "confidence": "medium",
+        "unknown_fields": [
+          "boy's name",
+          "goose's name",
+          "colors of animals",
+          "exact number of pages",
+          "names of other farm characters",
+          "time of day",
+          "season",
+          "who owns the farm",
+          "how long the chase lasts",
+          "exact words or rhymes used in the book"
+        ]
+      }
+    }
+  }
 }
