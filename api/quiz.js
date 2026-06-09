@@ -37,29 +37,46 @@ import path from "node:path";
 // Grounded book records (#84) — source-cited structured data per book
 // produced by scripts/enrich-catalog.js from Wikipedia + Open Library +
 // Google Books. When a record exists for a book, generateOnce and
-// qcAndFilter enforce a closed-set citation contract: every question's
-// answer must reference an entry in the record's closed lists, and the
-// QC reviewer rejects any question whose specifics aren't backed by
-// `specific_facts`. When no record exists (catalog book that hasn't
-// been enriched yet), both functions fall back to the legacy prose-
-// summary path so we don't break uncached books mid-rollout.
+// HAND-AUTHORED SUMMARIES — the ONLY source of truth for quiz
+// generation. User directive (v2 of #84):
+//   "Stop doing your enrichment bullshit. I told you to only use my
+//    summaries. Delete any of your enriched crap and get it off my app."
+//
+// We load every .md under docs/book-summaries/<bookId>-*.md at module
+// init and serve them as plain text to the quiz generator. There is
+// NO LLM-synthesised record layer anymore — the generator reads the
+// raw human-authored prose, and the deterministic source-citation
+// check (verifyQuestionGrounded, in qcAndFilter) substring-matches
+// every question's sourceText against the raw .md.
+//
+// Books without a hand-authored .md cannot generate a quiz — the
+// endpoint returns no_summary_for_book. We do not fall back to any
+// LLM-synthesised or legacy prose source.
 // ============================================================
-const BOOK_RECORDS_PATH = path.join(process.cwd(), "lib", "book-records.json");
-let BOOK_RECORDS_DATA = { records: {} };
+const SUMMARIES_DIR = path.join(process.cwd(), "docs", "book-summaries");
+const BOOK_SUMMARIES = new Map();
 try {
-  if (fs.existsSync(BOOK_RECORDS_PATH)) {
-    BOOK_RECORDS_DATA = JSON.parse(fs.readFileSync(BOOK_RECORDS_PATH, "utf-8"));
+  if (fs.existsSync(SUMMARIES_DIR)) {
+    const files = fs.readdirSync(SUMMARIES_DIR);
+    for (const f of files) {
+      // Match <bookId>-anything.md (case-insensitive on the prefix).
+      const m = f.match(/^([a-zA-Z]\d{2,3})-.+\.md$/);
+      if (!m) continue;
+      const bookId = m[1].toLowerCase();
+      try {
+        const content = fs.readFileSync(path.join(SUMMARIES_DIR, f), "utf-8");
+        BOOK_SUMMARIES.set(bookId, content);
+      } catch (err) {
+        console.warn(`[quiz] failed to read summary ${f}:`, err?.message);
+      }
+    }
+    console.log(`[quiz] loaded ${BOOK_SUMMARIES.size} hand-authored summaries`);
   }
 } catch (err) {
-  console.warn("[quiz] couldn't load lib/book-records.json:", err?.message);
+  console.warn("[quiz] couldn't read docs/book-summaries/:", err?.message);
 }
-function getBookRecord(bookId) {
-  const entry = BOOK_RECORDS_DATA.records?.[bookId];
-  if (!entry || entry.error || !entry.record) return null;
-  // Skip low-confidence records — better to fall back to prose summary
-  // than to enforce a weak citation contract on thin data.
-  if (entry.record.confidence === "low") return null;
-  return entry.record;
+function getBookSummary(bookId) {
+  return BOOK_SUMMARIES.get(String(bookId).toLowerCase()) || null;
 }
 import { clusterAndExtractConsensus } from "../lib/quiz-validator.js";
 import {
@@ -675,7 +692,18 @@ const QCSchema = z.object({
 //      pure substring match. Questions that fail either check are
 //      dropped before the LLM QC even sees them. Bump invalidates
 //      v14 pools.
-const SCHEMA_VERSION = 15;
+//   v16: SUMMARIES-ONLY MODE (no more enrichment). User directive:
+//      "Stop doing your enrichment bullshit. I told you to only use
+//      my summaries. Delete any of your enriched crap and get it
+//      off my app." The LLM-synthesised structured record layer
+//      (lib/book-records.json) is gone. Generator + QC + grounding
+//      check all consume the raw hand-authored .md text under
+//      docs/book-summaries/. Books without an .md return
+//      no_summary_for_book instead of falling back. Also: vocabulary
+//      rubric now keys to AGE grade (per user: "Age grade dictates
+//      vocabulary while knowledge grade dictates text difficulty
+//      they have access to"). Bump invalidates v15 pools.
+const SCHEMA_VERSION = 16;
 // Exported alias so api/activity.js can build the same cache key when it
 // validates a quiz_submit. Kept as a renamed export so the local const can
 // be reassigned independently if we ever split client / server schemas.
@@ -863,112 +891,77 @@ const MATURITY_GUIDANCE = {
 async function generateOnce(bookId, book, studentGrade, guidance, temperature, ageGrade) {
   const poolSize = POOL_SIZE_FULL;
   const schema = quizSchemaFor();
-  const record = getBookRecord(bookId);
+  const summary = getBookSummary(bookId);
 
-  // PK-leveled prompts deliberately tighten the vocabulary + length rules
-  // to keep questions readable for a 4-5 year old. Everything else uses
-  // the standard grade-calibrated comprehension prompt.
-  const isPreK = String(studentGrade || "").toUpperCase() === "PK";
-  // Age grade falls back to working grade when missing — same maturity
-  // as the difficulty floor in that case (matches old behavior).
+  // Hard refuse: no hand-authored summary, no quiz. User directive —
+  // we no longer generate against LLM-synthesised records, web search,
+  // or legacy prose blurbs. Either there's a .md in
+  // docs/book-summaries/ or there's no quiz for this book.
+  if (!summary) {
+    const err = new Error("no_summary_for_book");
+    err.code = "no_summary";
+    throw err;
+  }
+
+  // VOCABULARY tracks AGE grade (per user directive: "Age grade dictates
+  // vocabulary while knowledge grade dictates text difficulty they have
+  // access to"). A 5-year-old reading at G3 is still 5, and shouldn't
+  // see words like "narrator" or "protagonist" in their quiz. Working
+  // grade controls book ACCESS via track-locking elsewhere; here it
+  // just informs the inference-depth tier of the question (recall vs
+  // sequence vs theme).
   const ageGradeKey = String(ageGrade || studentGrade || "K").toUpperCase();
-  const maturityRubric =
-    MATURITY_GUIDANCE[ageGradeKey] || MATURITY_GUIDANCE[studentGrade] || "";
-  const includeMaturity =
-    maturityRubric && String(ageGrade || "").toUpperCase() !== String(studentGrade || "").toUpperCase();
+  const vocabRubric = GRADE_GUIDANCE[ageGradeKey] || GRADE_GUIDANCE.K;
+  const isPreKVocab = ageGradeKey === "PK";
+  // Maturity rubric drives the FRAMING of distractors (peer dynamics,
+  // school routines, etc.) — also keyed to AGE grade.
+  const maturityRubric = MATURITY_GUIDANCE[ageGradeKey] || "";
 
   const system =
     `You are an early-elementary reading specialist designing reading-` +
-    `comprehension questions for a GRADE ${studentGrade} reader.\n\n` +
-    `DIFFICULTY CALIBRATION for Grade ${studentGrade} (vocabulary, ` +
-    `inference depth, sentence length):\n${guidance}\n\n` +
-    (includeMaturity
-      ? `MATURITY CALIBRATION — this student is age-Grade ${ageGrade} but ` +
-        `reads at Grade ${studentGrade}. Keep the DIFFICULTY at Grade ` +
-        `${studentGrade} (above), but the FRAMING of distractors and the ` +
-        `tone of questions should match Grade ${ageGrade}. Don't use ` +
-        `toddler/preschool framing for an older kid even when their ` +
-        `reading level is below grade. Maturity rubric:\n${maturityRubric}\n\n`
+    `comprehension questions for a student whose AGE grade is ` +
+    `${ageGradeKey} (vocabulary level) and whose READING level is ` +
+    `Grade ${studentGrade} (inference depth they can handle).\n\n` +
+    `VOCABULARY CALIBRATION — keyed to AGE grade ${ageGradeKey}. Every ` +
+    `word in every question and every option must be one a ${ageGradeKey}-` +
+    `age kid actually knows. DO NOT use grade-3+ vocabulary like ` +
+    `"narrator", "protagonist", "theme", "character", "perspective" for ` +
+    `a PK/K/G1 age kid — say "the person telling the story", "the main ` +
+    `kid", "the lesson", "the people in the story", etc.\n${vocabRubric}\n\n` +
+    (maturityRubric
+      ? `MATURITY / FRAMING — keyed to AGE grade ${ageGradeKey}. ` +
+        `This controls the kinds of scenarios / contexts you reference in ` +
+        `distractors:\n${maturityRubric}\n\n`
       : "") +
     `Tone: warm and concrete. Each question has EXACTLY 4 options, ONE ` +
     `of which is clearly correct. The other three should be plausible-` +
     `but-wrong things a kid who skimmed might pick. Vary which index ` +
     `(0,1,2,3) is correct across all questions — don't bunch the ` +
     `correct answers at the same position.\n\n` +
-    (record
-      ? // CITATION-CONTRACT MODE (#84). Hard rules backed by closed sets.
-        `CRITICAL — CITATION CONTRACT:\n` +
-        `You are working from a STRUCTURED book record. Every claim you make ` +
-        `MUST trace to that record. Specifically:\n` +
-        `  • All characters you reference must appear in the record's ` +
-        `    "characters" list. Do NOT invent character names.\n` +
-        `  • All items/objects you reference must appear in "key_objects". ` +
-        `    Do NOT invent items.\n` +
-        `  • All plot events you reference must appear in "plot_beats". ` +
-        `    Do NOT invent scenes.\n` +
-        `  • Specific quantifiers (numbers, colors, sizes, counts) must ` +
-        `    appear in "specific_facts" with that exact value. If a fact ` +
-        `    is not in "specific_facts", do NOT ask about a specific value.\n` +
-        `  • REQUIRED SOURCE CITATION (CRITICAL — enforced by code, not by ` +
-        `    judgment). Every question must include a sourceText field ` +
-        `    that copies VERBATIM the specific_facts entry OR plot_beats ` +
-        `    entry that supports the question. The post-generation ` +
-        `    validator runs a substring check:\n` +
-        `      1) sourceText must appear (case-insensitive) in record.specific_facts OR record.plot_beats\n` +
-        `      2) the correct answer's text must appear inside sourceText\n` +
-        `    If either check fails, the question is silently DROPPED — ` +
-        `    you cannot talk your way past this. Quote the record entry ` +
-        `    EXACTLY. Do not paraphrase, summarise, or fabricate.\n` +
-        `    Worked examples (using the One Fish Two Fish record):\n` +
-        `      Q: "What does the Yink drink?" A: "Pink ink"\n` +
-        `      sourceText: "The Yink drinks pink ink and likes to wink"\n` +
-        `      ✓ source appears in specific_facts; ✓ "pink ink" substring matches\n` +
-        `\n` +
-        `      Q: "What do the Zans brush?" A: "Their teeth"\n` +
-        `      sourceText: (no record entry supports "Zans brush teeth")\n` +
-        `      ✗ REJECTED — record says the Zans OPENS CANS; you cannot generate this question\n` +
-        `\n` +
-        `      Q: "Who never goes to school?" A: "Clark"\n` +
-        `      sourceText: (no record entry mentions school)\n` +
-        `      ✗ REJECTED — premise invented, you cannot generate this question\n` +
-        `\n` +
-        `  • PREMISE GROUNDING (LLM-side restatement of the rule above). The ` +
-        `    question itself asserts or implies something — call this the ` +
-        `    PREMISE. The PREMISE must be supported by a specific entry in ` +
-        `    specific_facts or plot_beats. It is NOT enough for the answer ` +
-        `    character to exist in the record; the action / trait / ` +
-        `    relationship the question asks about must also be in the record.\n` +
-        `      BAD: "Who never goes to school?" — the record does not say ` +
-        `      anyone goes (or doesn't go) to school. The premise is invented.\n` +
-        `      BAD: "What is Mike's favourite colour?" — Mike's favourite ` +
-        `      colour isn't in the record.\n` +
-        `      GOOD: "Who has a hook on his head?" — record says: "The Nook ` +
-        `      has a hook on his head". Premise grounded.\n` +
-        `      GOOD: "What does the Yink like to drink?" — record says: ` +
-        `      "The Yink drinks pink ink". Premise grounded.\n` +
-        `    If you cannot point to a specific record entry that supports the ` +
-        `    question's premise, do NOT generate the question.\n` +
-        `  • The "unknown_fields" list names topics the sources did NOT ` +
-        `    establish. Do NOT generate questions on these topics under ` +
-        `    any circumstances — even if you think you know the answer ` +
-        `    from elsewhere. Treat them as forbidden.\n` +
-        `  • Distractors are NOT exempt. A wrong-but-plausible distractor ` +
-        `    must still be drawn from the closed sets above (a different ` +
-        `    character, item, or fact from the record).\n` +
-        `  • Do NOT infer beyond the record. Even if real-world common sense ` +
-        `    suggests a creature in a fantasy picture book "wouldn't go to ` +
-        `    school" — that inference is OUTSIDE the record and forbidden.\n` +
-        `If you cannot generate ${poolSize} questions under this contract, ` +
-        `generate as many as you confidently can — the QC pass and the ` +
-        `consensus filter will accept smaller pools rather than ship ` +
-        `hallucinations.`
-      : // Legacy summary-only mode (book hasn't been enriched yet)
-        `CRITICAL: Only ask about details that are explicitly in the plot ` +
-        `summary provided. Do NOT invent characters, events, items, or ` +
-        `numbers. If you can't verify a detail in the summary, do NOT use ` +
-        `it as a question or distractor.`);
+    `CRITICAL — REQUIRED SOURCE CITATION (enforced by code, not by ` +
+    `judgment). The book summary below is hand-authored and is the ` +
+    `ONLY source of truth. Every question you write must include a ` +
+    `"sourceText" field that COPIES VERBATIM a sentence or bullet from ` +
+    `that summary. The post-generation validator runs a substring check:\n` +
+    `  1) sourceText must appear (case- and punctuation-insensitive) ` +
+    `     inside the summary text.\n` +
+    `  2) the correct answer's text must appear inside sourceText.\n` +
+    `If either check fails, the question is silently DROPPED — you ` +
+    `cannot talk your way past it. Quote the summary EXACTLY. Do not ` +
+    `paraphrase, summarise, or fabricate. Do not apply real-world ` +
+    `common sense ("creatures in a picture book wouldn't go to school") ` +
+    `— if it's not in the summary, it doesn't exist.\n\n` +
+    `Worked examples (using a One Fish Two Fish summary):\n` +
+    `  ✓ Q: "What does the Yink drink?" A: "Pink ink"\n` +
+    `     sourceText: "The Yink drinks pink ink and likes to wink"\n` +
+    `     — source appears in summary, answer "pink ink" appears in source.\n` +
+    `  ✗ Q: "What do the Zans brush?" A: "Their teeth"\n` +
+    `     REJECTED — summary says the Zans OPENS CANS. Brushing isn't ` +
+    `     in any sentence about the Zans.\n` +
+    `  ✗ Q: "Who never goes to school?" A: "Clark"\n` +
+    `     REJECTED — summary never mentions school. Premise invented.\n`;
 
-  const lengthRules = isPreK
+  const lengthRules = isPreKVocab
     ? `- Keep each question under 10 words.\n` +
       `- Keep each option under 5 words.\n` +
       `- Use only Dolch first-100 sight words + CVC patterns + proper ` +
@@ -976,31 +969,11 @@ async function generateOnce(bookId, book, studentGrade, guidance, temperature, a
     : `- Keep each question under 18 words.\n` +
       `- Keep each option under 8 words.\n`;
 
-  // Build the grounding block. When we have a structured record, it
-  // becomes the source of truth (replaces the legacy summary). Otherwise
-  // we fall back to the prose summary.
-  const groundingBlock = record
-    ? `STRUCTURED BOOK RECORD (the ONLY source of truth):\n\n` +
-      `Premise: ${record.premise}\n\n` +
-      `Characters (closed list — only these may be referenced):\n` +
-      record.characters.map((c) => `  • ${c.name} — ${c.role}`).join("\n") + "\n\n" +
-      `Key objects / items (closed list):\n` +
-      record.key_objects.map((o) =>
-        `  • ${o.item}${o.detail ? ` (${o.detail})` : ""}`
-      ).join("\n") + "\n\n" +
-      `Plot beats (in order, closed list):\n` +
-      record.plot_beats.map((b, i) => `  ${i + 1}. ${b.beat}`).join("\n") + "\n\n" +
-      `Setting: ${record.setting}\n` +
-      `Themes: ${record.themes.join(", ")}\n\n` +
-      `Specific facts (the ONLY source of specific quantifiers — ` +
-      `numbers, colors, etc):\n` +
-      record.specific_facts.map((f) => `  • ${f.fact}`).join("\n") + "\n\n" +
-      (record.unknown_fields?.length
-        ? `UNKNOWN FIELDS (do NOT generate questions on these):\n` +
-          record.unknown_fields.map((u) => `  • ${u}`).join("\n") + "\n"
-        : "")
-    : `Plot summary (the source of truth — do NOT quote it verbatim, ` +
-      `but every question must be answerable from these details):\n${book.summary}`;
+  // Grounding = the full hand-authored .md text. The LLM reads it and
+  // must cite from it verbatim via sourceText.
+  const groundingBlock =
+    `HAND-AUTHORED BOOK SUMMARY (the ONLY source of truth):\n\n` +
+    summary;
 
   const prompt =
     `Write ${poolSize} reading-comprehension questions for the book ` +
@@ -1032,12 +1005,10 @@ async function generateOnce(bookId, book, studentGrade, guidance, temperature, a
     `      A. A wagon   B. A scooter   C. A car   D. A bike\n` +
     `    Also GOOD:\n` +
     `      A. Mike's wagon   B. Mike's scooter   C. Mike's car   D. Mike's bike\n` +
-    (record
-      ? `- Every fact you assert must be supported by a specific entry in ` +
-        `the structured record above.\n` +
-        `- Do NOT generate any question referencing the "unknown_fields" ` +
-        `list above.`
-      : `- Every fact you assert must appear in the plot summary above.`);
+    `- Every fact you assert must appear verbatim in the summary above. ` +
+    `Anything not in the summary is OUT OF BOUNDS — including "common ` +
+    `sense" inferences like school routines, jobs, pet care habits, or ` +
+    `favourite colours unless the summary explicitly mentions them.`;
 
   const { object } = await generateObject({
     model: anthropic(GEN_MODEL),
@@ -1049,11 +1020,12 @@ async function generateOnce(bookId, book, studentGrade, guidance, temperature, a
   return object.questions;
 }
 
-// System prompt for the QC reviewer. Two modes:
-//   • record present  → citation-contract enforcement against closed lists
-//   • record missing  → legacy summary-only accuracy check
-// Both modes ALSO score safety (#60).
-function buildQCSystemPrompt(record, studentGrade) {
+// System prompt for the QC reviewer. Single mode now — every quiz is
+// grounded in a hand-authored summary (the .md file under
+// docs/book-summaries/). The QC reviewer cross-checks each question
+// against the summary text + the deterministic source-citation check
+// that runs BEFORE QC.
+function buildQCSystemPrompt(summary, studentGrade) {
   const safetyBlock =
     "AXIS 2 — SAFETY (0-10). The student is in Grade " +
     `${studentGrade} (most readers K-3). Score for AGE-APPROPRIATENESS:\n` +
@@ -1073,36 +1045,31 @@ function buildQCSystemPrompt(record, studentGrade) {
     "is wrong for the grade. Most K-2 books are fine — only flag when " +
     "the question (not just the book) introduces age-inappropriate content.";
 
-  const accuracyBlock = record
-    ? "AXIS 1 — ACCURACY (0-10). The book has a STRUCTURED RECORD with " +
-      "closed lists (characters, key_objects, plot_beats, specific_facts, " +
-      "unknown_fields). Score against THAT record:\n" +
+  const accuracyBlock = summary
+    ? "AXIS 1 — ACCURACY (0-10). The book has a HAND-AUTHORED SUMMARY " +
+      "(provided below). Score every question against that summary text:\n" +
       "  10 = every entity in question + answer + distractors traces to a " +
-      "record entry; specifics match specific_facts exactly; the question's " +
-      "PREMISE (the implied assertion, e.g. 'X did Y') is itself supported " +
-      "by a specific_facts or plot_beats entry\n" +
-      "   7 = workable — minor wording issue but contract holds\n" +
-      "   4 = answer or a distractor introduces a name/item not in the " +
-      "closed lists; or asks about something the sources don't establish " +
-      "but doesn't reference unknown_fields directly\n" +
-      "   0 = question references unknown_fields, OR the answer's specific " +
-      "value (a number, color, name) does NOT appear in specific_facts, OR " +
-      "a character/item not in the record, OR THE QUESTION'S PREMISE IS " +
-      "NOT IN THE RECORD\n\n" +
-      "CITATION RULE: if a question asks 'how many X', 'what color is Y', " +
-      "or any specific quantifier, the answer MUST appear verbatim in " +
-      "specific_facts. Inference from the prose is NOT enough. Score 0 if " +
-      "the specific value isn't there.\n\n" +
-      "PREMISE RULE (critical, catches the 'Who never goes to school?' " +
-      "class of hallucination): the question itself implies an assertion. " +
-      'For "Who never goes to school?", the implied assertion is "some ' +
-      'character in this book never goes to school". That implied ' +
-      "assertion must be supported by a specific entry in specific_facts " +
-      "or plot_beats. If you cannot find a record entry that supports " +
-      "the premise of the question (not just the answer character), " +
-      "score the question 0. Common pattern: question references " +
-      "real-world common sense ('schools', 'jobs', 'pets', 'favourite " +
-      "colors') that the book never discusses — these are hallucinations.\n\n"
+      "sentence in the summary; the question's PREMISE (the implied " +
+      "assertion, e.g. 'X did Y') is supported by a verbatim line in the " +
+      "summary; the sourceText cited by the generator actually appears in " +
+      "the summary AND contains the correct answer\n" +
+      "   7 = workable — minor wording issue but the premise traces to " +
+      "the summary\n" +
+      "   4 = answer or distractor introduces a name/item not in the " +
+      "summary, OR the question's premise is only tangentially related " +
+      "to the summary\n" +
+      "   0 = question's premise is NOT in the summary (e.g., the summary " +
+      "doesn't mention school but the question asks about school); OR " +
+      "the sourceText cited doesn't appear in the summary; OR a specific " +
+      "quantifier in the answer doesn't appear verbatim in the summary\n\n" +
+      "PREMISE RULE (CRITICAL, catches 'Who never goes to school?' and " +
+      "'What do the Zans brush?' hallucinations): the question implies " +
+      "an assertion. That assertion must be supported by a verbatim line " +
+      "in the summary. If you can't point to a specific sentence in the " +
+      "summary that supports the question, score 0. Common pattern: the " +
+      "question references real-world common sense ('schools', 'jobs', " +
+      "'pets', 'favourite colors', 'brushing teeth') that the summary " +
+      "never discusses — these are hallucinations.\n\n"
     : "AXIS 1 — ACCURACY (0-10). Catch hallucinations and inaccuracies. " +
       "For each question, verify it against the canonical plot summary.\n" +
       "  10 = unambiguously answerable from the summary; correct answer is " +
@@ -1142,20 +1109,11 @@ function buildQCSystemPrompt(record, studentGrade) {
   );
 }
 
-function buildQCPrompt(record, book, studentGrade, formatted, questionCount) {
-  const groundingBlock = record
-    ? `STRUCTURED RECORD (the ONLY source of truth):\n\n` +
-      `Premise: ${record.premise}\n\n` +
-      `Characters: ${record.characters.map((c) => c.name).join(", ")}\n` +
-      `Key objects: ${record.key_objects.map((o) => o.item).join(", ")}\n` +
-      `Plot beats:\n${record.plot_beats.map((b, i) => `  ${i + 1}. ${b.beat}`).join("\n")}\n\n` +
-      `Specific facts (the ONLY allowed source of specific quantifiers):\n` +
-      record.specific_facts.map((f) => `  • ${f.fact}`).join("\n") + `\n\n` +
-      (record.unknown_fields?.length
-        ? `UNKNOWN FIELDS (any question asking about these → score 0):\n` +
-          record.unknown_fields.map((u) => `  • ${u}`).join("\n") + `\n`
-        : "")
-    : `Canonical plot summary (the ONLY source of truth):\n${book.summary}`;
+function buildQCPrompt(summary, book, studentGrade, formatted, questionCount) {
+  const groundingBlock = summary
+    ? `HAND-AUTHORED BOOK SUMMARY (the ONLY source of truth):\n\n${summary}`
+    : `No summary available for this book — every question should ` +
+      `score LOW on accuracy since there's no source to verify against.`;
   return (
     `Book: "${book.title}" by ${book.author}\n` +
     `Grade level (calibration target): ${studentGrade}\n\n` +
@@ -1163,7 +1121,7 @@ function buildQCPrompt(record, book, studentGrade, formatted, questionCount) {
     `Questions to review:\n\n${formatted}\n\n` +
     `For EVERY question (indexes 0 through ${questionCount - 1}), ` +
     `return an entry with that index, an accuracy score, a safety score, ` +
-    `and any specific issues you found. Do not skip any.`
+    `a form score, and any specific issues you found. Do not skip any.`
   );
 }
 
@@ -1184,8 +1142,8 @@ function buildQCPrompt(record, book, studentGrade, formatted, questionCount) {
 //     "their", "on the", "in the") — the answer often has a determiner
 //     the record entry lacks ("A bike" vs "rides a bike")
 //   - whitespace + punctuation differences
-function verifyQuestionGrounded(q, record) {
-  if (!record) return { ok: true, reason: "no_record" }; // legacy path, skip
+function verifyQuestionGrounded(q, summary) {
+  if (!summary) return { ok: false, reason: "no_summary" };
   const src = String(q.sourceText || "").trim();
   if (!src || src.length < 10) {
     return { ok: false, reason: "no_source" };
@@ -1197,17 +1155,16 @@ function verifyQuestionGrounded(q, record) {
       .replace(/\s+/g, " ")
       .trim();
   const srcNorm = norm(src);
-  const recordEntries = [
-    ...(record.specific_facts || []).map((f) => norm(f.fact)),
-    ...(record.plot_beats || []).map((b) => norm(b.beat)),
-  ].filter(Boolean);
-  // Source must be substring of a record entry OR a record entry must
-  // be substring of source (LLM may quote partially or expand slightly).
-  const sourceFound = recordEntries.some(
-    (e) => e === srcNorm || e.includes(srcNorm) || srcNorm.includes(e)
-  );
+  const summaryNorm = norm(summary);
+  // Source must appear as a substring of the hand-authored summary.
+  // The LLM's cited sourceText may collapse whitespace or punctuation
+  // differently from the source, so we normalise both sides before
+  // matching. We also tolerate slight LLM expansion (a sourceText that
+  // contains an entire record line — strictly a superset).
+  const sourceFound =
+    summaryNorm.includes(srcNorm) || srcNorm.includes(summaryNorm.slice(0, 200));
   if (!sourceFound) {
-    return { ok: false, reason: "source_not_in_record", source: src };
+    return { ok: false, reason: "source_not_in_summary", source: src };
   }
   // Correct answer text must appear in source after stripping leading
   // articles / prepositions.
@@ -1235,32 +1192,29 @@ function verifyQuestionGrounded(q, record) {
 }
 
 async function qcAndFilter(bookId, book, studentGrade, questions) {
-  const record = getBookRecord(bookId);
+  const summary = getBookSummary(bookId);
 
   // ---------- Citation grounding pre-filter (deterministic) ----------
-  // Run this BEFORE the LLM-based QC. The LLM-based premise check kept
+  // Runs BEFORE the LLM-based QC. The LLM-based premise check kept
   // letting hallucinations through ("Who never goes to school?",
   // "What do the Zans brush?", "Where do the children put their cold
   // feet?") because the LLM can rationalise anything. The deterministic
   // substring check can't be talked around.
-  let groundedQuestions = questions;
-  if (record) {
-    const groundingDropped = [];
-    groundedQuestions = [];
-    for (let i = 0; i < questions.length; i++) {
-      const v = verifyQuestionGrounded(questions[i], record);
-      if (v.ok) {
-        groundedQuestions.push(questions[i]);
-      } else {
-        groundingDropped.push({ idx: i, ...v, question: questions[i].q });
-      }
+  let groundedQuestions = [];
+  const groundingDropped = [];
+  for (let i = 0; i < questions.length; i++) {
+    const v = verifyQuestionGrounded(questions[i], summary);
+    if (v.ok) {
+      groundedQuestions.push(questions[i]);
+    } else {
+      groundingDropped.push({ idx: i, ...v, question: questions[i].q });
     }
-    if (groundingDropped.length > 0) {
-      console.log(
-        `[quiz_grounding] ${book.title}: dropped ${groundingDropped.length}/${questions.length}`,
-        groundingDropped.map((d) => `Q${d.idx}(${d.reason})`).join(", ")
-      );
-    }
+  }
+  if (groundingDropped.length > 0) {
+    console.log(
+      `[quiz_grounding] ${book.title}: dropped ${groundingDropped.length}/${questions.length}`,
+      groundingDropped.map((d) => `Q${d.idx}(${d.reason})`).join(", ")
+    );
   }
   // Run the remaining LLM-based QC pass over the GROUNDING SURVIVORS
   // only. Anything that failed citation grounding is already out — no
@@ -1281,8 +1235,8 @@ async function qcAndFilter(bookId, book, studentGrade, questions) {
     const { object } = await generateObject({
       model: anthropic(QC_MODEL),
       schema: QCSchema,
-      system: buildQCSystemPrompt(record, studentGrade),
-      prompt: buildQCPrompt(record, book, studentGrade, formatted, groundedQuestions.length),
+      system: buildQCSystemPrompt(summary, studentGrade),
+      prompt: buildQCPrompt(summary, book, studentGrade, formatted, groundedQuestions.length),
     });
     reviews = object.reviews || [];
   } catch (err) {
@@ -1512,7 +1466,28 @@ export default async function handler(req, res) {
     );
   }
 
-  const guidance = GRADE_GUIDANCE[studentGrade] || GRADE_GUIDANCE.K;
+  // Refuse to generate when the book has no hand-authored summary.
+  // User directive: only the .md files under docs/book-summaries/ are
+  // an acceptable source of truth. Books without an .md show a clear
+  // "quiz unavailable" message instead of an attempt to invent one.
+  if (!getBookSummary(bookId)) {
+    res.statusCode = 503;
+    return res.end(JSON.stringify({
+      error: "no_summary_for_book",
+      message:
+        "This book doesn't have a hand-authored summary yet, so we can't " +
+        "build a quiz that matches the story. An admin needs to add one.",
+    }));
+  }
+
+  // Vocab/length rubric is keyed to AGE grade (per user directive:
+  // age dictates vocabulary, working grade dictates which books they
+  // can access). Working grade ("studentGrade" name retained for
+  // legacy) is passed through for inference-depth tuning inside
+  // generateOnce, but the rubric the prompt cites is the age one.
+  const guidance =
+    GRADE_GUIDANCE[String(ageGrade || studentGrade || "K").toUpperCase()] ||
+    GRADE_GUIDANCE.K;
 
   try {
     // ---------- Generation: multi-pass cross-validation (1g) ----------
