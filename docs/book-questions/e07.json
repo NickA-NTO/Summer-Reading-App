@@ -1,0 +1,67 @@
+{
+  "bookId": "e07",
+  "version": 1,
+  "_note": "Hand-authored from docs/book-summaries/e07-one-fish-two-fish-red-fish-blue-fish.md as a working example. Replace with your authoring-agent output when ready.",
+  "questions": [
+    {
+      "q": "What does the Yink drink?",
+      "options": ["Pink milk", "Pink ink", "Pink juice", "Pink water"],
+      "answer": 1
+    },
+    {
+      "q": "What does the Zans open?",
+      "options": ["Boxes", "Cans", "Doors", "Books"],
+      "answer": 1
+    },
+    {
+      "q": "Who has a hook on his head?",
+      "options": ["The Wump", "The Yink", "The Nook", "The Zans"],
+      "answer": 2
+    },
+    {
+      "q": "How many humps does Mr. Gump's Wump have?",
+      "options": ["One hump", "Three humps", "Five humps", "Seven humps"],
+      "answer": 3
+    },
+    {
+      "q": "What color socks does the narrator wear while boxing the Gox?",
+      "options": ["Red socks", "Blue socks", "Yellow socks", "Green socks"],
+      "answer": 2
+    },
+    {
+      "q": "Where is Clark found?",
+      "options": ["In the park", "In the bed", "In the shed", "In the boat"],
+      "answer": 0
+    },
+    {
+      "q": "What does the Yop do?",
+      "options": ["Yops sing", "Yops swim", "Yops hop", "Yops fly"],
+      "answer": 2
+    },
+    {
+      "q": "What is the cookbook on the Nook's hook called?",
+      "options": ["How to Read", "How to Cook", "How to Look", "How to Play"],
+      "answer": 1
+    },
+    {
+      "q": "How many fingers does the creature in the book have?",
+      "options": ["Nine fingers", "Ten fingers", "Eleven fingers", "Twelve fingers"],
+      "answer": 2
+    },
+    {
+      "q": "What is the bedtime pet at the end of the book called?",
+      "options": ["Zeep", "Zans", "Yink", "Yop"],
+      "answer": 0
+    },
+    {
+      "q": "What do the Zeds have on top of their heads?",
+      "options": ["One hair each", "Two hairs each", "Three hairs each", "Four hairs each"],
+      "answer": 0
+    },
+    {
+      "q": "What does Ish use to wish for fish?",
+      "options": ["A wish", "A dish", "A cup", "A net"],
+      "answer": 1
+    }
+  ]
+}

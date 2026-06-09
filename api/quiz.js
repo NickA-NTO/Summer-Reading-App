@@ -72,6 +72,71 @@ function getBookSummary(bookId) {
   return BOOK_SUMMARIES.get(String(bookId).toLowerCase()) || null;
 }
 
+// ============================================================
+// Pre-authored quiz questions — the static question bank.
+// Replaces runtime LLM generation. An external authoring agent
+// produces docs/book-questions/<bookId>.json files; the app reads
+// them at module init and serves them verbatim. No LLM at quiz
+// time means no hallucinations, no schema-bump fragility, no
+// cache-miss surprises. Format documented in docs/book-questions/README.md.
+// ============================================================
+const QUESTIONS_DIR = path.join(process.cwd(), "docs", "book-questions");
+const BOOK_QUESTION_BANKS = new Map();
+function validateQuestionBank(bookId, data) {
+  if (!data || typeof data !== "object") return "not_an_object";
+  if (!Array.isArray(data.questions)) return "questions_not_array";
+  if (data.questions.length < 6) return "too_few_questions";
+  for (let i = 0; i < data.questions.length; i++) {
+    const q = data.questions[i];
+    if (typeof q?.q !== "string" || q.q.length < 5) {
+      return `q${i}_invalid_text`;
+    }
+    if (!Array.isArray(q.options) || q.options.length !== 4) {
+      return `q${i}_options_not_4`;
+    }
+    if (!q.options.every((o) => typeof o === "string" && o.length > 0)) {
+      return `q${i}_options_invalid_strings`;
+    }
+    if (!Number.isInteger(q.answer) || q.answer < 0 || q.answer > 3) {
+      return `q${i}_answer_out_of_range`;
+    }
+  }
+  return null;
+}
+try {
+  if (fs.existsSync(QUESTIONS_DIR)) {
+    for (const f of fs.readdirSync(QUESTIONS_DIR)) {
+      if (!f.endsWith(".json")) continue;
+      const bookId = f.slice(0, -5).toLowerCase();
+      try {
+        const raw = fs.readFileSync(path.join(QUESTIONS_DIR, f), "utf-8");
+        const data = JSON.parse(raw);
+        const err = validateQuestionBank(bookId, data);
+        if (err) {
+          console.warn(`[quiz] rejected question bank ${f}: ${err}`);
+          continue;
+        }
+        BOOK_QUESTION_BANKS.set(bookId, {
+          version: Number(data.version) || 1,
+          questions: data.questions.map((q) => ({
+            q: q.q,
+            options: q.options.slice(),
+            answer: q.answer,
+          })),
+        });
+      } catch (err) {
+        console.warn(`[quiz] failed to load question bank ${f}:`, err?.message);
+      }
+    }
+    console.log(`[quiz] loaded ${BOOK_QUESTION_BANKS.size} static question banks`);
+  }
+} catch (err) {
+  console.warn("[quiz] couldn't read docs/book-questions/:", err?.message);
+}
+function getStaticQuestionBank(bookId) {
+  return BOOK_QUESTION_BANKS.get(String(bookId).toLowerCase()) || null;
+}
+
 // Canonical book metadata for quiz generation. The .md summary under
 // docs/book-summaries/ is the source of truth for plot content; this
 // map is just the metadata index — title, author, grade band,
@@ -1455,6 +1520,57 @@ export default async function handler(req, res) {
   }
   const style = book.quizStyle || "comprehension";
   const minUsable = minUsableFor(style);
+
+  // ---------- Static question bank (primary path) ----------
+  // Pre-authored questions in docs/book-questions/<bookId>.json take
+  // precedence over the LLM pipeline. When a bank exists, we serve it
+  // directly — no LLM call, no Redis cache lookup at request time, no
+  // hallucinations possible. The bank's `version` is baked into the
+  // cache-key the client uses to namespace localStorage, so editing
+  // the file + bumping version auto-invalidates kid resumes.
+  const staticBank = getStaticQuestionBank(bookId);
+  if (staticBank) {
+    recordQuizOpen(session.email, bookId).catch(() => {});
+    // HMAC-sign each question's correct index so /api/activity can
+    // grade by recomputing the token (no Redis pool lookup needed).
+    const signed = staticBank.questions.map((q) => ({ ...q }));
+    await attachAnswerTokens(bookId, signed);
+    res.statusCode = 200;
+    res.setHeader("Cache-Control", "private, max-age=86400");
+    return res.end(
+      JSON.stringify({
+        available: true,
+        bookId,
+        poolSize: signed.length,
+        studentGrade,
+        quizStyle: style,
+        cached: true,
+        source: "static",
+        bankVersion: staticBank.version,
+        questions: isAdmin(session.email)
+          ? signed
+          : signed.map(stripAnswerKey),
+        adminMode: isAdmin(session.email),
+      })
+    );
+  }
+
+  // No static bank — refuse. User directive: external authoring agent
+  // produces the .json files. The runtime app does not generate
+  // questions on the fly anymore.
+  res.statusCode = 503;
+  return res.end(JSON.stringify({
+    error: "no_quiz_questions",
+    message:
+      "This book doesn't have a quiz yet. The authoring team needs to " +
+      "add a question bank for it.",
+  }));
+
+  // ---------- LEGACY LLM GENERATION PATH (disabled) ----------
+  // The code below is the old multi-pass + QC LLM pipeline. Kept here
+  // commented-conceptually so it's easy to revive if the static bank
+  // path ever needs a fallback (it shouldn't — the bank is the source
+  // of truth). The early `return` above means this never executes.
 
   // Cache key: (book, working grade, age grade). Different working grades
   // get different question pools because difficulty is calibrated to the
