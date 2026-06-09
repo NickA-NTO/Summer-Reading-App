@@ -523,7 +523,7 @@ const QCSchema = z.object({
 //
 // Previous versions retired in commit history; see git log for
 // per-version rationale.
-const SCHEMA_VERSION = 18;
+const SCHEMA_VERSION = 19;
 // Exported alias so api/activity.js can build the same cache key when it
 // validates a quiz_submit. Kept as a renamed export so the local const can
 // be reassigned independently if we ever split client / server schemas.
@@ -763,6 +763,22 @@ async function generateOnce(bookId, book, studentGrade, guidance, temperature, a
     `  • Distractors should come from OTHER content in the same ` +
     `    summary whenever possible. A kid who didn't read should be ` +
     `    able to confuse the wrong answers with the right one.\n` +
+    `  • SAME-SENTENCE / SAME-PARAGRAPH PRIORITY (critical): If the ` +
+    `    correct answer comes from a sentence that LISTS multiple ` +
+    `    similar items, use the OTHER items in that list as ` +
+    `    distractors. They're the perfect parallel.\n` +
+    `    Example: the summary says "One fish has a little star. ` +
+    `    Another fish has a little car." For the question "What do ` +
+    `    some fish have that is little?" with answer "A little star",\n` +
+    `      ✓ GOOD distractors: "A little car" (literally the next ` +
+    `        sentence — perfect parallel)\n` +
+    `      ✗ BAD distractors: "A little hat" / "A little fish" / ` +
+    `        "A little house" (invented from imagination, not in book)\n` +
+    `  • NEVER USE THE QUESTION'S SUBJECT AS A DISTRACTOR. If the ` +
+    `    question asks "What does FISH have?", "A little fish" is ` +
+    `    a logically nonsensical distractor (fish can't have ` +
+    `    themselves). Distractors must be plausible things that ` +
+    `    could BE the answer, not the subject of the question.\n` +
     `  • If the correct answer is a uniquely identifiable real-world ` +
     `    thing (e.g. "pink ink" is the only beverage in the book; ` +
     `    "bike" is the only thing you pedal), FLIP the question to ` +
