@@ -4973,6 +4973,18 @@ document.getElementById("adminRegenQuiz").addEventListener("click", async (e) =>
     // replays the OLD questions from their saved state even though
     // the server-side pool just regenerated.
     try { clearQuizProgress(activeBookId); } catch {}
+    // Also nuke the in-memory quizState for this book so a re-open
+    // can't replay questions from the previous attempt that we just
+    // invalidated. Without this, openQuiz's resume check passes
+    // (localStorage IS clear) but quizState.questions still holds
+    // the old shuffled set and renderQuizQuestion uses it.
+    if (quizState.bookId === activeBookId) {
+      quizState.bookId = null;
+      quizState.pool = null;
+      quizState.questions = null;
+      quizState.answers = [];
+      quizState.idx = 0;
+    }
     btn.textContent = `✓ Busted (${data.bustedKeys || 0})`;
     setTimeout(() => {
       btn.textContent = orig; btn.disabled = false;
@@ -5805,6 +5817,21 @@ async function finishQuiz() {
         serverResp.heldInfo.cooldownUntil,
         serverResp.heldInfo.flagCount
       );
+    }
+    // Self-heal: if the server returned no_quiz_pool, it means the kid
+    // was running on a stale localStorage resume (mid-attempt saved
+    // BEFORE someone busted the cache). The poolIdx values in their
+    // saved questions no longer match anything cached server-side, so
+    // every answer scores 0. Wipe the stale resume + in-memory state
+    // so the next "Try again" generates a clean attempt.
+    if (serverResp?.error === "no_quiz_pool") {
+      console.warn("[quiz] no_quiz_pool — wiping stale local resume so next attempt regenerates");
+      try { clearQuizProgress(quizState.bookId); } catch {}
+      // Reset attempt-local state too so the retry path picks fresh questions.
+      quizState.pool = null;
+      quizState.questions = null;
+      quizState.answers = [];
+      quizState.idx = 0;
     }
   }
 
