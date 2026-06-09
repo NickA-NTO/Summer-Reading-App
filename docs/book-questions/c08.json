@@ -1,0 +1,126 @@
+{
+  "bookId": "c08",
+  "version": 2,
+  "questions": [
+    {
+      "q": "What is Geronimo's job in New Mouse City?",
+      "options": [
+        "Editor of a newspaper",
+        "Captain of a ship",
+        "Owner of a hotel",
+        "Pilot of an airplane"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does Thea bring into Geronimo's office?",
+      "options": [
+        "A treasure map",
+        "A stowaway",
+        "A green lake",
+        "A frozen clam"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "How is Thea related to Geronimo?",
+      "options": [
+        "She is his sister",
+        "She is his cousin",
+        "She is his aunt",
+        "She is his mother"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "How is Trap related to Geronimo?",
+      "options": [
+        "He is his cousin",
+        "He is his brother",
+        "He is his uncle",
+        "He is his nephew"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "How is Benjamin related to Geronimo?",
+      "options": [
+        "He is his nephew",
+        "He is his cousin",
+        "He is his brother",
+        "He is his son"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "How do the Stiltons travel to the faraway island?",
+      "options": [
+        "By ship",
+        "By airplane",
+        "By train",
+        "By car"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What food makes Geronimo sick during the voyage?",
+      "options": [
+        "Frozen clams",
+        "Hot cheese tea",
+        "Tropical fruit",
+        "Fresh bread"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What surprise do they find when they reach the island?",
+      "options": [
+        "Tourists and a hotel",
+        "Buried gold coins",
+        "A pirate ship",
+        "An empty beach"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What is at the spot marked X on the map?",
+      "options": [
+        "A green lake",
+        "A chest of gold",
+        "A buried jewel",
+        "A secret cave"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What shape is the lake when seen from above?",
+      "options": [
+        "Like an eye",
+        "Like a heart",
+        "Like a star",
+        "Like a circle"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What color is the water in the lake?",
+      "options": [
+        "Emerald green",
+        "Bright blue",
+        "Deep purple",
+        "Golden yellow"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What kind of person is Geronimo when it comes to adventures?",
+      "options": [
+        "He hates them",
+        "He loves them",
+        "He plans them",
+        "He leads them"
+      ],
+      "answer": 0
+    }
+  ]
+}

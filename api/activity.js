@@ -12,7 +12,7 @@
 //       reading time, the XP is either held for admin review or partially
 //       reduced. Manual "I read this" reads skip fraud detection entirely.
 
-import { verifySession, parseCookies, isAdmin } from "../lib/session.js";
+import { verifySession, parseCookies, isAdmin, displayName, isTombstoned, verifyQuizAnswer, isHardcodedBypassQuizHolds } from "../lib/session.js";
 import { resolveVisibleTracks, trackForBook } from "../lib/tracks.js";
 import {
   recordRead,
@@ -30,12 +30,14 @@ import {
   evaluateAchievementsForUser,
   recordQuizAttempt,
   consumeQuizOpens,
+  setReadingSessionQuizOutcome,
   redis,
   FRAUD_RATIO_HOLD,
   FRAUD_RATIO_SOFT,
   FRAUD_FRESHNESS_WINDOW_MS,
   FIRST_OPEN_SUSPICION_HOURS,
   STARTED_RECENTLY_HOLD_MS,
+  startedRecentlyHoldMsForGrade,
   QUIZ_DAILY_ATTEMPT_LIMIT,
 } from "../lib/store.js";
 import { getBook } from "../lib/books.js";
@@ -51,6 +53,7 @@ import { QUIZ_BOOKS, QUIZ_SCHEMA_VERSION, getCachedQuizPool } from "./quiz.js";
 import { trackError, trackEvent } from "../lib/observability.js";
 import { classifyComment } from "../lib/moderation.js";
 import { holdComment } from "../lib/store.js";
+import { checkRateLimit, send429, LIMITS } from "../lib/rate-limit.js";
 
 // Load the user's profile from Redis. Returns null if missing or on error.
 async function loadProfile(email) {
@@ -72,6 +75,17 @@ async function loadProfile(email) {
 function resolveGradeServerSide(profile, email) {
   if (profile && profile.grade) return normalizeGrade(profile.grade);
   return normalizeGrade(guessGradeFromEmail(email) || "K");
+}
+
+// Age grade is OPTIONAL — TimeBack supplies it via the working-grade
+// sync cron. When missing, fall back to the working grade so the
+// quiz-pool cache key matches what /api/quiz wrote on the fetch side.
+// Without this resolver, getCachedQuizPool was reading from the
+// wrong key for any kid whose ageGrade differs from workingGrade
+// (Carl Hendrick: workingGrade=K, ageGrade=2 → 0/5 grading bug).
+function resolveAgeGradeServerSide(profile, fallbackGrade) {
+  if (profile && profile.ageGrade) return normalizeGrade(profile.ageGrade);
+  return fallbackGrade;
 }
 
 /**
@@ -119,6 +133,25 @@ export default async function handler(req, res) {
     return res.end(JSON.stringify({ error: "unauthenticated" }));
   }
 
+  // #82 per-email rate limit. Activity covers reads, votes, comments,
+  // open events, fraud flag writes — high-volume but cheap. Cap is
+  // generous (180/min ≈ 3/sec) but blocks an automated flood.
+  {
+    const rl = await checkRateLimit({
+      email: session.email, bucket: "activity",
+      max: LIMITS.activity.max, windowSec: LIMITS.activity.windowSec,
+    });
+    if (!rl.ok) return send429(res, rl);
+  }
+
+  // #19 audit follow-up: reject writes for tombstoned (just-deleted)
+  // emails so a concurrent in-flight tab can't re-create per-user keys
+  // milliseconds after /api/auth/me?action=delete completes.
+  if (await isTombstoned(session.email)) {
+    res.statusCode = 410; // Gone
+    return res.end(JSON.stringify({ error: "account_deleted" }));
+  }
+
   // Parse body (Vercel doesn't auto-parse for raw functions)
   let raw = "";
   for await (const chunk of req) raw += chunk;
@@ -140,6 +173,9 @@ export default async function handler(req, res) {
   // profile.grade → email heuristic → "K".
   const profile = await loadProfile(session.email);
   const grade = resolveGradeServerSide(profile, session.email);
+  // Age grade for the quiz-pool cache lookup (#79). Must match the
+  // resolution chain in /api/quiz so reader + writer hit the same key.
+  const ageGrade = resolveAgeGradeServerSide(profile, grade);
   // attemptNum: 1 or 2 (present for quiz passes, absent for manual reads).
   // `let` rather than const because the quiz_submit branch (#40) overrides
   // it with the server-authoritative count from recordQuizAttempt — the
@@ -245,7 +281,13 @@ export default async function handler(req, res) {
       try {
         await holdComment({
           email: session.email,
-          name: session.name || session.email.split("@")[0],
+          // #47 — redact at write. Full name only flows through the
+          // session cookie; comments queue stores the peer-facing
+          // "First L." form so any moderation UI that surfaces this
+          // queue can't accidentally leak the last name. Admins who
+          // need full-name attribution can dereference via the email
+          // field (admin-only path).
+          name: displayName(session.name || session.email.split("@")[0]),
           bookId,
           text,
           reason: verdict.reason,
@@ -339,8 +381,15 @@ export default async function handler(req, res) {
     // attempts in a 72h rolling window we 429 and ask them to come back
     // tomorrow. Redis-down case: serverAttempt is null → fall back to the
     // client-supplied attemptNum so we degrade gracefully.
-    const serverAttempt = await recordQuizAttempt(session.email, bookId);
-    if (serverAttempt != null && serverAttempt > QUIZ_DAILY_ATTEMPT_LIMIT) {
+    //
+    // Admin bypass: admins are testing the flow repeatedly and cannot be
+    // gated by a per-book attempt limit. INCR is skipped entirely so
+    // their attempts don't pollute the counter either.
+    const isAdminUser = isAdmin(session.email);
+    const serverAttempt = isAdminUser
+      ? attemptNum // trust the client value for admin (no INCR side effect)
+      : await recordQuizAttempt(session.email, bookId);
+    if (!isAdminUser && serverAttempt != null && serverAttempt > QUIZ_DAILY_ATTEMPT_LIMIT) {
       trackEvent("quiz_attempt_blocked", { bookId, attempt: serverAttempt });
       res.statusCode = 429;
       return res.end(JSON.stringify({
@@ -358,9 +407,22 @@ export default async function handler(req, res) {
     if (serverAttempt != null) {
       attemptNum = Math.min(2, Math.max(1, serverAttempt));
     }
-    // Client posts `answers: [{ idx, chosen }, ...]` — idx is the index
-    // into the cached pool (0..poolSize-1), chosen is the kid's tapped
-    // option (0..3). Validates length + bounds before grading.
+    // Client posts `answers: [{ idx, chosen, qText, answerToken }, ...]`.
+    // `idx` is the position in the kid's slate (0-4, just for dedup).
+    // `chosen` is the kid's tapped option ORIGINAL index (0-3).
+    // `qText` + `answerToken` are the HMAC-signed payload from /api/quiz.
+    //
+    // Grading is now self-contained — server recomputes
+    // signQuizAnswer(bookId, qText, chosen) and compares to the
+    // submitted answerToken. If they match, the kid picked the correct
+    // option (because the token's HMAC encoded the correct idx at
+    // generation time). NO Redis cache lookup needed at grade time —
+    // schema bumps, cache expiry, redeploy timing can't break grading
+    // anymore.
+    //
+    // We still fetch the cached pool as a SOFT compatibility path for
+    // older clients that don't yet have answerToken in their saved
+    // localStorage; if neither path works, we 409 as before.
     const answers = Array.isArray(body.answers) ? body.answers : [];
     if (answers.length !== 5) {
       res.statusCode = 400;
@@ -369,67 +431,134 @@ export default async function handler(req, res) {
         message: "Need exactly 5 answers.",
       }));
     }
-    const pool = await getCachedQuizPool(bookId, grade);
-    if (!pool || !Array.isArray(pool.questions) || pool.questions.length < 5) {
-      // The kid hit quiz_submit without ever fetching /api/quiz, OR the
-      // pool expired mid-attempt. Either way we can't validate; refuse.
-      res.statusCode = 409;
-      return res.end(JSON.stringify({
-        error: "no_quiz_pool",
-        message: "Couldn't find the quiz for this book. Reopen the quiz and try again.",
-      }));
+    const useTokenGrading = answers.every(
+      (a) => typeof a?.qText === "string" && typeof a?.answerToken === "string"
+    );
+    let pool = null;
+    if (!useTokenGrading) {
+      // Legacy client — fall back to the cache-pool lookup.
+      pool = await getCachedQuizPool(bookId, grade, ageGrade);
+      if (!pool || !Array.isArray(pool.questions) || pool.questions.length < 5) {
+        res.statusCode = 409;
+        return res.end(JSON.stringify({
+          error: "no_quiz_pool",
+          message: "Couldn't find the quiz for this book. Reopen the quiz and try again.",
+        }));
+      }
     }
-    // Grade each answer against the cached correct index.
+    // Grade each answer.
     let correctCount = 0;
     const correctFlags = [];
-    const seenIdx = new Set();
+    const seen = new Set();
+    const adminDebug = isAdminUser ? [] : null;
     for (const a of answers) {
-      const idx = Number(a?.idx);
       const chosen = Number(a?.chosen);
-      if (
-        !Number.isInteger(idx) || idx < 0 || idx >= pool.questions.length ||
-        !Number.isInteger(chosen) || chosen < 0 || chosen > 3 ||
-        seenIdx.has(idx) // reject duplicate questions in a single attempt
-      ) {
+      if (!Number.isInteger(chosen) || chosen < 0 || chosen > 3) {
         res.statusCode = 400;
         return res.end(JSON.stringify({
           error: "invalid_answer_entry",
-          message: "Answer entries must be unique {idx, chosen} pairs within the pool.",
+          message: "Each answer needs a chosen index between 0 and 3.",
         }));
       }
-      seenIdx.add(idx);
-      const isCorrect = chosen === Number(pool.questions[idx].answer);
+      let isCorrect = false;
+      let qPreview = "";
+      let expectedDebug = null;
+      if (useTokenGrading) {
+        const qText = String(a.qText || "");
+        const token = String(a.answerToken || "");
+        // Dedup on qText so a kid can't game it by re-submitting the
+        // same question's answer with multiple chosen values.
+        const dedupKey = qText.slice(0, 200);
+        if (seen.has(dedupKey)) {
+          res.statusCode = 400;
+          return res.end(JSON.stringify({
+            error: "invalid_answer_entry",
+            message: "Answer entries must be for unique questions.",
+          }));
+        }
+        seen.add(dedupKey);
+        isCorrect = await verifyQuizAnswer(bookId, qText, chosen, token);
+        qPreview = qText.slice(0, 60);
+      } else {
+        // Legacy cache-pool path.
+        const idx = Number(a?.idx);
+        if (
+          !Number.isInteger(idx) || idx < 0 || idx >= pool.questions.length ||
+          seen.has(idx)
+        ) {
+          res.statusCode = 400;
+          return res.end(JSON.stringify({
+            error: "invalid_answer_entry",
+            message: "Answer entries must be unique {idx, chosen} pairs within the pool.",
+          }));
+        }
+        seen.add(idx);
+        const expected = Number(pool.questions[idx].answer);
+        isCorrect = chosen === expected;
+        qPreview = pool.questions[idx]?.q?.slice(0, 60) || "";
+        expectedDebug = expected;
+      }
       correctFlags.push(isCorrect);
       if (isCorrect) correctCount++;
+      if (adminDebug) {
+        adminDebug.push({
+          chosen,
+          isCorrect,
+          gradedVia: useTokenGrading ? "hmac" : "cache",
+          ...(expectedDebug != null && { expected: expectedDebug }),
+          q: qPreview,
+        });
+      }
     }
     const passed = correctCount >= 4; // 4 of 5 to pass
-    // If they didn't pass, return the result but don't record. Client
-    // shows a "try again" screen.
-    if (!passed) {
-      res.statusCode = 200;
-      return res.end(JSON.stringify({
-        ok: true,
-        kind: "quiz_submit",
-        passed: false,
-        score: correctCount,
-        total: 5,
-        correct: correctFlags,
-        attemptNum,
-      }));
+    // #9 atomic session — quiz_submit no longer awards XP directly.
+    // The kid MUST complete the follow-up retell for XP to release.
+    // We persist the quiz outcome (pass/fail + attempt number) to a
+    // per-(email,bookId) reading session with 30-min TTL; api/tutor.js
+    // reads it back at the end of the retell and awards combined XP
+    // via the ratio table in lib/xp.js.
+    //
+    // If the kid never starts the retell, the session expires and they
+    // get 0 XP — matching the "complete the whole section" rule.
+    const quizOutcome = passed ? (attemptNum === 2 ? "p2" : "p1") : "fF";
+    try {
+      await setReadingSessionQuizOutcome({
+        email: session.email,
+        bookId,
+        quizOutcome,
+        quizAttempt: attemptNum,
+      });
+    } catch (err) {
+      trackError("quiz_submit_session_save_failed", {
+        bookId,
+        err: String(err?.message || err),
+      });
+      // Non-fatal — the client still launches retell; if session is
+      // missing at finalize time, tutor.js falls back to quizOutcome="fF".
     }
-    // Passed — fall through to the recordRead path below by transparently
-    // rewriting the kind. The existing fraud + leaderboard + Caliper code
-    // is the source of truth for held-XP / soft-flag / retake math, so
-    // we route the validated pass through that pipeline instead of
-    // re-implementing it here.
-    body.kind = "read";
-    body._serverValidatedQuizPass = {
+
+    trackEvent("quiz_submit_recorded", { bookId, passed, attemptNum });
+
+    res.statusCode = 200;
+    return res.end(JSON.stringify({
+      ok: true,
+      kind: "quiz_submit",
+      passed,
       score: correctCount,
       total: 5,
       correct: correctFlags,
-    };
-    // Re-fall through; the kind === "read" handler below sees attemptNum
-    // and treats this as a quiz pass (with our server-graded score).
+      attemptNum,
+      // Tells the client to launch the retell modal immediately.
+      // XP isn't awarded yet — it releases atomically after retell
+      // finishes via /api/tutor.
+      retellRequired: true,
+      bookId,
+      quizOutcome,
+      // Admin-only breakdown for debugging "I got 0/5 with all correct"
+      // type reports. Shows the chosen/expected indices and the question
+      // text snippet per answer. Stripped for non-admin responses.
+      ...(adminDebug ? { adminDebug } : {}),
+    }));
   }
 
   if (body.kind !== "read" && kind !== "quiz_submit") {
@@ -578,7 +707,14 @@ export default async function handler(req, res) {
           gapSec: Math.round(gap / 1000),
           gapMin: +(gap / 60000).toFixed(2),
         };
-        if (gap >= 0 && gap < STARTED_RECENTLY_HOLD_MS) {
+        // Per-book threshold (#21 v2): PK/K → 15min, G1 → 30min, G2+ → 60min.
+        // Falls back to the default if the book lookup didn't return one.
+        const holdMs = book
+          ? startedRecentlyHoldMsForGrade(book.grade)
+          : STARTED_RECENTLY_HOLD_MS;
+        recentStartDebug.holdMs = holdMs;
+        recentStartDebug.holdMin = +(holdMs / 60000).toFixed(2);
+        if (gap >= 0 && gap < holdMs) {
           recentStartStatus = "hold";
         }
       }
@@ -605,6 +741,20 @@ export default async function handler(req, res) {
       }
     } catch {
       /* missing open data → don't synthesize fraud from absence */
+    }
+
+    // #97 — Per-user bypass of time-based holds. If the profile has
+    // bypassQuizHolds=true, neuter the started-recently and WCPM
+    // verdicts to "clean" BEFORE the combine matrix runs. We leave
+    // openCountStatus untouched so the reopen-pattern lookup
+    // detector still applies (this is the "QA tester or fast reader,
+    // not a free pass" use case). Debug objects are preserved so the
+    // admin can still see WHAT the underlying gap was.
+    if (profile?.bypassQuizHolds || isHardcodedBypassQuizHolds(session.email)) {
+      if (recentStartDebug) recentStartDebug.bypassed = true;
+      if (wcpmDebug) wcpmDebug.bypassed = true;
+      recentStartStatus = "clean";
+      wcpmStatus = "clean";
     }
 
     // 2c. Combine the signals using a fair soft matrix:

@@ -1,0 +1,146 @@
+{
+  "bookId": "e04",
+  "version": 2,
+  "questions": [
+    {
+      "q": "Who tells Gerald about the thing on his head?",
+      "options": [
+        "Piggie",
+        "Gerald",
+        "The birds",
+        "The baby birds"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What type of animal is Gerald?",
+      "options": [
+        "An elephant",
+        "An owl",
+        "An otter",
+        "An ant"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What type of animal is Piggie?",
+      "options": [
+        "A pig",
+        "A bird",
+        "A dog",
+        "A cat"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "How many birds land on Gerald's head before they start a family?",
+      "options": [
+        "Two",
+        "One",
+        "Three",
+        "Five"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What do the two birds build on Gerald's head?",
+      "options": [
+        "A nest",
+        "A house",
+        "A bed",
+        "A hat"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What happens between the two birds on Gerald's head?",
+      "options": [
+        "They fall in love",
+        "They fly away",
+        "They start fighting",
+        "They go to sleep"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "How many eggs does the mother bird lay in the nest?",
+      "options": [
+        "Three",
+        "Two",
+        "Four",
+        "Five"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What comes out of the eggs?",
+      "options": [
+        "Baby birds",
+        "Baby pigs",
+        "Baby elephants",
+        "Baby bugs"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "How does Gerald feel when there is a bird family on his head?",
+      "options": [
+        "Desperate",
+        "Happy",
+        "Sleepy",
+        "Bored"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "How does Piggie act while watching Gerald's problem?",
+      "options": [
+        "Calm",
+        "Scared",
+        "Angry",
+        "Sad"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does Piggie say Gerald should do?",
+      "options": [
+        "Ask the birds to leave",
+        "Run away fast",
+        "Shake his head hard",
+        "Call for help"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "How does Gerald ask the birds to move?",
+      "options": [
+        "Politely",
+        "Loudly",
+        "Angrily",
+        "Quietly"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Where does the bird family go at the very end?",
+      "options": [
+        "Onto Piggie's head",
+        "Into a tree",
+        "Back to Gerald",
+        "Into the sky"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What is the big idea of this story?",
+      "options": [
+        "Use your words",
+        "Run away fast",
+        "Never talk to birds",
+        "Always stay inside"
+      ],
+      "answer": 0
+    }
+  ]
+}

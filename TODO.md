@@ -281,7 +281,7 @@ in the real book rather than my hand-written summary.
 
 ### Which of our 28 books are public-domain?
 - **Definitely PD (pre-1929)**: Peter Rabbit (1902), Ugly Duckling (1843),
-  Mother Goose (anonymous, very old), Goldilocks (folk tale)
+  Goldilocks (folk tale)
 - **Likely still copyright**: Wild Things (1963), Cat in the Hat (1957),
   Hungry Caterpillar (1969), Velveteen Rabbit (1922 — PD), Frog and Toad
   (1970), Owl at Home (1975), Corduroy (1968), Where the Wild Things Are,

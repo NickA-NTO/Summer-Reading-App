@@ -1,0 +1,126 @@
+{
+  "bookId": "c02",
+  "version": 2,
+  "questions": [
+    {
+      "q": "What is the name of the town where Dink, Josh, and Ruth Rose live?",
+      "options": [
+        "Green Lawn",
+        "Shangri-la",
+        "Book Nook",
+        "Squires"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What is the name of the airport where Wallis Wallace landed?",
+      "options": [
+        "Squires Airport",
+        "Green Lawn Airport",
+        "Wallace Airport",
+        "Maine Airport"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does Dink's letter from Wallis Wallace say would be the only reason she would miss the event?",
+      "options": [
+        "Being kidnapped",
+        "Being sick",
+        "Missing her flight",
+        "Getting lost"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Who owns the bookshop called the Book Nook?",
+      "options": [
+        "Mr. Paskey",
+        "Mr. Linkletter",
+        "Olivia",
+        "Mavis Green"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What hotel was Wallis Wallace booked to stay at?",
+      "options": [
+        "The Shangri-la Hotel",
+        "The Book Nook Inn",
+        "The Green Lawn Lodge",
+        "The Castle Hotel"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Which friend sneaks a peek at the hotel register to find a clue?",
+      "options": [
+        "Josh",
+        "Dink",
+        "Ruth Rose",
+        "Mavis"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Who is the stiff receptionist at the Shangri-la Hotel?",
+      "options": [
+        "Mr. Linkletter",
+        "Mr. Paskey",
+        "Josh Pinto",
+        "Olivia"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What do the M's on Mavis's scarf really look like upside down?",
+      "options": [
+        "W's",
+        "N's",
+        "E's",
+        "S's"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Where does Wallis Wallace really live?",
+      "options": [
+        "A castle in Maine",
+        "A cottage in Connecticut",
+        "A hotel in Green Lawn",
+        "A house in New York"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What is Wallis Wallace's favourite colour?",
+      "options": [
+        "Green",
+        "Blue",
+        "Red",
+        "Yellow"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Who turns out to really be Wallis Wallace in disguise?",
+      "options": [
+        "Mavis Green",
+        "Olivia",
+        "Mr. Linkletter",
+        "Mr. Paskey"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Why did Wallis Wallace set up her own fake case?",
+      "options": [
+        "To see how kids would solve it",
+        "To play a trick on her fans",
+        "To take a secret trip",
+        "To hide from a bad person"
+      ],
+      "answer": 0
+    }
+  ]
+}

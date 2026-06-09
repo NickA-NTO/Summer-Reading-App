@@ -1,7 +1,7 @@
 // Returns the current session as JSON. Called by the client on page load to
 // populate the user's name / email / avatar / working grade / visible tracks.
 
-import { verifySession, parseCookies, isAdmin } from "../../lib/session.js";
+import { verifySession, parseCookies, isAdmin, isHardcodedBypassQuizHolds } from "../../lib/session.js";
 import {
   guessGradeFromEmail,
   redis,
@@ -10,11 +10,14 @@ import {
   evaluateAchievementsForUser,
   setInitialGradeIfMissing,
   STARTED_RECENTLY_HOLD_MS,
+  STARTED_RECENTLY_HOLD_MS_RULES,
+  createDataRequest,
 } from "../../lib/store.js";
 import { normalizeGrade, stallAlarmDays, estimatedMinutes } from "../../lib/xp.js";
 import { resolveVisibleTracks, TRACK_ORDER, trackForBook } from "../../lib/tracks.js";
 import { getBook } from "../../lib/books.js";
 import { ACHIEVEMENTS } from "../../lib/achievements.js";
+import { QUIZ_SCHEMA_VERSION, getAvailableQuestionBookIds } from "../quiz.js";
 
 // Load the user's profile row from Redis (returns null on miss or error).
 async function loadProfile(email) {
@@ -59,6 +62,76 @@ export default async function handler(req, res) {
       // #71 — surface the environment even when unauthenticated so the
       // welcome screen can show the PREVIEW banner before sign-in.
       env: (process.env.VERCEL_ENV || "production").toLowerCase(),
+    }));
+  }
+
+  // #59 — COPPA/GDPR self-service: export + erasure live on the same
+  // endpoint to stay under the Vercel Hobby 12-function cap. Folded
+  // here because /api/auth/me is the natural "self" surface, already
+  // authenticated, and scoped exactly to the verified user.
+  //
+  // Self-service data endpoints have been retired. Users can no longer
+  // export or delete their own data directly — they submit a REQUEST
+  // that goes into an admin queue. The admin then runs the underlying
+  // exportUserData / deleteUserData. This adds friction in both
+  // directions: no accidental erasures, and exfil attempts hit a human
+  // gate.
+  //
+  // POST /api/auth/me?action=request-data       → queue an export request
+  // POST /api/auth/me?action=request-deletion   → queue a deletion request
+  // The legacy ?action=export / ?action=delete endpoints return 410 so a
+  // stale client can surface "this feature moved" instead of silently
+  // failing.
+  const action = new URL(req.url, `http://${req.headers.host}`).searchParams.get("action");
+  if (action === "export" || action === "delete") {
+    res.statusCode = 410;
+    return res.end(JSON.stringify({
+      error: "endpoint_removed",
+      message:
+        "Self-service data export/deletion was retired. Submit a request via the user menu — an admin will process it.",
+    }));
+  }
+  if (action === "request-data" || action === "request-deletion") {
+    if (req.method !== "POST") {
+      res.statusCode = 405;
+      return res.end(JSON.stringify({ error: "method_not_allowed" }));
+    }
+    // Same tight rate limit applies — the request endpoint itself
+    // could be abused to spam the admin queue. 5/hour is generous for
+    // legitimate use; well below abuse threshold.
+    const { checkRateLimit, send429, LIMITS } = await import("../../lib/rate-limit.js");
+    const rl = await checkRateLimit({
+      email: session.email, bucket: "selfData",
+      max: LIMITS.selfData.max, windowSec: LIMITS.selfData.windowSec,
+    });
+    if (!rl.ok) return send429(res, rl);
+
+    let raw = "";
+    for await (const chunk of req) raw += chunk;
+    let body = {};
+    try { body = JSON.parse(raw || "{}"); } catch {}
+    const type = action === "request-data" ? "export" : "deletion";
+    const result = await createDataRequest({
+      email: session.email,
+      type,
+      reason: typeof body.reason === "string" ? body.reason : "",
+    });
+    if (!result.ok) {
+      res.statusCode = 503;
+      return res.end(JSON.stringify({
+        error: result.reason || "request_failed",
+        message:
+          "We couldn't submit your request right now. Try again in a minute.",
+      }));
+    }
+    return res.end(JSON.stringify({
+      ok: true,
+      id: result.id,
+      status: result.status,
+      alreadyPending: !!result.alreadyPending,
+      message: result.alreadyPending
+        ? "You already have a pending request of this type. An admin will review it shortly."
+        : "Your request has been submitted. An admin will review it shortly.",
     }));
   }
 
@@ -166,11 +239,42 @@ export default async function handler(req, res) {
       env: (process.env.VERCEL_ENV || "production").toLowerCase(),
       // Server-derived constants exposed so the client doesn't have to
       // mirror them in hardcoded constants (low-tier drift risk).
-      // startedRecentlyHoldMs is the threshold the server uses to
-      // auto-hold quizzes submitted too soon after "I'm reading this";
-      // the pre-quiz "Slow down a sec" warning fires under the same
-      // window so the kid never gets surprised by a held submission.
+      // The pre-quiz "Slow down a sec" warning fires under the same
+      // window the server uses to auto-hold quizzes submitted too soon
+      // after "I'm reading this" — kid never gets surprised by a held
+      // submission.
+      //
+      // startedRecentlyHoldMs: legacy single-value default (1 hour),
+      //   kept so older client revisions still get a sensible value
+      //   before they pick up the per-grade rules.
+      // startedRecentlyHoldMsRules: per-book-grade overrides. Client
+      //   picks rules[book.grade] ?? rules.default. PK/K → 15 min,
+      //   G1 → 30 min, G2+ → 60 min (default).
       startedRecentlyHoldMs: STARTED_RECENTLY_HOLD_MS,
+      startedRecentlyHoldMsRules: STARTED_RECENTLY_HOLD_MS_RULES,
+      // Current quiz schema version — client stamps this onto saved
+      // localStorage quiz progress so a server-side SCHEMA_VERSION
+      // bump (which busts the Redis pool cache) ALSO auto-invalidates
+      // every kid's mid-quiz resume blob. Without this the kid keeps
+      // seeing the old (buggy) questions baked into localStorage even
+      // though the server has fresh, corrected ones ready to ship.
+      quizSchemaVersion: QUIZ_SCHEMA_VERSION,
+      // List of bookIds that have a shipped question bank under
+      // docs/book-questions/*.json. Non-admin catalog renders filter
+      // out books not in this set so a kid never opens a modal whose
+      // "Take quiz" button would 503 with no_quiz_questions. Admins
+      // see everything regardless (so they can author/test).
+      availableQuizBookIds: getAvailableQuestionBookIds(),
+      // #97 — per-user bypass of the started-recently timer + WCPM
+      // speed check. Reopen-pattern check still applies. Client uses
+      // this to skip the "Slow down a sec" overlay. Granted via the
+      // admin panel toggle; NOT the same as admin permission.
+      // Bypass holds true if EITHER the profile flag is set via the
+      // admin panel OR the email is in the hard-coded VIP list
+      // (Andy Montgomery for the COO demo). Hard-coded list bypasses
+      // first-login requirement — no need to seed the Redis profile.
+      bypassQuizHolds:
+        !!profile?.bypassQuizHolds || isHardcodedBypassQuizHolds(session.email),
       // Onboarding state (#17) — client uses these to decide whether to
       // show the first-run voice picker + spotlight tour. tourCompleted=true
       // suppresses it forever (admin can reset via the admin endpoint).

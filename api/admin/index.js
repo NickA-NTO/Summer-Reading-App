@@ -14,9 +14,12 @@
 //                                                   { action: "reset_flags", email })
 //   POST /api/admin?action=set-grade      → set student's working grade
 //                                            (body: { email, grade })
+//   POST /api/admin?action=set-bypass-holds → toggle per-user time-hold
+//                                              bypass flag (body: { email, value })
 
 import { verifySession, parseCookies, isAdmin } from "../../lib/session.js";
 import {
+  listRetellLog,
   listAllUsers,
   getTtsUsage,
   listQuizReports,
@@ -27,13 +30,21 @@ import {
   resetFraudFlags,
   setUserWorkingGrade,
   setUserAgeGrade,
+  setBypassQuizHolds,
   bulkSetWorkingGrades,
   setTrackOverrides,
+  clearReadingSession,
+  clearCurrentlyReading,
   redis,
   getCurrentlyReading,
   getQuizFraudState,
   getFirstOpenAt,
   unawardAndHold,
+  listPendingDataRequests,
+  getDataRequest,
+  resolveDataRequest,
+  exportUserData,
+  deleteUserData,
 } from "../../lib/store.js";
 import { sanitizeTrackOverrides, TRACK_ORDER } from "../../lib/tracks.js";
 import { getStats as getObsStats } from "../../lib/observability.js";
@@ -112,12 +123,30 @@ export default async function handler(req, res) {
     cronHeader === `Bearer ${cronSecret}` &&
     CRON_ALLOWED_ACTIONS.has(action);
 
+  // Authed user's email — exposed for endpoints that need to act on
+  // the calling admin's own account (e.g., reset-my-book). Null for
+  // cron calls. Declared at handler scope so per-action code can use it.
+  let authedEmail = null;
   if (!isCronCall) {
     const secret = process.env.AUTH_SECRET;
     const cookies = parseCookies(req.headers.cookie);
     const session = await verifySession(cookies.rs_session, secret);
     if (!session) return json(res, 401, { error: "unauthenticated" });
     if (!isAdmin(session.email)) return json(res, 403, { error: "forbidden" });
+    authedEmail = session.email;
+    // #19 audit follow-up: cap admin route abuse. A compromised admin
+    // token shouldn't be able to pound cache-bust / timeback-sync /
+    // user-diag in a tight loop. Cron path is exempt — it hits with
+    // a bearer token, not a session cookie.
+    const { checkRateLimit, send429, LIMITS } = await import("../../lib/rate-limit.js");
+    const rl = await checkRateLimit({
+      email: session.email, bucket: "admin",
+      max: LIMITS.admin.max, windowSec: LIMITS.admin.windowSec,
+    });
+    if (!rl.ok) {
+      send429(res, rl);
+      return;
+    }
   }
 
   // ============================ users ============================
@@ -198,6 +227,24 @@ export default async function handler(req, res) {
       hasRedis: !!(process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL),
       hasAnthropic: !!process.env.ANTHROPIC_API_KEY,
       hasPolly: !!(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY),
+    });
+  }
+
+  // ========================= retell-log ==========================
+  // #94 — Per-admin retell rubric history. Returns the calling
+  // admin's own past retell attempts so they can audit fairness.
+  // No email parameter: scope is locked to the authed admin's own
+  // account (matches the "test by being a user" workflow). Each
+  // entry includes the transcript + rubric breakdown + xpBreakdown.
+  // GET /api/admin?action=retell-log[&limit=N]
+  if (action === "retell-log" && req.method === "GET") {
+    const limit = Math.min(50, Math.max(1, Number(url.searchParams.get("limit")) || 25));
+    const result = await listRetellLog(authedEmail, { limit });
+    return json(res, 200, {
+      hasRedis: !!result.hasRedis,
+      count: result.entries.length,
+      entries: result.entries,
+      error: result.error || null,
     });
   }
 
@@ -427,6 +474,106 @@ export default async function handler(req, res) {
     return json(res, 200, { ok: true, email, grade });
   }
 
+  // ====================== set-bypass-holds =======================
+  // #97 — Toggle the per-user time-based fraud-hold exemption. This
+  // is NOT admin permission; the user still can't access the admin
+  // panel, set anyone else's settings, or escape the reopen-pattern
+  // (lookup) detector. It only exempts them from:
+  //   - the started-recently (15/30/60 min) hold
+  //   - the WCPM speed hold
+  // Body: { email, value: boolean }
+  if (action === "set-bypass-holds" && req.method === "POST") {
+    const body = await readBody(req);
+    if (body === null) return json(res, 400, { error: "invalid_json" });
+    const email = String(body.email || "").trim().toLowerCase();
+    if (!email) return json(res, 400, { error: "email_required" });
+    const value = !!body.value;
+    const result = await setBypassQuizHolds(email, value, authedEmail || "admin");
+    if (!result.ok) {
+      return json(res, 500, { error: result.reason || "save_failed" });
+    }
+    return json(res, 200, { ok: true, email, value });
+  }
+
+  // ========================= reset-my-book =======================
+  // Body: { bookId }
+  // ADMIN-ONLY testing aid. Clears every per-(admin, bookId) state so
+  // the admin can redo the quiz + retell flow from scratch:
+  //   - SREM from user:{e}:books        (remove the "read" dedupe)
+  //   - DEL quizattempts:{e}:{bookId}   (#40 attempt counter)
+  //   - DEL quizopen:{e}:{bookId}       (#41 open counter)
+  //   - DEL readsess:{e}:{bookId}       (#9 in-flight reading session)
+  //   - DEL firstopen:{e}:{bookId}      (first-open fraud signal)
+  //   - DEL user:{e}:book:{bookId}:points (audit value)
+  //   - resetFraudFlags(e)              (drops the 2h-8h-24h cooldown ladder)
+  //   - clearCurrentlyReading(e) if active book matches
+  // Auth comes from the existing isAdmin gate at the top of this handler.
+  if (action === "reset-my-book" && req.method === "POST") {
+    const body = await readBody(req);
+    if (body === null) return json(res, 400, { error: "invalid_json" });
+    const bookId = String(body.bookId || "").trim();
+    if (!bookId) return json(res, 400, { error: "bookId_required" });
+    const r = redis();
+    if (!r) return json(res, 500, { error: "no_redis" });
+    const e = String(authedEmail).toLowerCase();
+    const cleared = {};
+    try {
+      const sremRes = await r.srem(`user:${e}:books`, bookId);
+      cleared.removedFromReadSet = Number(sremRes) > 0;
+    } catch (err) { cleared.removedFromReadSet = `error:${String(err)}`; }
+    for (const key of [
+      `quizattempts:${e}:${bookId}`,
+      `quizopen:${e}:${bookId}`,
+      `readsess:${e}:${bookId}`,
+      `firstopen:${e}:${bookId}`,
+      `user:${e}:book:${bookId}:points`,
+    ]) {
+      try { await r.del(key); } catch {}
+    }
+    // resetFraudFlags clears cooldownUntil + flagCount globally for the
+    // admin — which is what we want, since the "come back in 2 hours"
+    // wait is the fraud cooldown firing on a held tutor session.
+    try {
+      await resetFraudFlags(e);
+      cleared.fraudReset = true;
+    } catch (err) { cleared.fraudReset = `error:${String(err)}`; }
+    try {
+      const active = await getCurrentlyReading(e);
+      if (active && active.bookId === bookId) {
+        await clearCurrentlyReading(e);
+        cleared.clearedCurrentlyReading = true;
+      }
+    } catch {}
+    return json(res, 200, { ok: true, email: e, bookId, cleared });
+  }
+
+  // ========================= bust-quiz ===========================
+  // Body: { bookId }
+  // ADMIN-ONLY testing aid. Forces the cached question pool for a book
+  // to be deleted from Redis so the next /api/quiz fetch regenerates a
+  // fresh pool from the current canonical record + prompt. Use this
+  // after editing api/quiz.js QUIZ_BOOKS summaries, lib/book-records.json,
+  // or any time the existing pool needs to be re-derived under updated
+  // generator/QC rules. The client should ALSO clear its local
+  // mid-attempt resume key (rs.quiz.<email>.<bookId>) after calling
+  // this so the kid doesn't replay the old questions.
+  if (action === "bust-quiz" && req.method === "POST") {
+    const body = await readBody(req);
+    if (body === null) return json(res, 400, { error: "invalid_json" });
+    const bookId = String(body.bookId || "").trim();
+    if (!bookId) return json(res, 400, { error: "bookId_required" });
+    let bustedKeys = 0;
+    try {
+      bustedKeys = await bustQuizCache(bookId);
+    } catch (err) {
+      return json(res, 500, {
+        error: "bust_failed",
+        message: String(err?.message || err),
+      });
+    }
+    return json(res, 200, { ok: true, bookId, bustedKeys });
+  }
+
   // ========================= set-age-grade =======================
   // Body: { email, ageGrade }
   // Sets ONLY the maturity-calibration grade. Working grade (catalog
@@ -607,11 +754,85 @@ export default async function handler(req, res) {
     return json(res, 200, { ...result, triggeredBy: isCronCall ? "cron" : "admin" });
   }
 
+  // ==================== data-requests ============================
+  // List pending data export / deletion requests, or resolve one.
+  // Submission lives in /api/auth/me — admin lives here.
+  if (action === "data-requests" && req.method === "GET") {
+    const { entries, hasRedis } = await listPendingDataRequests({ limit: 200 });
+    return json(res, 200, { entries, hasRedis });
+  }
+  if (action === "data-requests" && req.method === "POST") {
+    let raw = "";
+    for await (const chunk of req) raw += chunk;
+    let body = {};
+    try { body = JSON.parse(raw || "{}"); } catch {}
+    const { id, decision, note } = body;
+    if (!id || !["approved", "denied"].includes(decision)) {
+      return json(res, 400, { error: "id and decision (approved|denied) required" });
+    }
+    // Fetch the request BEFORE marking resolved so we know which email
+    // to act on (resolveDataRequest is idempotent — only the first call
+    // wins). Then mark resolved, then run the underlying action.
+    const target = await getDataRequest(id);
+    if (!target) return json(res, 404, { error: "request_not_found" });
+    if (target.status !== "pending") {
+      return json(res, 409, {
+        error: "already_resolved",
+        currentStatus: target.status,
+      });
+    }
+    const resolved = await resolveDataRequest({
+      id, decision, adminEmail: session.email, note,
+    });
+    if (!resolved.ok) {
+      return json(res, 500, { error: resolved.reason || "resolve_failed" });
+    }
+    // On denial we're done — the user can resubmit if they want.
+    if (decision === "denied") {
+      return json(res, 200, { ok: true, id, decision, action: null });
+    }
+    // On approval: run the underlying operation.
+    if (target.type === "export") {
+      const exp = await exportUserData(target.email);
+      if (!exp.ok) {
+        return json(res, 503, {
+          ok: true,           // request was resolved
+          id, decision,
+          action: "export",
+          actionOk: false,
+          error: exp.reason || "export_failed",
+        });
+      }
+      // Return the export JSON inline so the admin can download it.
+      // Frontend wraps the response in a Blob and saves to disk.
+      return json(res, 200, {
+        ok: true,
+        id, decision,
+        action: "export",
+        actionOk: true,
+        targetEmail: target.email,
+        data: exp.data,
+      });
+    }
+    if (target.type === "deletion") {
+      const del = await deleteUserData(target.email);
+      return json(res, del.ok ? 200 : 503, {
+        ok: true,
+        id, decision,
+        action: "deletion",
+        actionOk: !!del.ok,
+        removed: del.removed || null,
+        error: del.ok ? undefined : (del.reason || "delete_failed"),
+      });
+    }
+    return json(res, 500, { error: "unknown_request_type", type: target.type });
+  }
+
   // ============================ 404 ==============================
   return json(res, 404, {
     error: "not_found",
     receivedAction: action,
     receivedMethod: req.method,
-    hint: "Use ?action= users | tts-usage | quiz-reports | held-xp | held-xp(POST) | hold-existing-read(POST) | set-grade(POST) | bulk-set-grades(POST) | set-track-overrides(POST) | reset-tour(POST) | test-caliper | caliper-health | caliper-drain-retry | timeback-sync | obs-stats | env-check | user-diag",
+    hint: "Use ?action= users | tts-usage | quiz-reports | held-xp | held-xp(POST) | hold-existing-read(POST) | set-grade(POST) | bulk-set-grades(POST) | set-track-overrides(POST) | reset-tour(POST) | test-caliper | caliper-health | caliper-drain-retry | timeback-sync | obs-stats | env-check | user-diag | data-requests(GET/POST)",
   });
 }

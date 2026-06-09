@@ -1,0 +1,136 @@
+{
+  "bookId": "c07",
+  "version": 2,
+  "questions": [
+    {
+      "q": "Where does Opal first find the dog she names Winn-Dixie?",
+      "options": [
+        "At a supermarket",
+        "At a trailer park",
+        "At a pet shop",
+        "At a library"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Why does Opal tell the manager the stray dog belongs to her?",
+      "options": [
+        "To stop him from going to the pound",
+        "To give him to her father",
+        "To win a prize",
+        "To trade him for groceries"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What is the name of the town where Opal and her father move?",
+      "options": [
+        "Naomi",
+        "Tampa",
+        "Orlando",
+        "Friendly"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What is Opal's father's job?",
+      "options": [
+        "Preacher",
+        "Teacher",
+        "Librarian",
+        "Shopkeeper"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "How many things does Opal ask her father to tell her about her mother?",
+      "options": [
+        "Ten",
+        "Five",
+        "Three",
+        "Seven"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What did Miss Franny Block once chase out of the library when she was young?",
+      "options": [
+        "A bear",
+        "A dog",
+        "A raccoon",
+        "A cat"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What musical instrument does Otis play for the animals at the pet shop?",
+      "options": [
+        "A guitar",
+        "A piano",
+        "A harmonica",
+        "A violin"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What is the name of the church where Opal's father preaches?",
+      "options": [
+        "Open Arms Baptist Church",
+        "Friendly Corners Church",
+        "Naomi First Church",
+        "Gloria's Garden Church"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What is Winn-Dixie most afraid of?",
+      "options": [
+        "Thunderstorms",
+        "Other dogs",
+        "Loud music",
+        "Car rides"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Where do Opal and her father live in Naomi?",
+      "options": [
+        "Friendly Corners Trailer Park",
+        "Open Arms Apartments",
+        "Gloria's Garden House",
+        "Dewberry Lane"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Who do the Dewberry boys tease and call a witch?",
+      "options": [
+        "Gloria Dump",
+        "Miss Franny Block",
+        "Amanda Wilkinson",
+        "Sweetie Pie Thomas"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Where is Winn-Dixie finally found after he goes missing during the storm?",
+      "options": [
+        "Inside Gloria Dump's house",
+        "Inside the Winn-Dixie store",
+        "Inside the church",
+        "Inside the pet shop"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does Opal do for Gloria Dump during their daily visits?",
+      "options": [
+        "Reads aloud to her",
+        "Cooks meals for her",
+        "Cleans her bottles",
+        "Plays guitar for her"
+      ],
+      "answer": 0
+    }
+  ]
+}

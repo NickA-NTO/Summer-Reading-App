@@ -1,0 +1,146 @@
+{
+  "bookId": "c04",
+  "version": 2,
+  "questions": [
+    {
+      "q": "What do the four Alden children find in the woods to use as their home?",
+      "options": [
+        "An abandoned boxcar",
+        "An old cabin",
+        "A wooden shed",
+        "A stone cave"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Why do the children run away instead of going to their grandfather?",
+      "options": [
+        "They think he will be cruel to them",
+        "They want to find their parents",
+        "They hope to travel by train",
+        "They need to find their lost dog"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Who is the oldest of the four Alden children?",
+      "options": [
+        "Benny",
+        "Violet",
+        "Jessie",
+        "Henry"
+      ],
+      "answer": 3
+    },
+    {
+      "q": "Where do the children get water when they live in the boxcar?",
+      "options": [
+        "A nearby stream",
+        "A village well",
+        "A rain barrel",
+        "A garden hose"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "How do the children first help the stray dog they find?",
+      "options": [
+        "Jessie pulls a thorn from his paw",
+        "Henry feeds him blueberries",
+        "Violet wraps his hurt leg",
+        "Benny shares his bread"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What kind of fruit do the children pick to eat while living in the woods?",
+      "options": [
+        "Apples",
+        "Strawberries",
+        "Blueberries",
+        "Cherries"
+      ],
+      "answer": 2
+    },
+    {
+      "q": "Who hires Henry for odd jobs in the village of Silver City?",
+      "options": [
+        "Grandfather Alden",
+        "The baker",
+        "Dr. Moore",
+        "The shopkeeper"
+      ],
+      "answer": 2
+    },
+    {
+      "q": "Which sibling becomes seriously ill with a fever?",
+      "options": [
+        "Benny",
+        "Henry",
+        "Jessie",
+        "Violet"
+      ],
+      "answer": 3
+    },
+    {
+      "q": "What special item does Benny find at the junk pile?",
+      "options": [
+        "A pink cup",
+        "A blue bowl",
+        "A green plate",
+        "A yellow spoon"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What event does Henry win at the town's Field Day?",
+      "options": [
+        "A swimming race",
+        "A footrace",
+        "A jumping contest",
+        "A throwing game"
+      ],
+      "answer": 1
+    },
+    {
+      "q": "What name does Henry use when he enters the race?",
+      "options": [
+        "James Alden",
+        "Henry Moore",
+        "Henry James",
+        "James Henry"
+      ],
+      "answer": 2
+    },
+    {
+      "q": "How old is Benny, the youngest Alden child?",
+      "options": [
+        "Four",
+        "Five",
+        "Six",
+        "Seven"
+      ],
+      "answer": 2
+    },
+    {
+      "q": "What happens to the boxcar at the end of the story?",
+      "options": [
+        "It is left to rot in the woods",
+        "It is sold to a farmer",
+        "It becomes a playhouse in Grandfather's garden",
+        "It is taken apart for firewood"
+      ],
+      "answer": 2
+    },
+    {
+      "q": "Who finally brings the children and their grandfather together?",
+      "options": [
+        "The baker's wife",
+        "Dr. Moore",
+        "Watch the dog",
+        "A train conductor"
+      ],
+      "answer": 1
+    }
+  ]
+}

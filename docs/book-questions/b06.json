@@ -1,0 +1,126 @@
+{
+  "bookId": "b06",
+  "version": 2,
+  "questions": [
+    {
+      "q": "What kind of animal is Mercy Watson?",
+      "options": [
+        "A pig",
+        "A dog",
+        "A cat",
+        "A horse"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What is Mercy Watson's favorite food?",
+      "options": [
+        "Buttered toast",
+        "Buttered pancakes",
+        "Buttered biscuits",
+        "Buttered muffins"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Who does Mercy Watson live with?",
+      "options": [
+        "Mr. and Mrs. Watson",
+        "Mr. and Mrs. Lincoln",
+        "Eugenia and Baby",
+        "The firefighters"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Why does Mercy get into bed with Mr. and Mrs. Watson?",
+      "options": [
+        "She is scared",
+        "She is hungry",
+        "She is cold",
+        "She is bored"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What starts to happen to the bed when Mercy climbs on it?",
+      "options": [
+        "It begins to fall through the floor",
+        "It rolls out the door",
+        "It flips upside down",
+        "It breaks in half"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does Mr. Watson ask Mercy to do when the bed breaks?",
+      "options": [
+        "Get help",
+        "Get toast",
+        "Get blankets",
+        "Get pillows"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What is Mercy really thinking about when she leaves the bedroom?",
+      "options": [
+        "Toast",
+        "Sleep",
+        "Help",
+        "Home"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Where does Mercy end up after leaving the Watsons' bedroom?",
+      "options": [
+        "The house next door",
+        "The fire station",
+        "The backyard",
+        "The park"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What is Mercy Watson called in the book?",
+      "options": [
+        "A porcine wonder",
+        "A furry friend",
+        "A little puppy",
+        "A cuddly kitten"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Who do the Watsons call the hero of the hour?",
+      "options": [
+        "Mercy",
+        "Eugenia",
+        "Baby",
+        "The neighbors"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Where does everyone gather at the end of the book?",
+      "options": [
+        "The kitchen",
+        "The bedroom",
+        "The backyard",
+        "The fire station"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does everyone eat together at the end?",
+      "options": [
+        "Hot buttered toast",
+        "Hot buttered pancakes",
+        "Hot buttered waffles",
+        "Hot buttered biscuits"
+      ],
+      "answer": 0
+    }
+  ]
+}

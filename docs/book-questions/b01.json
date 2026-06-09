@@ -1,0 +1,126 @@
+{
+  "bookId": "b01",
+  "version": 2,
+  "questions": [
+    {
+      "q": "Why does the wolf go to his neighbors' houses?",
+      "options": [
+        "To borrow sugar",
+        "To borrow flour",
+        "To borrow eggs",
+        "To borrow butter"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What is the wolf trying to bake?",
+      "options": [
+        "A birthday cake",
+        "A chocolate pie",
+        "A loaf of bread",
+        "A batch of cookies"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Who is the cake for?",
+      "options": [
+        "His granny",
+        "His mother",
+        "His sister",
+        "His brother"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What is wrong with the wolf on this day?",
+      "options": [
+        "He has a bad cold",
+        "He has a sore foot",
+        "He has a headache",
+        "He has a toothache"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What is the first pig's house made of?",
+      "options": [
+        "Straw",
+        "Sticks",
+        "Bricks",
+        "Stone"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What makes the first pig's house fall down?",
+      "options": [
+        "The wolf sneezes",
+        "The wolf pushes it",
+        "The wind blows it",
+        "The rain hits it"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What is the second pig's house made of?",
+      "options": [
+        "Sticks",
+        "Straw",
+        "Bricks",
+        "Mud"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does the wolf do with the dead pigs?",
+      "options": [
+        "He eats them",
+        "He buries them",
+        "He leaves them",
+        "He hides them"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What is the third pig's house made of?",
+      "options": [
+        "Bricks",
+        "Straw",
+        "Sticks",
+        "Wood"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Why does the brick house stay standing?",
+      "options": [
+        "The bricks hold up",
+        "The wolf stops sneezing",
+        "The pig fixes it",
+        "The police arrive"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Who arrives and arrests the wolf?",
+      "options": [
+        "The police",
+        "The pigs",
+        "The granny",
+        "The reporters"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does the wolf say happened to make him famous as the Big Bad Wolf?",
+      "options": [
+        "The reporters exaggerated",
+        "The pigs lied",
+        "The police made it up",
+        "The granny complained"
+      ],
+      "answer": 0
+    }
+  ]
+}

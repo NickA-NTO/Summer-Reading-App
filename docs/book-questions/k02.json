@@ -1,0 +1,126 @@
+{
+  "bookId": "k02",
+  "version": 2,
+  "questions": [
+    {
+      "q": "What pet do the children have in their home?",
+      "options": [
+        "A fish",
+        "A dog",
+        "A cat",
+        "A bird"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What color is the Cat's tall hat?",
+      "options": [
+        "Red and white striped",
+        "Blue and yellow striped",
+        "Green and purple striped",
+        "Black and orange striped"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does the Cat wear around his neck?",
+      "options": [
+        "A red bow tie",
+        "A blue scarf",
+        "A green ribbon",
+        "A yellow collar"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does the Cat stand on while doing his balancing tricks?",
+      "options": [
+        "A ball",
+        "A chair",
+        "A book",
+        "A box"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Where does the Cat put the fish during his balancing tricks?",
+      "options": [
+        "On the tip of an umbrella",
+        "On the top of a lamp",
+        "On the edge of a table",
+        "On the back of a chair"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What color is the big wooden box the Cat brings in?",
+      "options": [
+        "Red",
+        "Blue",
+        "Green",
+        "Yellow"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What color hair do Thing One and Thing Two have?",
+      "options": [
+        "Blue",
+        "Pink",
+        "Green",
+        "Orange"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What do Thing One and Thing Two fly inside the house?",
+      "options": [
+        "Kites",
+        "Planes",
+        "Balloons",
+        "Birds"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Who sees that the mother is coming home?",
+      "options": [
+        "The fish",
+        "The Cat",
+        "Sally",
+        "Thing One"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does the boy use to catch Thing One and Thing Two?",
+      "options": [
+        "A net",
+        "A box",
+        "A bag",
+        "A rope"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does the Cat use to clean up the messy house?",
+      "options": [
+        "A cleaning machine",
+        "A magic wand",
+        "A giant broom",
+        "A flying vacuum"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Why are the children stuck inside at the start of the story?",
+      "options": [
+        "It is too wet to play outside",
+        "It is too dark to play outside",
+        "It is too late to play outside",
+        "It is too hot to play outside"
+      ],
+      "answer": 0
+    }
+  ]
+}

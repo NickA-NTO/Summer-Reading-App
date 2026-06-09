@@ -1,0 +1,156 @@
+{
+  "bookId": "a10",
+  "version": 1,
+  "questions": [
+    {
+      "q": "What is the name of Trixie's stuffed rabbit?",
+      "options": [
+        "Knuffle Bunny",
+        "Fluffy Bunny",
+        "Snuffle Bunny",
+        "Cuddly Bunny"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Where do Trixie and her daddy go on their errand?",
+      "options": [
+        "the school",
+        "the park",
+        "the laundromat",
+        "the store"
+      ],
+      "answer": 2
+    },
+    {
+      "q": "Why is Trixie not able to tell Daddy what is wrong?",
+      "options": [
+        "She is too tired",
+        "She is too shy",
+        "She is too scared",
+        "She has no words yet"
+      ],
+      "answer": 3
+    },
+    {
+      "q": "Who takes Trixie on the errand to do laundry?",
+      "options": [
+        "Mommy",
+        "Daddy",
+        "Grandma",
+        "Grandpa"
+      ],
+      "answer": 1
+    },
+    {
+      "q": "What does Trixie help put into the washing machine?",
+      "options": [
+        "coins",
+        "soap",
+        "water",
+        "towels"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "When does Trixie notice that Knuffle Bunny is gone?",
+      "options": [
+        "During the walk home",
+        "During the errand",
+        "During the bath",
+        "During the nap"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What babble sounds does Trixie shout at her daddy?",
+      "options": [
+        "Babba dabba labba",
+        "Aggle flaggle klabble",
+        "Wiggle waggle woo",
+        "Hubba bubba dubba"
+      ],
+      "answer": 1
+    },
+    {
+      "q": "What does Trixie do when Daddy cannot understand her?",
+      "options": [
+        "She falls asleep",
+        "She runs away",
+        "She has a tantrum",
+        "She laughs"
+      ],
+      "answer": 2
+    },
+    {
+      "q": "Who notices right away that Knuffle Bunny is missing?",
+      "options": [
+        "Daddy",
+        "Mommy",
+        "Trixie",
+        "a neighbor"
+      ],
+      "answer": 1
+    },
+    {
+      "q": "Where is Knuffle Bunny found at the end of the story?",
+      "options": [
+        "In the park",
+        "In the stroller",
+        "In a washing machine",
+        "In the school"
+      ],
+      "answer": 2
+    },
+    {
+      "q": "What are Trixie's very first words?",
+      "options": [
+        "I love you",
+        "Knuffle Bunny",
+        "Help me",
+        "Thank you"
+      ],
+      "answer": 1
+    },
+    {
+      "q": "What does Trixie do when she goes boneless?",
+      "options": [
+        "She falls asleep",
+        "She flops on the pavement",
+        "She hides from Daddy",
+        "She runs away fast"
+      ],
+      "answer": 1
+    },
+    {
+      "q": "What place do Trixie and Daddy walk past after going through the park?",
+      "options": [
+        "The store",
+        "The library",
+        "The school",
+        "The house"
+      ],
+      "answer": 2
+    },
+    {
+      "q": "How does Trixie get home after her tantrum?",
+      "options": [
+        "Daddy carries her",
+        "Mommy carries her",
+        "Trixie rides a bike",
+        "Trixie walks alone"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What kind of pictures are used in the book's illustrations?",
+      "options": [
+        "Real photographs with cartoon drawings",
+        "Painted pictures with cartoon drawings",
+        "Pencil sketches with cartoon drawings",
+        "Watercolor scenes with cartoon drawings"
+      ],
+      "answer": 0
+    }
+  ]
+}

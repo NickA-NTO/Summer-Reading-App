@@ -1,0 +1,126 @@
+{
+  "bookId": "c06",
+  "version": 2,
+  "questions": [
+    {
+      "q": "How tall is Stuart Little?",
+      "options": [
+        "Two inches",
+        "Four inches",
+        "Six inches",
+        "Eight inches"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does Stuart look like?",
+      "options": [
+        "A mouse",
+        "A bird",
+        "A rabbit",
+        "A squirrel"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "In what city do the Little family live?",
+      "options": [
+        "Boston",
+        "Chicago",
+        "New York City",
+        "Philadelphia"
+      ],
+      "answer": 2
+    },
+    {
+      "q": "What does Stuart rescue from the bathroom sink drain?",
+      "options": [
+        "A marble",
+        "A thimble",
+        "A button",
+        "A ring"
+      ],
+      "answer": 3
+    },
+    {
+      "q": "What is the name of the family cat?",
+      "options": [
+        "Snowbell",
+        "Margalo",
+        "George",
+        "Wasp"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What kind of animal is Margalo?",
+      "options": [
+        "A bird",
+        "A mouse",
+        "A cat",
+        "A rabbit"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Where do the Littles find Margalo?",
+      "options": [
+        "In the piano",
+        "On the windowsill",
+        "In the drain",
+        "On the garbage scow"
+      ],
+      "answer": 1
+    },
+    {
+      "q": "What is the name of the sailboat Stuart captains in Central Park?",
+      "options": [
+        "Wasp",
+        "Margalo",
+        "Snowbell",
+        "Lillian"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Who owns the sailboat that Stuart races?",
+      "options": [
+        "Dr. Carey",
+        "Mr. Little",
+        "George Little",
+        "Harriet Ames"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What job does Stuart take for a day in a small town?",
+      "options": [
+        "Substitute teacher",
+        "Mail carrier",
+        "Shop clerk",
+        "Piano tuner"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Who is the girl Stuart meets in Ames Crossing?",
+      "options": [
+        "Harriet Ames",
+        "Margalo Little",
+        "Mrs. Carey",
+        "Lillian Womrath"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Which direction does Stuart travel at the end of the book?",
+      "options": [
+        "North",
+        "South",
+        "East",
+        "West"
+      ],
+      "answer": 0
+    }
+  ]
+}

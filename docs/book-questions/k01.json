@@ -1,0 +1,126 @@
+{
+  "bookId": "k01",
+  "version": 2,
+  "questions": [
+    {
+      "q": "On what day does the caterpillar hatch from the egg?",
+      "options": [
+        "Sunday morning",
+        "Saturday morning",
+        "Monday morning",
+        "Friday morning"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "How many apples does the caterpillar eat on Monday?",
+      "options": [
+        "One",
+        "Two",
+        "Three",
+        "Four"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What fruit does the caterpillar eat on Tuesday?",
+      "options": [
+        "Apples",
+        "Plums",
+        "Pears",
+        "Oranges"
+      ],
+      "answer": 2
+    },
+    {
+      "q": "How many plums does the caterpillar eat on Wednesday?",
+      "options": [
+        "Two",
+        "Three",
+        "Four",
+        "Five"
+      ],
+      "answer": 1
+    },
+    {
+      "q": "What fruit does the caterpillar eat on Thursday?",
+      "options": [
+        "Oranges",
+        "Plums",
+        "Pears",
+        "Strawberries"
+      ],
+      "answer": 3
+    },
+    {
+      "q": "How many oranges does the caterpillar eat on Friday?",
+      "options": [
+        "Three",
+        "Four",
+        "Five",
+        "Six"
+      ],
+      "answer": 2
+    },
+    {
+      "q": "Which treat does the caterpillar eat on Saturday?",
+      "options": [
+        "A green leaf",
+        "A red apple",
+        "A chocolate cake",
+        "A yellow pear"
+      ],
+      "answer": 2
+    },
+    {
+      "q": "What does the caterpillar eat to feel better after his stomachache?",
+      "options": [
+        "A nice green leaf",
+        "A juicy red apple",
+        "A sweet ripe pear",
+        "A cold ice cream"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does the caterpillar become after eating all week long?",
+      "options": [
+        "A big fat caterpillar",
+        "A tiny hungry caterpillar",
+        "A beautiful bright butterfly",
+        "A small round cocoon"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does the caterpillar build around himself?",
+      "options": [
+        "A cocoon",
+        "A nest",
+        "A web",
+        "A hole"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does the caterpillar become at the end of the book?",
+      "options": [
+        "A beautiful butterfly",
+        "A bigger caterpillar",
+        "A colorful egg",
+        "A green leaf"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What special thing do the pages of this book have?",
+      "options": [
+        "Holes cut through them",
+        "Flaps that open up",
+        "Buttons to press",
+        "Stickers to peel"
+      ],
+      "answer": 0
+    }
+  ]
+}

@@ -5,6 +5,7 @@
 import { verifySession, parseCookies } from "../lib/session.js";
 import { getLeaderboard } from "../lib/store.js";
 import { normalizeGrade } from "../lib/xp.js";
+import { checkRateLimit, send429, LIMITS } from "../lib/rate-limit.js";
 
 export default async function handler(req, res) {
   res.setHeader("Content-Type", "application/json");
@@ -16,6 +17,15 @@ export default async function handler(req, res) {
   if (!session) {
     res.statusCode = 401;
     return res.end(JSON.stringify({ error: "unauthenticated" }));
+  }
+
+  // #19 audit follow-up: cap the scrape pattern (looping ?grade=...).
+  {
+    const rl = await checkRateLimit({
+      email: session.email, bucket: "leaderboard",
+      max: LIMITS.leaderboard.max, windowSec: LIMITS.leaderboard.windowSec,
+    });
+    if (!rl.ok) return send429(res, rl);
   }
 
   const url = new URL(req.url, `http://${req.headers.host}`);

@@ -1,0 +1,136 @@
+{
+  "bookId": "b05",
+  "version": 2,
+  "questions": [
+    {
+      "q": "What falls on Stanley while he sleeps and makes him flat?",
+      "options": [
+        "A bulletin board",
+        "A bookshelf",
+        "A dresser",
+        "A painting"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "How thick is Stanley after he becomes flat?",
+      "options": [
+        "Half an inch",
+        "One inch",
+        "Two inches",
+        "Three inches"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What is the last name of Stanley and his family?",
+      "options": [
+        "Lambchop",
+        "Jeffrey",
+        "Anthony",
+        "Thomas"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What is one thing Stanley can do because he is flat?",
+      "options": [
+        "Slide under doors",
+        "Jump very high",
+        "Run very fast",
+        "Lift heavy things"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "How does Stanley travel to visit his friend in California?",
+      "options": [
+        "In an envelope through the mail",
+        "On an airplane with his dad",
+        "In a car with his mom",
+        "On a train with Arthur"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What is the name of Stanley's friend who lives in California?",
+      "options": [
+        "Thomas Anthony Jeffrey",
+        "Arthur Lambchop",
+        "Dr. Dan",
+        "Mr. Lambchop"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does Arthur do with Stanley at the park?",
+      "options": [
+        "Flies him like a kite",
+        "Rolls him down a hill",
+        "Hides him in a tree",
+        "Throws him like a frisbee"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Why does Arthur feel jealous of Stanley?",
+      "options": [
+        "Stanley gets all the attention",
+        "Stanley has more friends",
+        "Stanley gets better grades",
+        "Stanley has a bigger room"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What are the thieves trying to steal from the museum?",
+      "options": [
+        "A famous painting",
+        "A gold statue",
+        "A diamond necklace",
+        "A treasure chest"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does Stanley get after the thieves are caught?",
+      "options": [
+        "A reward and his picture in the newspaper",
+        "A trip to California",
+        "A new bulletin board",
+        "A bicycle of his own"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Why does Stanley start to feel sad about being flat?",
+      "options": [
+        "Other children tease him",
+        "His parents ignore him",
+        "Arthur stops playing with him",
+        "He cannot go to school"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Who thinks of a way to make Stanley round again?",
+      "options": [
+        "Arthur",
+        "Stanley",
+        "Mr. Lambchop",
+        "Mrs. Lambchop"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What happens to the bulletin board at the end of the story?",
+      "options": [
+        "It is taken down from the wall",
+        "It is moved to Arthur's room",
+        "It is put back up stronger",
+        "It is thrown in the garbage"
+      ],
+      "answer": 0
+    }
+  ]
+}

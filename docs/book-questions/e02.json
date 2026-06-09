@@ -1,0 +1,136 @@
+{
+  "bookId": "e02",
+  "version": 2,
+  "questions": [
+    {
+      "q": "What kind of animal is Piggie?",
+      "options": [
+        "A pig",
+        "A squirrel",
+        "A bird",
+        "A monster"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Who gives Gerald and Piggie the idea to surprise each other?",
+      "options": [
+        "Two squirrels",
+        "Two birds",
+        "Two monsters",
+        "Two rocks"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Where do both friends decide to hide?",
+      "options": [
+        "Behind a big rock",
+        "Behind a tall tree",
+        "Behind a small cloud",
+        "Behind a giant bird"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Why does neither friend walk past the rock?",
+      "options": [
+        "Both are behind it",
+        "Both went home",
+        "Both fell asleep",
+        "Both ran away"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What scary place does Gerald imagine Piggie falling off of?",
+      "options": [
+        "A cliff",
+        "A tree",
+        "A rock",
+        "A hill"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "In Gerald's imagination, what big creature carries Piggie away?",
+      "options": [
+        "A giant bird",
+        "A scary monster",
+        "A grey elephant",
+        "A small squirrel"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does Gerald imagine Piggie might be fighting?",
+      "options": [
+        "A scary monster",
+        "A giant rock",
+        "A small squirrel",
+        "A big elephant"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does Piggie think Gerald went home to do?",
+      "options": [
+        "Eat lunch",
+        "Take a nap",
+        "Find a rock",
+        "See the squirrels"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What do both friends shout when they meet at the rock?",
+      "options": [
+        "SURPRISE!",
+        "HELLO!",
+        "HELP!",
+        "HOORAY!"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "How do Gerald and Piggie feel at the end of the book?",
+      "options": [
+        "Happy",
+        "Angry",
+        "Scared",
+        "Tired"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What color is Gerald the elephant?",
+      "options": [
+        "Grey",
+        "Pink",
+        "Brown",
+        "White"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What color is Piggie the pig?",
+      "options": [
+        "Pink",
+        "Grey",
+        "Brown",
+        "White"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Who wrote and drew this book?",
+      "options": [
+        "Mo Willems",
+        "Mo Williams",
+        "Mo Wilson",
+        "Mo Walker"
+      ],
+      "answer": 0
+    }
+  ]
+}

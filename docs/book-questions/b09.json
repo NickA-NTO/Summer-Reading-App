@@ -1,0 +1,146 @@
+{
+  "bookId": "b09",
+  "version": 2,
+  "questions": [
+    {
+      "q": "What is the name of the magical tree where strange creatures live?",
+      "options": [
+        "The Faraway Tree",
+        "The Enchanted Tree",
+        "The Wishing Tree",
+        "The Topsy Tree"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Who is the cousin that comes to stay with Joe, Beth, and Frannie?",
+      "options": [
+        "Moon-Face",
+        "Rick",
+        "Silky",
+        "Watzisname"
+      ],
+      "answer": 1
+    },
+    {
+      "q": "What sound do the trees in the Enchanted Wood make?",
+      "options": [
+        "Wisha-wisha-wisha",
+        "Shush-shush-shush",
+        "Rustle-rustle-rustle",
+        "Whoosh-whoosh-whoosh"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does Moon-Face have inside the tree that children love to ride?",
+      "options": [
+        "A magic carpet",
+        "A flying broomstick",
+        "A slippery-slip slide",
+        "A bouncing ball"
+      ],
+      "answer": 2
+    },
+    {
+      "q": "What is the Saucepan Man covered with that clatters when he moves?",
+      "options": [
+        "Bells and whistles",
+        "Saucepans and kettles",
+        "Pots and plates",
+        "Cups and saucers"
+      ],
+      "answer": 1
+    },
+    {
+      "q": "Why does the Saucepan Man often mishear what people say?",
+      "options": [
+        "He is sleepy",
+        "He is deaf",
+        "He is forgetful",
+        "He is scared"
+      ],
+      "answer": 1
+    },
+    {
+      "q": "What does Dame Washalot tip down the trunk that splashes climbers?",
+      "options": [
+        "Soapy bubbles",
+        "Hot soup",
+        "Dirty water",
+        "Cold milk"
+      ],
+      "answer": 2
+    },
+    {
+      "q": "What does the Angry Pixie throw out of his window at people who peek in?",
+      "options": [
+        "Stones",
+        "Water",
+        "Books",
+        "Apples"
+      ],
+      "answer": 1
+    },
+    {
+      "q": "What is at the very top of the Faraway Tree that leads to magical lands?",
+      "options": [
+        "A golden door",
+        "A rainbow bridge",
+        "A secret tunnel",
+        "A ladder through a cloud"
+      ],
+      "answer": 3
+    },
+    {
+      "q": "What happens if you stay in a land too long at the top of the tree?",
+      "options": [
+        "You turn invisible",
+        "You get stuck there",
+        "You shrink down small",
+        "You fall asleep forever"
+      ],
+      "answer": 1
+    },
+    {
+      "q": "What are the houses made of in the Land of Goodies?",
+      "options": [
+        "Cake and biscuits",
+        "Wood and stone",
+        "Flowers and leaves",
+        "Clouds and rainbows"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Where do the children go to find a cure when their mother is sick?",
+      "options": [
+        "The Land of Dreams",
+        "The Land of Birthdays",
+        "The Land of Magic Medicines",
+        "The Land of Presents"
+      ],
+      "answer": 2
+    },
+    {
+      "q": "Which friends are rescued from the Land of Tempers?",
+      "options": [
+        "Joe, Beth, and Frannie",
+        "The Angry Pixie and Dame Washalot",
+        "Moon-Face, Silky, and the Saucepan Man",
+        "Rick and Mr. Watzisname"
+      ],
+      "answer": 2
+    },
+    {
+      "q": "What do you sit on to go down the slippery-slip slide?",
+      "options": [
+        "A blanket",
+        "A cushion",
+        "A basket",
+        "A bucket"
+      ],
+      "answer": 1
+    }
+  ]
+}

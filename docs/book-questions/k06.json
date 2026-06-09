@@ -1,0 +1,136 @@
+{
+  "bookId": "k06",
+  "version": 2,
+  "questions": [
+    {
+      "q": "Where does the mouse take his walk?",
+      "options": [
+        "The deep dark wood",
+        "The sunny meadow",
+        "The rocky mountain",
+        "The sandy beach"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Which animal does the mouse meet first?",
+      "options": [
+        "The fox",
+        "The owl",
+        "The snake",
+        "The gruffalo"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Where does the fox want to take the mouse?",
+      "options": [
+        "His underground house",
+        "His treetop house",
+        "His logpile house",
+        "His cave house"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What meal does the owl invite the mouse to have?",
+      "options": [
+        "Tea",
+        "Lunch",
+        "Breakfast",
+        "Dinner"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What color are the Gruffalo's eyes?",
+      "options": [
+        "Orange",
+        "Purple",
+        "Black",
+        "Green"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What color is the Gruffalo's tongue?",
+      "options": [
+        "Black",
+        "Orange",
+        "Purple",
+        "Pink"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What color are the prickles on the Gruffalo's back?",
+      "options": [
+        "Purple",
+        "Orange",
+        "Black",
+        "Green"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does the mouse say the Gruffalo likes to eat when he meets the fox?",
+      "options": [
+        "Roasted fox",
+        "Owl ice cream",
+        "Scrambled snake",
+        "Gruffalo crumble"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does the mouse say the Gruffalo likes to eat when he meets the owl?",
+      "options": [
+        "Owl ice cream",
+        "Roasted fox",
+        "Scrambled snake",
+        "Gruffalo crumble"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does the Gruffalo say his favorite food is?",
+      "options": [
+        "Roasted mouse",
+        "Roasted fox",
+        "Owl ice cream",
+        "Scrambled snake"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does the mouse claim to be when he meets the real Gruffalo?",
+      "options": [
+        "The scariest creature in the wood",
+        "The fastest runner in the wood",
+        "The smartest animal in the wood",
+        "The bravest hero in the wood"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does the mouse say his favorite food is to scare the Gruffalo?",
+      "options": [
+        "Gruffalo crumble",
+        "Roasted fox",
+        "Owl ice cream",
+        "Scrambled snake"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does the mouse eat at the end of the story?",
+      "options": [
+        "A nut",
+        "A berry",
+        "A leaf",
+        "A seed"
+      ],
+      "answer": 0
+    }
+  ]
+}

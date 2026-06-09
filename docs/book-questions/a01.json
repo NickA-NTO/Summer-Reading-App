@@ -1,0 +1,126 @@
+{
+  "bookId": "a01",
+  "version": 2,
+  "questions": [
+    {
+      "q": "Where does Peter's family live?",
+      "options": [
+        "In a sand-bank under a fir tree",
+        "In a hole under a garden",
+        "In a nest by a pond",
+        "In a shed behind a gate"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What color is Peter's jacket?",
+      "options": [
+        "Red",
+        "Green",
+        "Blue",
+        "Brown"
+      ],
+      "answer": 2
+    },
+    {
+      "q": "What happened to Peter's father in the garden?",
+      "options": [
+        "He was chased away by a cat",
+        "He was put in a pie",
+        "He was caught in a net",
+        "He was trapped in a shed"
+      ],
+      "answer": 1
+    },
+    {
+      "q": "What do Flopsy, Mopsy, and Cotton-tail go off to gather?",
+      "options": [
+        "Radishes",
+        "Parsley",
+        "Blackberries",
+        "Lettuces"
+      ],
+      "answer": 2
+    },
+    {
+      "q": "What does Mrs. Rabbit buy at the baker's?",
+      "options": [
+        "Bread and currant buns",
+        "Cookies and milk",
+        "Carrots and cake",
+        "Berries and jam"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does Mr. McGregor shout when he sees Peter?",
+      "options": [
+        "Go away!",
+        "Stop thief!",
+        "Get out!",
+        "Come here!"
+      ],
+      "answer": 1
+    },
+    {
+      "q": "Where does Peter get stuck because of his buttons?",
+      "options": [
+        "In a cucumber frame",
+        "In a gooseberry net",
+        "In a wheelbarrow",
+        "In a watering can"
+      ],
+      "answer": 1
+    },
+    {
+      "q": "What birds fly down and tell Peter to keep trying to escape?",
+      "options": [
+        "Blackbirds",
+        "Robins",
+        "Sparrows",
+        "Crows"
+      ],
+      "answer": 2
+    },
+    {
+      "q": "What does Peter hide in that has water inside?",
+      "options": [
+        "A bucket",
+        "A can",
+        "A sieve",
+        "A pot"
+      ],
+      "answer": 1
+    },
+    {
+      "q": "What does Peter climb on to see the gate?",
+      "options": [
+        "A watering can",
+        "A cucumber frame",
+        "A tool shed",
+        "A wheelbarrow"
+      ],
+      "answer": 3
+    },
+    {
+      "q": "What does Mrs. Rabbit give Peter when he is sick in bed?",
+      "options": [
+        "Bread and milk",
+        "Blackberry juice",
+        "Camomile tea",
+        "Parsley soup"
+      ],
+      "answer": 2
+    },
+    {
+      "q": "What do the three good sisters have for supper?",
+      "options": [
+        "Lettuces and radishes",
+        "Bread and milk and blackberries",
+        "Currant buns and tea",
+        "French beans and carrots"
+      ],
+      "answer": 1
+    }
+  ]
+}

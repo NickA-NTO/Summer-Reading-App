@@ -15,6 +15,7 @@ import {
   addTtsUsage,
   getTtsUsage,
 } from "../lib/store.js";
+import { checkRateLimit, send429, LIMITS } from "../lib/rate-limit.js";
 import {
   synthAndStore,
   checkBlobExists,
@@ -42,6 +43,15 @@ export default async function handler(req, res) {
     res.statusCode = 401;
     return res.end(JSON.stringify({ error: "unauthenticated" }));
   }
+
+  // #82 — per-email rate limit. Compromised account can't burn cloud TTS
+  // budget unbounded. Cached cheap hits and budget-capped paths are
+  // still counted (deny is rare in normal use; protects when it isn't).
+  const rl = await checkRateLimit({
+    email: session.email, bucket: "tts",
+    max: LIMITS.tts.max, windowSec: LIMITS.tts.windowSec,
+  });
+  if (!rl.ok) return send429(res, rl);
 
   if (!hasPolly()) {
     res.statusCode = 503;
