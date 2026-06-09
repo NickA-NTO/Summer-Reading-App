@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generatedAt": "2026-06-09T03:48:42.899Z",
+  "generatedAt": "2026-06-09T04:30:49.428Z",
   "comment": "Auto-populated by scripts/enrich-catalog.js. Each record carries source-cited structured data per book (characters/items/plot_beats/specific_facts/unknown_fields). The quiz generator + QC enforce a closed-list citation contract against this data when a record exists. Run `node scripts/enrich-catalog.js` to populate.",
   "records": {
     "e07": {
@@ -3645,6 +3645,348 @@
           "Color of Max's wolf suit",
           "Whether Max has siblings",
           "Name of Max's father or whether he appears"
+        ]
+      }
+    },
+    "a08": {
+      "bookId": "a08",
+      "cachedAt": 1780979449428,
+      "sources_found": {
+        "wikipedia": true,
+        "openLibrary": true,
+        "googleBooks": false,
+        "webSearch": true
+      },
+      "source_urls": {
+        "wikipedia": "https://en.wikipedia.org/wiki/The_Story_About_Ping",
+        "openLibrary": "https://openlibrary.org/isbn/9780140502411"
+      },
+      "searched_urls": [],
+      "record": {
+        "premise": "A young domestic duck named Ping lives with his very large family on a houseboat on the Yangtze River. One evening Ping is afraid of being spanked for coming home last, so he hides — and the boat sails away without him. He spends a frightening day on the river, is captured by a family who plan to cook him, is saved by a small boy, and finally finds his way home where he takes the spanking and rejoins his family.",
+        "characters": [
+          {
+            "name": "Ping",
+            "role": "Main character, a small yellow domestic duck who gets lost on the river",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "The Master of the wise-eyed boat",
+            "role": "The man who owns Ping and his duck family; calls them home each evening",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "Ping's mother",
+            "role": "Part of Ping's family on the houseboat",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "Ping's father",
+            "role": "Part of Ping's family on the houseboat",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "Ping's two sisters",
+            "role": "Part of Ping's family on the houseboat",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "Ping's three brothers",
+            "role": "Part of Ping's family on the houseboat",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "Ping's eleven aunts",
+            "role": "Part of Ping's extended family on the houseboat",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "Ping's seven uncles",
+            "role": "Part of Ping's extended family on the houseboat",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "Ping's forty-two cousins",
+            "role": "Part of Ping's extended family on the houseboat",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "The fishing cormorants",
+            "role": "Large dark fishing birds with metal rings around their necks that Ping sees during his lost day",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "The boat father",
+            "role": "Father on the boat that captures Ping; says they will have duck dinner",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "The boat mother",
+            "role": "Mother on the boat that captures Ping; plans to cook him with rice at sunset",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "name": "The little boy",
+            "role": "Small boy on the family's boat who saves Ping by dropping him back in the water",
+            "source_ids": [
+              3
+            ]
+          }
+        ],
+        "key_objects": [
+          {
+            "item": "The wise-eyed boat",
+            "detail": "A houseboat painted with two big eyes on the front; Ping's home",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "The little bridge",
+            "detail": "The bridge the ducks cross onto the boat each evening",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "The Master's stick",
+            "detail": "Used to spank the last duck up the bridge",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "The metal rings",
+            "detail": "Shining rings around the cormorants' necks that stop them swallowing fish",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "The basket",
+            "detail": "The little boy uses it to capture and carry Ping",
+            "source_ids": [
+              3
+            ]
+          }
+        ],
+        "plot_beats": [
+          {
+            "beat": "Ping lives on the wise-eyed boat on the Yangtze River with his enormous family",
+            "source_ids": [
+              2,
+              3
+            ]
+          },
+          {
+            "beat": "Every evening at sunset, the Master calls the ducks home with the cry 'La-la-la-la-lei!' and the last duck up the bridge gets a spank on the back",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "One evening, Ping is wrong side up in the water trying to catch a little fish and misses the call; the boat sails away without him",
+            "source_ids": [
+              2,
+              3
+            ]
+          },
+          {
+            "beat": "Ping hides in the grasses on the bank and tucks his head under his wing to sleep",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "In the morning Ping searches the river and sees many kinds of boats but cannot find his home",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Ping sees cormorants with shining metal rings around their necks being used to fish",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "A little boy on a houseboat captures Ping with a basket",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "The boy's father says they will have duck dinner and the mother plans to cook Ping with rice at sunset",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "The little boy says Ping is too beautiful to eat and drops him back into the water",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Ping swims down the river and finds the wise-eyed boat",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Ping hurries up the bridge, gets the spank for being last, and is home again with his family",
+            "source_ids": [
+              3
+            ]
+          }
+        ],
+        "setting": "The Yangtze River in China. Most action takes place on or beside the water: Ping's home (the wise-eyed boat), the riverbank, and the boat of the family that captures Ping. The ducks come home each evening at sunset.",
+        "themes": [
+          "Belonging to a family",
+          "Facing consequences instead of hiding from small punishments",
+          "Kindness from strangers",
+          "The world is bigger than home",
+          "Coming home"
+        ],
+        "specific_facts": [
+          {
+            "fact": "Ping is a small yellow domestic duck",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The story takes place on the Yangtze River",
+            "source_ids": [
+              1,
+              2,
+              3
+            ]
+          },
+          {
+            "fact": "Ping's home is called the wise-eyed boat, which has two big eyes painted on its front",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Ping's family includes his mother, father, two sisters, three brothers, eleven aunts, seven uncles, and forty-two cousins",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The Master calls the ducks home with the cry 'La-la-la-la-lei!'",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The ducks come home at sunset each evening",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The last duck up the bridge always gets a spank on the back",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Ping misses the call because he is wrong side up in the water trying to catch a little fish",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Ping sleeps in the grasses on the bank with his head tucked under his wing",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Ping sees big boats, little boats, fishing boats, beggar's boats, house boats, and raft boats while searching",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The cormorants have shining metal rings tied around their necks so they cannot swallow the big fish they catch",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The little boy captures Ping using a basket",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The boy's father says 'a duck dinner has come to us'",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The boy's mother plans to cook Ping with rice at sunset",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The little boy says Ping is 'too beautiful to eat'",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The boy saves Ping by dropping him back into the water",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "At the end, Ping gets the spank on the back for being last",
+            "source_ids": [
+              3
+            ]
+          }
+        ],
+        "confidence": "high",
+        "unknown_fields": [
+          "Ping's exact age",
+          "Names of any of Ping's family members besides Ping",
+          "Name of the little boy who saves Ping",
+          "Name of the Master of the wise-eyed boat",
+          "Color of the wise-eyed boat besides the eyes",
+          "How many days Ping is lost",
+          "Exact number of cormorants Ping sees"
         ]
       }
     }

@@ -36,6 +36,11 @@ import {
   getQuizFraudState,
   getFirstOpenAt,
   unawardAndHold,
+  listPendingDataRequests,
+  getDataRequest,
+  resolveDataRequest,
+  exportUserData,
+  deleteUserData,
 } from "../../lib/store.js";
 import { sanitizeTrackOverrides, TRACK_ORDER } from "../../lib/tracks.js";
 import { getStats as getObsStats } from "../../lib/observability.js";
@@ -706,11 +711,85 @@ export default async function handler(req, res) {
     return json(res, 200, { ...result, triggeredBy: isCronCall ? "cron" : "admin" });
   }
 
+  // ==================== data-requests ============================
+  // List pending data export / deletion requests, or resolve one.
+  // Submission lives in /api/auth/me — admin lives here.
+  if (action === "data-requests" && req.method === "GET") {
+    const { entries, hasRedis } = await listPendingDataRequests({ limit: 200 });
+    return json(res, 200, { entries, hasRedis });
+  }
+  if (action === "data-requests" && req.method === "POST") {
+    let raw = "";
+    for await (const chunk of req) raw += chunk;
+    let body = {};
+    try { body = JSON.parse(raw || "{}"); } catch {}
+    const { id, decision, note } = body;
+    if (!id || !["approved", "denied"].includes(decision)) {
+      return json(res, 400, { error: "id and decision (approved|denied) required" });
+    }
+    // Fetch the request BEFORE marking resolved so we know which email
+    // to act on (resolveDataRequest is idempotent — only the first call
+    // wins). Then mark resolved, then run the underlying action.
+    const target = await getDataRequest(id);
+    if (!target) return json(res, 404, { error: "request_not_found" });
+    if (target.status !== "pending") {
+      return json(res, 409, {
+        error: "already_resolved",
+        currentStatus: target.status,
+      });
+    }
+    const resolved = await resolveDataRequest({
+      id, decision, adminEmail: session.email, note,
+    });
+    if (!resolved.ok) {
+      return json(res, 500, { error: resolved.reason || "resolve_failed" });
+    }
+    // On denial we're done — the user can resubmit if they want.
+    if (decision === "denied") {
+      return json(res, 200, { ok: true, id, decision, action: null });
+    }
+    // On approval: run the underlying operation.
+    if (target.type === "export") {
+      const exp = await exportUserData(target.email);
+      if (!exp.ok) {
+        return json(res, 503, {
+          ok: true,           // request was resolved
+          id, decision,
+          action: "export",
+          actionOk: false,
+          error: exp.reason || "export_failed",
+        });
+      }
+      // Return the export JSON inline so the admin can download it.
+      // Frontend wraps the response in a Blob and saves to disk.
+      return json(res, 200, {
+        ok: true,
+        id, decision,
+        action: "export",
+        actionOk: true,
+        targetEmail: target.email,
+        data: exp.data,
+      });
+    }
+    if (target.type === "deletion") {
+      const del = await deleteUserData(target.email);
+      return json(res, del.ok ? 200 : 503, {
+        ok: true,
+        id, decision,
+        action: "deletion",
+        actionOk: !!del.ok,
+        removed: del.removed || null,
+        error: del.ok ? undefined : (del.reason || "delete_failed"),
+      });
+    }
+    return json(res, 500, { error: "unknown_request_type", type: target.type });
+  }
+
   // ============================ 404 ==============================
   return json(res, 404, {
     error: "not_found",
     receivedAction: action,
     receivedMethod: req.method,
-    hint: "Use ?action= users | tts-usage | quiz-reports | held-xp | held-xp(POST) | hold-existing-read(POST) | set-grade(POST) | bulk-set-grades(POST) | set-track-overrides(POST) | reset-tour(POST) | test-caliper | caliper-health | caliper-drain-retry | timeback-sync | obs-stats | env-check | user-diag",
+    hint: "Use ?action= users | tts-usage | quiz-reports | held-xp | held-xp(POST) | hold-existing-read(POST) | set-grade(POST) | bulk-set-grades(POST) | set-track-overrides(POST) | reset-tour(POST) | test-caliper | caliper-health | caliper-drain-retry | timeback-sync | obs-stats | env-check | user-diag | data-requests(GET/POST)",
   });
 }

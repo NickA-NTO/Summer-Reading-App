@@ -2013,12 +2013,13 @@
         </div>
         <button id="menuAdmin" style="display:none">⚙️ Admin · Users</button>
         <button id="menuReplayTour">🎬 Replay intro tour</button>
-        <!-- #59 — COPPA/GDPR self-service. Download triggers a JSON
-             dump of every server-side record we hold about this user.
-             Delete is a hard erasure (server-side + local) gated by a
-             confirm prompt + a confirmation token the server requires. -->
-        <button id="menuExportData">⬇️ Download my data</button>
-        <button id="menuDeleteData">🗑️ Delete my data</button>
+        <!-- COPPA/GDPR — moved from self-service to admin-approval
+             flow. Clicking either button queues a request that an
+             admin reviews + approves before the underlying export or
+             deletion actually runs. Removes accidental erasures and
+             puts a human gate on PII exfil. -->
+        <button id="menuRequestData">📨 Request my data</button>
+        <button id="menuRequestDeletion">📨 Request data deletion</button>
         <!-- Polish v3: completed books trophy case. Replaces the "Keep
              Reading" row of finished books that used to live on the
              home page. Toggles a thumbnail grid; tapping a thumb
@@ -2847,6 +2848,37 @@ function gradeBadgeLabel(book) {
 
 function coverUrl(book) {
   return `https://covers.openlibrary.org/b/isbn/${book.isbn}-L.jpg?default=false`;
+}
+// Secondary cover source — Google Books returns a thumbnail by ISBN via
+// the public Books API. We try this when OpenLibrary 404s (and CSP
+// allows books.google.com images, see vercel.json). This dramatically
+// reduces the "many covers missing" symptom — OL's catalog is patchy
+// for newer or less-popular titles, but Google Books almost always has
+// a thumbnail. Returns "" if no ISBN.
+function coverUrlFallback(book) {
+  if (!book || !book.isbn) return "";
+  return `https://books.google.com/books/content?vid=ISBN${book.isbn}&printsec=frontcover&img=1&zoom=1`;
+}
+// onerror chain handler — moves from OL → Google Books → gradient.
+// Inlined into the img tag via a data-attribute step counter so a
+// single img element can attempt both sources without a JS handler.
+function coverOnError(book) {
+  const gb = coverUrlFallback(book);
+  if (!gb) {
+    // No ISBN at all — straight to gradient fallback.
+    return "this.style.display='none'; this.nextElementSibling.style.display='grid';";
+  }
+  // First error → swap to Google Books. Second error (or no second
+  // source available) → gradient fallback. Use data-fallback-tried
+  // attr to track which step we're on.
+  return (
+    "if(this.dataset.fallbackTried){" +
+      "this.style.display='none'; this.nextElementSibling.style.display='grid';" +
+    "}else{" +
+      "this.dataset.fallbackTried='1';" +
+      "this.src=" + JSON.stringify(gb) + ";" +
+    "}"
+  );
 }
 // True when we have an ISBN we trust to resolve to a cover via OpenLibrary.
 // Empty string = we audited and OL doesn't have a usable cover; render the
@@ -3692,7 +3724,7 @@ function renderHero() {
   const cover = document.getElementById("heroCover");
   cover.innerHTML = `
     <img alt="${escapeAttr(featuredBook.title)} cover" src="${coverUrl(featuredBook)}"
-         onerror="this.style.display='none'; this.nextElementSibling.style.display='grid';" />
+         onerror="${escapeAttr(coverOnError(featuredBook))}" />
     <div class="fb" style="display:none; background:${coverGradient(featuredBook)}">
       <div>
         <div class="t">${escapeHtml(featuredBook.title)}</div>
@@ -3830,7 +3862,7 @@ function buildCard(book) {
   // the gradient fallback renders first-paint instead of after a 404 round-trip.
   const coverHtml = hasCover(book)
     ? `<img class="card-img" alt="${escapeAttr(book.title)} cover" src="${coverUrl(book)}"
-         onerror="this.style.display='none'; this.nextElementSibling.style.display='grid';" />
+         onerror="${escapeAttr(coverOnError(book))}" />
        <div class="card-fallback" style="display:none; background:${coverGradient(book)}">
          <div>
            <div class="fb-title">${escapeHtml(book.title)}</div>
@@ -3915,7 +3947,7 @@ function openBook(id) {
   const holder = document.getElementById("modalCoverHolder");
   holder.innerHTML = hasCover(book)
     ? `<img class="modal-cover-img" alt="${escapeAttr(book.title)} cover" src="${coverUrl(book)}"
-           onerror="this.style.display='none'; this.nextElementSibling.style.display='grid';" />
+           onerror="${escapeAttr(coverOnError(book))}" />
        <div class="modal-cover-fallback" style="display:none; background:${coverGradient(book)}">
          <div>
            <div class="fb-title">${escapeHtml(book.title)}</div>
@@ -6383,82 +6415,62 @@ document.getElementById("menuReplayTour").addEventListener("click", (e) => {
   startOnboarding();
 });
 
-// #59 — "Download my data". Hits /api/auth/me?action=export which
-// streams a JSON dump. We bounce it through a Blob URL so the browser
-// fires its native save dialog without us having to wire a service
-// worker.
-document.getElementById("menuExportData").addEventListener("click", async (e) => {
-  e.stopPropagation();
-  document.getElementById("userMenu").classList.remove("open");
-  const btn = e.currentTarget;
-  const orig = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = "⏳ Preparing…";
-  try {
-    const r = await fetch("/api/auth/me?action=export", {
-      method: "GET", credentials: "same-origin",
-    });
-    if (!r.ok) {
-      alert(`Export failed (${r.status}). Try again in a moment.`);
-      return;
-    }
-    const blob = await r.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `reading-spine-data-${Date.now()}.json`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  } catch (err) {
-    alert("Couldn't download your data: " + (err.message || err));
-  } finally {
-    btn.disabled = false;
-    btn.textContent = orig;
-  }
-});
-
-// #59 — "Delete my data". Two-step confirm (browser confirm() then
-// the server requires a confirmation token in the body — belt-and-
-// suspenders against accidental clicks AND any CSRF that slipped past
-// SameSite). On success, wipe localStorage + redirect to /api/auth/logout.
-document.getElementById("menuDeleteData").addEventListener("click", async (e) => {
-  e.stopPropagation();
-  document.getElementById("userMenu").classList.remove("open");
-  const ok = confirm(
-    "This will permanently delete all your reading history, " +
-    "achievements, comments, and XP. This can't be undone. " +
-    "Are you sure?"
-  );
-  if (!ok) return;
-  try {
-    const r = await fetch("/api/auth/me?action=delete", {
-      method: "POST",
-      credentials: "same-origin",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ confirm: "DELETE-MY-DATA" }),
-    });
-    if (!r.ok) {
-      alert(`Delete failed (${r.status}). Try again later.`);
-      return;
-    }
-    // Clear localStorage + sign the kid out so the next visit starts
-    // truly fresh. Same logic as the regular signout handler.
-    try { cancelSpeech(); } catch {}
+// Data export / deletion are now REQUEST-based — the kid (or parent)
+// submits a request that goes into an admin queue. The admin reviews
+// and approves, at which point the underlying export/deletion runs.
+// This replaces the self-service flow that let any logged-in user
+// wipe their own data with one click. Same UX entry points; different
+// path to fulfillment.
+function submitDataRequest({ action, btn, confirmCopy, successCopy }) {
+  return async (e) => {
+    e.stopPropagation();
+    document.getElementById("userMenu").classList.remove("open");
+    if (confirmCopy && !confirm(confirmCopy)) return;
+    const orig = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "⏳ Submitting…";
     try {
-      const toRemove = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (k && (k.startsWith("rs.") || k.startsWith("rs_"))) toRemove.push(k);
+      const r = await fetch(`/api/auth/me?action=${action}`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: "" }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        alert(data.message || `Request failed (${r.status}). Try again later.`);
+        return;
       }
-      toRemove.forEach((k) => localStorage.removeItem(k));
-    } catch {}
-    location.href = "/api/auth/logout";
-  } catch (err) {
-    alert("Couldn't delete your data: " + (err.message || err));
-  }
-});
+      // Server returns alreadyPending=true if the kid already has an
+      // open request of this type — message reflects that.
+      alert(data.message || successCopy);
+    } catch (err) {
+      alert("Couldn't submit your request: " + (err.message || err));
+    } finally {
+      btn.disabled = false;
+      btn.textContent = orig;
+    }
+  };
+}
+
+const requestDataBtn = document.getElementById("menuRequestData");
+requestDataBtn.addEventListener("click", submitDataRequest({
+  action: "request-data",
+  btn: requestDataBtn,
+  confirmCopy: null,
+  successCopy: "Your data request has been submitted. An admin will review it shortly.",
+}));
+
+const requestDeletionBtn = document.getElementById("menuRequestDeletion");
+requestDeletionBtn.addEventListener("click", submitDataRequest({
+  action: "request-deletion",
+  btn: requestDeletionBtn,
+  confirmCopy:
+    "This will request permanent deletion of all your reading history, " +
+    "achievements, comments, and XP. An admin will review the request " +
+    "before anything is removed. Continue?",
+  successCopy: "Your deletion request has been submitted. An admin will review it before anything is removed.",
+}));
 
 // Generic floating-popover positioner — anchors a position:fixed
 // popover under an anchor element, right-aligned by default, clamped
