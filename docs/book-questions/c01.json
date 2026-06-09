@@ -1,0 +1,126 @@
+{
+  "bookId": "c01",
+  "version": 2,
+  "questions": [
+    {
+      "q": "How old is Jack?",
+      "options": [
+        "Seven",
+        "Eight",
+        "Nine",
+        "Ten"
+      ],
+      "answer": 1
+    },
+    {
+      "q": "What does Jack carry in his backpack?",
+      "options": [
+        "A notebook and pencil",
+        "A flashlight and snacks",
+        "A camera and map",
+        "A compass and rope"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does Jack wish on to start the adventure?",
+      "options": [
+        "A picture of a Pteranodon",
+        "A picture of a T-Rex",
+        "A picture of a Triceratops",
+        "A picture of an Anatosaurus"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What happens to the tree house when Jack makes his wish?",
+      "options": [
+        "It spins",
+        "It floats",
+        "It shrinks",
+        "It glows"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "How far back in time do Jack and Annie travel?",
+      "options": [
+        "65 million years",
+        "100 million years",
+        "50 million years",
+        "25 million years"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does the Triceratops eat?",
+      "options": [
+        "Flowers",
+        "Fish",
+        "Bugs",
+        "Grass"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Where do the Anatosaurus babies live?",
+      "options": [
+        "In a mud nest",
+        "In a cave",
+        "In a river",
+        "In tall grass"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Which dinosaur is described as bigger than a truck?",
+      "options": [
+        "The Tyrannosaurus Rex",
+        "The Pteranodon",
+        "The Triceratops",
+        "The Anatosaurus"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What letter is stamped on the medallion?",
+      "options": [
+        "M",
+        "J",
+        "A",
+        "T"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What do Jack and Annie wish on to get back home?",
+      "options": [
+        "A picture of Frog Creek",
+        "A picture of the sun",
+        "A picture of the moon",
+        "A picture of a star"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "How do the children climb up to the tree house?",
+      "options": [
+        "A rope ladder",
+        "A wooden staircase",
+        "A tall vine",
+        "A metal ladder"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Who is the first to climb up to the tree house?",
+      "options": [
+        "Annie",
+        "Jack",
+        "Their mom",
+        "Their dad"
+      ],
+      "answer": 0
+    }
+  ]
+}

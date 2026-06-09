@@ -1,0 +1,126 @@
+{
+  "bookId": "e01",
+  "version": 2,
+  "questions": [
+    {
+      "q": "What do Gerald and Piggie discover at the start?",
+      "options": [
+        "They are in a book",
+        "They are in a park",
+        "They are in a house",
+        "They are in a school"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Who notices someone is looking at them first?",
+      "options": [
+        "Piggie",
+        "Gerald",
+        "The banana",
+        "The page"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What silly word do Gerald and Piggie make the reader say?",
+      "options": [
+        "Banana",
+        "Elephant",
+        "Piggie",
+        "Hello"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What power do the two friends discover they have?",
+      "options": [
+        "Making the reader say a word",
+        "Making the pages turn",
+        "Making the book fly",
+        "Making the room dark"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What is the last page number Gerald reads?",
+      "options": [
+        "57",
+        "37",
+        "47",
+        "67"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What makes Gerald very upset in the middle of the story?",
+      "options": [
+        "The book will end",
+        "The page is missing",
+        "The word is wrong",
+        "The reader is sleeping"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Who comes up with the clever plan to fix the problem?",
+      "options": [
+        "Piggie",
+        "Gerald",
+        "The reader",
+        "The banana"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does Piggie want the reader to do when the story ends?",
+      "options": [
+        "Start the book over",
+        "Close the book now",
+        "Draw a picture",
+        "Say goodbye forever"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Which friend is the worrier of the two?",
+      "options": [
+        "Gerald",
+        "Piggie",
+        "The reader",
+        "The banana"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Which friend is cheerful and bouncy?",
+      "options": [
+        "Piggie",
+        "Gerald",
+        "The page",
+        "The book"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What color is Gerald the elephant?",
+      "options": [
+        "Grey",
+        "Pink",
+        "White",
+        "Brown"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What color is Piggie the pig?",
+      "options": [
+        "Pink",
+        "Grey",
+        "White",
+        "Brown"
+      ],
+      "answer": 0
+    }
+  ]
+}

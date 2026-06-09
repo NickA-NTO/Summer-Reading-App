@@ -1,0 +1,146 @@
+{
+  "bookId": "c05",
+  "version": 2,
+  "questions": [
+    {
+      "q": "Who saves Wilbur from being killed when he is born?",
+      "options": [
+        "Fern",
+        "Charlotte",
+        "Lurvy",
+        "Mrs. Zuckerman"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Why does Mr. Arable want to kill Wilbur at the start of the story?",
+      "options": [
+        "Wilbur is the runt of the litter",
+        "Wilbur is too loud",
+        "Wilbur is sick",
+        "Wilbur bit someone"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does Fern use to feed baby Wilbur?",
+      "options": [
+        "A bottle",
+        "A bucket",
+        "A bowl",
+        "A spoon"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Where does Wilbur go to live after he gets too big for the Arable home?",
+      "options": [
+        "Homer Zuckerman's farm",
+        "The county fair",
+        "Templeton's den",
+        "The apple orchard"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What kind of animal is Charlotte?",
+      "options": [
+        "A spider",
+        "A goose",
+        "A sheep",
+        "A rat"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Which animal tells Wilbur the bad news that he will be killed?",
+      "options": [
+        "The sheep",
+        "The goose",
+        "The gander",
+        "The rat"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What is the first word Charlotte weaves into her web?",
+      "options": [
+        "SOME PIG",
+        "TERRIFIC",
+        "RADIANT",
+        "HUMBLE"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Who is Templeton?",
+      "options": [
+        "A rat",
+        "A pig",
+        "A spider",
+        "A lamb"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Where does Templeton find scraps of paper with words for Charlotte?",
+      "options": [
+        "The dump",
+        "The farmhouse",
+        "The barn roof",
+        "The apple orchard"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What is the last word Charlotte weaves into her web?",
+      "options": [
+        "HUMBLE",
+        "RADIANT",
+        "TERRIFIC",
+        "SOME PIG"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What is the name of the big pig who wins the blue ribbon at the fair?",
+      "options": [
+        "Uncle",
+        "Wilbur",
+        "Templeton",
+        "Homer"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does Charlotte leave behind at the fairgrounds?",
+      "options": [
+        "Her egg sac",
+        "Her old web",
+        "Her silk thread",
+        "Her baby spiders"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Who carries the egg sac back to the barn?",
+      "options": [
+        "Wilbur",
+        "Fern",
+        "Lurvy",
+        "Mr. Zuckerman"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What do most of the baby spiders do when they hatch in the spring?",
+      "options": [
+        "Float away on the wind",
+        "Stay in the barn",
+        "Hide under the trough",
+        "Crawl to the orchard"
+      ],
+      "answer": 0
+    }
+  ]
+}

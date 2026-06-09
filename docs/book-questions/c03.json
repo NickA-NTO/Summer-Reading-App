@@ -1,0 +1,126 @@
+{
+  "bookId": "c03",
+  "version": 2,
+  "questions": [
+    {
+      "q": "Who tells Junie B. that she has to ride the bus to school?",
+      "options": [
+        "Her teacher",
+        "Her mother",
+        "Her principal",
+        "Her friend Grace"
+      ],
+      "answer": 1
+    },
+    {
+      "q": "Which boy is mean to Junie B. on the bus ride to school?",
+      "options": [
+        "Jack",
+        "Jim",
+        "John",
+        "Jake"
+      ],
+      "answer": 1
+    },
+    {
+      "q": "What does Jim do to Junie B. on the bus?",
+      "options": [
+        "He steps on her shoe",
+        "He takes her backpack",
+        "He pours milk on her",
+        "He pushes her seat"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What is the number of Junie B.'s kindergarten classroom?",
+      "options": [
+        "Room Seven",
+        "Room Eight",
+        "Room Nine",
+        "Room Ten"
+      ],
+      "answer": 2
+    },
+    {
+      "q": "Which girl tells Junie B. the scary rumour about the bus ride home?",
+      "options": [
+        "Grace",
+        "Lucille",
+        "Mrs.",
+        "Her mother"
+      ],
+      "answer": 1
+    },
+    {
+      "q": "What do bigger kids supposedly do to smaller kids on the bus, according to the rumour?",
+      "options": [
+        "Push them off their seats",
+        "Pour chocolate milk on their heads",
+        "Steal their backpacks",
+        "Make them sit on the floor"
+      ],
+      "answer": 1
+    },
+    {
+      "q": "Where does Junie B. hide to avoid getting on the bus home?",
+      "options": [
+        "The library",
+        "The nurse's office",
+        "The supply closet",
+        "The principal's office"
+      ],
+      "answer": 2
+    },
+    {
+      "q": "What happens to Junie B. after everyone leaves the school building?",
+      "options": [
+        "She gets locked inside",
+        "She falls asleep outside",
+        "She walks home alone",
+        "She finds her mother"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Which room does Junie B. go to where she eats crackers and uses the phone?",
+      "options": [
+        "The library",
+        "The cafeteria",
+        "The nurse's office",
+        "The principal's office"
+      ],
+      "answer": 2
+    },
+    {
+      "q": "How does Junie B. finally get help when she is trapped in the school?",
+      "options": [
+        "She yells out a window",
+        "She calls 911",
+        "She bangs on the door",
+        "She waits until morning"
+      ],
+      "answer": 1
+    },
+    {
+      "q": "Which girl becomes Junie B.'s new friend by the end of the book?",
+      "options": [
+        "Lucille",
+        "Grace",
+        "Mrs.",
+        "Her mother"
+      ],
+      "answer": 1
+    },
+    {
+      "q": "What does Grace tell Junie B. about the chocolate milk story?",
+      "options": [
+        "It happened to her once",
+        "It only happens on Fridays",
+        "It is not true",
+        "It is very scary"
+      ],
+      "answer": 2
+    }
+  ]
+}
