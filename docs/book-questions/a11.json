@@ -3,27 +3,17 @@
   "version": 2,
   "questions": [
     {
-      "q": "What season does the story begin in?",
-      "options": [
-        "Summer",
-        "Winter",
-        "Spring",
-        "Autumn"
-      ],
-      "answer": 0
-    },
-    {
       "q": "Where does the mother duck make her nest?",
       "options": [
         "By a river",
-        "By a cottage",
+        "By a barn",
         "By a garden",
-        "By a pond"
+        "By a cottage"
       ],
       "answer": 0
     },
     {
-      "q": "Which egg hatches last?",
+      "q": "Which egg takes the longest to hatch?",
       "options": [
         "The biggest one",
         "The smallest one",
@@ -33,22 +23,22 @@
       "answer": 0
     },
     {
-      "q": "What does the ugly duckling look like when he hatches?",
+      "q": "What color is the last duckling when he hatches?",
       "options": [
-        "Large and grey",
-        "Small and yellow",
-        "Fluffy and white",
-        "Tiny and brown"
+        "Grey",
+        "Yellow",
+        "White",
+        "Brown"
       ],
       "answer": 0
     },
     {
-      "q": "What does the mother duck teach her ducklings to do at the farmyard?",
+      "q": "What does the mother duck teach her babies to do at the farmyard?",
       "options": [
         "Bow their heads",
         "Flap their wings",
-        "Hide in reeds",
-        "Find worms"
+        "Hide in grass",
+        "Run very fast"
       ],
       "answer": 0
     },
@@ -58,37 +48,57 @@
         "The poultry-girl",
         "The old woman",
         "The peasant",
-        "The farmer"
+        "The farmer's wife"
       ],
       "answer": 0
     },
     {
-      "q": "Who lives in the little cottage in the marsh?",
+      "q": "Why does the duckling believe everyone is mean to him?",
       "options": [
-        "An old woman, a cat, and a hen",
-        "A farmer and his children",
-        "Three beautiful swans",
-        "Wild ducks and geese"
+        "Because he is ugly",
+        "Because he is small",
+        "Because he is loud",
+        "Because he is fast"
       ],
       "answer": 0
     },
     {
-      "q": "What does the hen ask the duckling?",
+      "q": "What animals scare the wild birds on the moor?",
       "options": [
-        "Can you lay eggs?",
-        "Can you purr?",
-        "Can you swim?",
-        "Can you fly?"
+        "Dogs",
+        "Cats",
+        "Foxes",
+        "Horses"
       ],
       "answer": 0
     },
     {
-      "q": "What does the cat ask the duckling?",
+      "q": "Who lives in the little cottage with the old woman?",
       "options": [
-        "Can you purr?",
-        "Can you lay eggs?",
-        "Can you quack?",
-        "Can you swim?"
+        "A cat and a hen",
+        "A dog and a rooster",
+        "A pig and a goose",
+        "A duck and a mouse"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does the hen ask the duckling if he can do?",
+      "options": [
+        "Lay eggs",
+        "Catch mice",
+        "Sing songs",
+        "Build nests"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What happens to the duckling in the cold winter?",
+      "options": [
+        "He becomes frozen in ice",
+        "He flies away south",
+        "He hides in a barn",
+        "He finds a warm home"
       ],
       "answer": 0
     },
@@ -97,28 +107,28 @@
       "options": [
         "A peasant",
         "A hunter",
-        "A farmer's wife",
-        "A wild goose"
+        "A child",
+        "A farmer"
       ],
       "answer": 0
     },
     {
-      "q": "What does the duckling crash into at the peasant's house?",
+      "q": "What does the duckling splash into at the peasant's house?",
       "options": [
-        "Milk, butter, and flour",
-        "Eggs, bread, and soup",
-        "Plates, cups, and bowls",
-        "Pots, pans, and spoons"
+        "Milk",
+        "Soup",
+        "Water",
+        "Honey"
       ],
       "answer": 0
     },
     {
-      "q": "What does the duckling see when he looks in the water in spring?",
+      "q": "What does the duckling learn he really is when he looks in the water?",
       "options": [
         "A beautiful swan",
-        "A grey duckling",
-        "A wild goose",
-        "A white hen"
+        "A white goose",
+        "A brown duck",
+        "A grey heron"
       ],
       "answer": 0
     },
@@ -126,9 +136,9 @@
       "q": "What do the children in the garden say about the new swan?",
       "options": [
         "He is the most beautiful",
-        "He is very ugly",
-        "He should fly away",
-        "He looks funny"
+        "He is the biggest one",
+        "He is the fastest swimmer",
+        "He is the loudest singer"
       ],
       "answer": 0
     }

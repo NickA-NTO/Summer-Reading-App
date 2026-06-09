@@ -3,27 +3,27 @@
   "version": 2,
   "questions": [
     {
-      "q": "Who leads the bear hunt?",
+      "q": "Who leads the family on their adventure?",
       "options": [
         "The father",
         "The mother",
         "The dog",
-        "The bear"
+        "The oldest child"
       ],
       "answer": 0
     },
     {
-      "q": "What do they say about the day in their chant?",
+      "q": "What do they say about the weather in their chant?",
       "options": [
-        "It is beautiful",
-        "It is rainy",
-        "It is cold",
-        "It is windy"
+        "What a beautiful day",
+        "What a rainy day",
+        "What a windy day",
+        "What a cloudy day"
       ],
       "answer": 0
     },
     {
-      "q": "What is the first thing they go through?",
+      "q": "What is the first thing they have to go through?",
       "options": [
         "Long wavy grass",
         "Thick oozy mud",
@@ -48,7 +48,7 @@
         "Splash splosh",
         "Swishy swashy",
         "Hoooo wooooo",
-        "Tiptoe"
+        "Squelch squerch"
       ],
       "answer": 0
     },
@@ -56,6 +56,26 @@
       "q": "What sound does the mud make?",
       "options": [
         "Squelch squerch",
+        "Splash splosh",
+        "Stumble trip",
+        "Swishy swashy"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What sound does the forest make?",
+      "options": [
+        "Stumble trip",
+        "Hoooo wooooo",
+        "Squelch squerch",
+        "Tiptoe"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What sound does the snowstorm make?",
+      "options": [
+        "Hoooo wooooo",
         "Swishy swashy",
         "Splash splosh",
         "Stumble trip"
@@ -63,82 +83,52 @@
       "answer": 0
     },
     {
-      "q": "What sound do they make in the big dark forest?",
+      "q": "What is the last place the family goes through before they find what they are looking for?",
       "options": [
-        "Stumble trip",
-        "Swishy swashy",
-        "Splash splosh",
-        "Squelch squerch"
+        "A narrow gloomy cave",
+        "A big dark forest",
+        "A deep cold river",
+        "A swirling whirling snowstorm"
       ],
       "answer": 0
     },
     {
-      "q": "What comes after the forest on the bear hunt?",
+      "q": "What do they say about being afraid in their chant?",
       "options": [
-        "A snowstorm",
-        "A river",
-        "A cave",
-        "A meadow"
+        "We're not scared",
+        "We're very scared",
+        "We're a little scared",
+        "We're so scared"
       ],
       "answer": 0
     },
     {
-      "q": "How does the family describe the cave they enter?",
+      "q": "What does the family do when they see the bear?",
       "options": [
-        "Narrow and gloomy",
-        "Wide and sunny",
-        "Small and cozy",
-        "Bright and sandy"
+        "They turn and run home",
+        "They wave hello",
+        "They sit down",
+        "They take a nap"
       ],
       "answer": 0
     },
     {
-      "q": "How do they move inside the cave?",
+      "q": "Where does the family hide at the end of the story?",
       "options": [
-        "They tiptoe",
-        "They run fast",
-        "They skip along",
-        "They crawl down"
+        "Under the covers in bed",
+        "Under the kitchen table",
+        "Inside a closet",
+        "Behind the front door"
       ],
       "answer": 0
     },
     {
-      "q": "What part of the bear is shiny and wet?",
+      "q": "How does the bear look in the very last picture of the book?",
       "options": [
-        "Its nose",
-        "Its tail",
-        "Its paw",
-        "Its ear"
-      ],
-      "answer": 0
-    },
-    {
-      "q": "What do they do when they see the bear?",
-      "options": [
-        "Run home",
-        "Wave hello",
-        "Feed it",
-        "Sit down"
-      ],
-      "answer": 0
-    },
-    {
-      "q": "Where does the family hide at the end?",
-      "options": [
-        "In bed under the covers",
-        "In the closet upstairs",
-        "In the basement downstairs",
-        "In the kitchen cupboard"
-      ],
-      "answer": 0
-    },
-    {
-      "q": "What does the last picture of the book show?",
-      "options": [
-        "The bear walking back alone",
-        "The family eating dinner",
-        "The dog playing outside",
-        "The children waving goodbye"
+        "Sad",
+        "Happy",
+        "Angry",
+        "Sleepy"
       ],
       "answer": 0
     }

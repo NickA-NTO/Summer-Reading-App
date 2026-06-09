@@ -210,14 +210,19 @@ function checkQuestion(q, idx, summary) {
   // Length threshold of 3 (was 4) so short content words like animal
   // names — "fox", "owl", "cat", "dog" — count as telegraph hits.
   // Stopwords (the/and/for/etc.) are still excluded so common 3-char
-  // English doesn't false-positive. This caught the Gruffalo k06 case
-  // where the question stem said "when he meets the fox" and an
-  // option was "Roasted fox" — clearly telegraphed but missed by
-  // the old 4-char minimum.
+  // English doesn't false-positive. This caught the Gruffalo k06 case.
+  //
+  // IMPORTANT — word-boundary match, not substring. The old
+  // qNorm.includes(t) had two false-positive classes:
+  //   - "ink" in "Pink ink" matched "drink" in the stem (drink ⊃ ink)
+  //   - "pig" in "Piggie" matched "pig" inside "Piggie" itself
+  // Splitting the stem into whole words and using set-membership
+  // tests exact-word equality.
   const aTokens = correctNorm.split(/\s+/).filter(
     (t) => t.length >= 3 && !SHARED_STOPWORDS.has(t) && !properForTelegraph.has(t)
   );
-  const telegraphed = aTokens.filter((t) => qNorm.includes(t));
+  const stemWordSet = new Set(qNorm.split(/\s+/).filter(Boolean));
+  const telegraphed = aTokens.filter((t) => stemWordSet.has(t));
   if (telegraphed.length > 0) {
     issues.push(
       `telegraphing: question contains answer word(s): ${telegraphed.join(", ")}`
