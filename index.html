@@ -5119,18 +5119,36 @@ const quizState = {
 };
 
 // Pre-quiz warning threshold for a specific book, in milliseconds.
-// PK/K → 15 min, G1 → 30 min, G2+ → 60 min. Server is the source of
-// truth via state.session.startedRecentlyHoldMsRules (see /api/auth/me);
-// falls back to the legacy single value, then 1 hour, if either is
-// missing. Resolves the book from BOOK_BY_ID so callers only need the id.
+// PK/Beginning/K → 15 min, G1 → 30 min, G2+ → 60 min. Server is the
+// source of truth via state.session.startedRecentlyHoldMsRules (see
+// /api/auth/me); falls back to the legacy single value, then 1 hour,
+// if either is missing.
+//
+// Vocab note: server-side `getBook()` exposes book.grade ("PK"); the
+// in-memory CATEGORIES catalog in this file uses book.age
+// ("Beginning"). The rules table has aliases for both, but we read
+// whichever field is populated so we don't have to maintain a
+// normalisation map in two places. Falls back to GRADE_BY_CATEGORY
+// from the categoryId if neither field is present.
 function startedRecentlyHoldMsForBookId(bookId) {
   const book = bookId ? BOOK_BY_ID[bookId] : null;
   const rules = state.session?.startedRecentlyHoldMsRules || null;
   const legacy = Number(state.session?.startedRecentlyHoldMs) || (60 * 60 * 1000);
   if (!rules || typeof rules !== "object") return legacy;
-  const grade = book?.grade ? String(book.grade) : null;
-  if (grade && grade in rules && Number(rules[grade]) > 0) {
-    return Number(rules[grade]);
+  // Try every known signal of "what grade is this book?". First one
+  // that finds a hit in the rules table wins. The categoryId fallback
+  // closes the gap for any book that's missing both grade and age.
+  const candidates = [
+    book?.grade,
+    book?.age,
+    book?.categoryId ? GRADE_BY_CATEGORY[book.categoryId] : null,
+  ];
+  for (const c of candidates) {
+    if (!c) continue;
+    const key = String(c);
+    if (key in rules && Number(rules[key]) > 0) {
+      return Number(rules[key]);
+    }
   }
   if (Number(rules.default) > 0) return Number(rules.default);
   return legacy;
