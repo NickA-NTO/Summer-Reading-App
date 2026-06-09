@@ -5449,6 +5449,28 @@ async function openQuiz(bookId) {
   const book = BOOK_BY_ID[bookId];
   if (!book) return;
 
+  // Refresh the session's quizSchemaVersion against the live server
+  // BEFORE checking saved progress. Without this, the schema-stamp
+  // check in loadQuizProgress compares against the version captured
+  // at PAGE LOAD — so if I push a SCHEMA bump after the kid opened
+  // the tab, their saved blob (also stamped at the old version) and
+  // the stale session both match, the resume returns the old pool,
+  // and on submit the server's CURRENT cache key misses → 0/5 +
+  // no_quiz_pool. This /api/auth/me round-trip lets the schema check
+  // detect server-side bumps that happened mid-session.
+  try {
+    const meR = await fetch("/api/auth/me", { credentials: "same-origin" });
+    if (meR.ok) {
+      const me = await meR.json();
+      if (me && Number(me.quizSchemaVersion) > 0 && state.session) {
+        state.session.quizSchemaVersion = Number(me.quizSchemaVersion);
+      }
+    }
+  } catch {
+    // Network blip — fall through. Worst case is a 0/5 if there was
+    // a schema bump; the user's "Try again" will get the fresh pool.
+  }
+
   // Anti-cheat: if there's a saved mid-attempt for THIS book (kid
   // exited via ✕ and is re-opening), resume from where they were.
   // Without this they could close-and-reopen to re-roll the random
