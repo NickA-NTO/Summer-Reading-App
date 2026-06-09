@@ -3261,6 +3261,11 @@ let _ttsSeq = 0;
    1. /api/tts (AWS Polly Neural via our cached endpoint) — best quality
    2. Web Speech API with our voice picker — free fallback
    The endpoint returns a Blob URL we play via <audio>. */
+// Returns a Promise that resolves when speech actually finishes
+// playing (audio.ended event), errors out, or gets superseded by a
+// newer speak() call. NEVER rejects — callers can `await speak(...)`
+// without try/catch even when TTS fails. Fire-and-forget callers can
+// just ignore the returned promise (existing behavior preserved).
 async function speak(text, opts = {}) {
   if (!ttsOn && !opts.force) return;
   const t = String(text || "").trim();
@@ -3274,9 +3279,25 @@ async function speak(text, opts = {}) {
   _ttsAbortController = new AbortController();
   const myAbort = _ttsAbortController;
 
+  // Length-based wall-clock estimate used when we can't track real
+  // audio completion (browser-synth fallback, budget exhausted, etc).
+  // ~70ms per character is roughly tts-1 speed at 0.85x; we floor at
+  // 1.5s so very short prompts still get a real pause.
+  const estimateMs = () => Math.max(1500, t.length * 70);
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  // Browser-synth fallback path. Returns a promise that resolves when
+  // the SpeechSynthesisUtterance fires `end` (or after the length
+  // estimate elapses as a safety net — some browsers don't reliably
+  // fire end on cancellation).
+  const browserFallback = () => {
+    speakBrowser(t);
+    return sleep(estimateMs());
+  };
+
   // Skip API call if we already know the budget is gone — go straight to browser
   if (ttsBudgetReached) {
-    return speakBrowser(t);
+    return browserFallback();
   }
 
   const voice = chosenPollyVoice || "nova";
@@ -3296,24 +3317,24 @@ async function speak(text, opts = {}) {
       showBudgetBanner(data);
       console.warn("[tts] budget reached — falling back to browser voice");
       if (mySeq !== _ttsSeq) return;
-      return speakBrowser(t);
+      return browserFallback();
     }
     if (r.status === 503) {
       console.warn("[tts] TTS not configured — falling back to browser voice");
       if (mySeq !== _ttsSeq) return;
-      return speakBrowser(t);
+      return browserFallback();
     }
     if (!r.ok) {
       const body = await r.text().catch(() => "");
       console.warn(`[tts] ${r.status} from /api/tts — falling back to browser`, body);
       if (mySeq !== _ttsSeq) return;
-      return speakBrowser(t);
+      return browserFallback();
     }
     const data = await r.json();
     if (!data.url) {
       console.warn("[tts] no URL in response — falling back", data);
       if (mySeq !== _ttsSeq) return;
-      return speakBrowser(t);
+      return browserFallback();
     }
     // One more seq check after the json parse — small window but real.
     if (mySeq !== _ttsSeq) return;
@@ -3321,14 +3342,41 @@ async function speak(text, opts = {}) {
 
     const audio = new Audio(data.url);
     currentTtsAudio = audio;
-    audio.addEventListener("ended", () => {
-      if (currentTtsAudio === audio) currentTtsAudio = null;
-    });
-    audio.addEventListener("error", (ev) => {
-      console.warn("[tts] audio element error — falling back to browser", ev);
-      if (currentTtsAudio === audio) currentTtsAudio = null;
-      if (mySeq !== _ttsSeq) return;
-      speakBrowser(t);
+    // Build the "done" promise BEFORE attempting play() so we capture
+    // both the natural `ended` event and any play() rejection in a
+    // single resolution point. NEVER rejects — fallback paths still
+    // resolve the promise so awaiting callers don't hang.
+    const donePromise = new Promise((resolve) => {
+      let settled = false;
+      const settle = () => {
+        if (settled) return;
+        settled = true;
+        if (currentTtsAudio === audio) currentTtsAudio = null;
+        resolve();
+      };
+      audio.addEventListener("ended", settle);
+      // `pause` fires when cancelSpeech() calls audio.pause() OR at the
+      // very end of natural playback (which also fires `ended`). Either
+      // way we want to settle — the speak() promise is "this clip is
+      // no longer playing", regardless of why.
+      audio.addEventListener("pause", settle);
+      audio.addEventListener("error", (ev) => {
+        console.warn("[tts] audio element error — falling back to browser", ev);
+        if (mySeq !== _ttsSeq) { settle(); return; }
+        speakBrowser(t);
+        // Give the fallback time to play, then resolve.
+        setTimeout(settle, estimateMs());
+      });
+      // Safety-net cancellation watch for the edge case where
+      // cancelSpeech() runs BEFORE audio.play() has started (so the
+      // pause event doesn't fire). Self-cleans on settle.
+      const cancelPoll = setInterval(() => {
+        if (settled) { clearInterval(cancelPoll); return; }
+        if (mySeq !== _ttsSeq) {
+          clearInterval(cancelPoll);
+          settle();
+        }
+      }, 200);
     });
     try {
       await audio.play();
@@ -3338,12 +3386,13 @@ async function speak(text, opts = {}) {
       console.warn(`[tts] audio.play() rejected (${err?.name || "error"}) — falling back to browser`);
       if (currentTtsAudio === audio) currentTtsAudio = null;
       if (mySeq !== _ttsSeq) return;
-      speakBrowser(t);
+      return browserFallback();
     }
+    return donePromise;
   } catch (err) {
     console.warn("[tts] outer failure — falling back to browser:", err);
     if (mySeq !== _ttsSeq) return;
-    speakBrowser(t);
+    return browserFallback();
   }
 }
 
@@ -5507,10 +5556,11 @@ function buildQuizSpeakParts(q) {
   };
 }
 
-// Pause between the question and the choices block. ~900ms feels
-// like natural breath — long enough for the kid to register the
-// question before the options start, short enough not to drag.
-const QUIZ_TTS_GAP_MS = 900;
+// Pause between the question and the choices block. 1200ms reads as
+// a clear sentence break for K-2 listeners — long enough that the
+// kid registers the question before "Here are your choices" starts,
+// short enough not to feel like the app stalled.
+const QUIZ_TTS_GAP_MS = 1200;
 
 // Local token for quiz-narration sequencing — decoupled from the
 // global _ttsSeq. Earlier version predicted `mySeq = _ttsSeq + 1`
@@ -5522,40 +5572,37 @@ const QUIZ_TTS_GAP_MS = 900;
 // internal seq math.
 let _quizNarrationToken = 0;
 
-// Speak the question, wait for it to finish (or the gap to elapse,
-// whichever is later), then speak the choices. Cancels cleanly if a
-// new speakQuizQuestion call supersedes us.
+// Speak the question, await its actual audio end (no more polling),
+// then a real wall-clock gap, then speak the choices. Cancels
+// cleanly if a new speakQuizQuestion call supersedes us mid-question
+// — speak() returns a promise that resolves on cancellation too.
+//
+// History note: an earlier version polled `currentTtsAudio.paused`
+// to detect "audio done", but `paused === true` is ALSO the initial
+// state of a new Audio() element before .play() actually starts.
+// On a slow /api/tts fetch (200-2000ms), the polling fired the
+// 300ms-minimum gate while the audio was still loading, jumping
+// straight to "Here are your choices" before the question played.
+// Kid testers saw "What did the Za..." → choices, repeatedly.
+// Promise-based completion via audio.ended fixes this deterministically.
 async function speakQuizQuestion(q, opts = {}) {
   const { force = false } = opts;
   if (!ttsOn && !force) return;
   const parts = buildQuizSpeakParts(q);
   const myToken = ++_quizNarrationToken;
+  // Await the question audio's actual `ended` event. If the kid
+  // clicks again or navigates away, a newer call will bump
+  // _quizNarrationToken AND cancelSpeech() — both paths resolve the
+  // speak() promise and we bail on the token check below.
   try {
-    speak(parts.question, { force });
+    await speak(parts.question, { force });
   } catch {}
-  // Wait until the question audio finishes (audio.ended) OR a hard
-  // ceiling of 8 seconds in case `ended` never fires (browser synth
-  // fallback can be quirky on the ended event).
-  await new Promise((resolve) => {
-    const start = Date.now();
-    const poll = () => {
-      // Bail if a newer call superseded us — don't continue with a
-      // stale choices block.
-      if (_quizNarrationToken !== myToken) return resolve();
-      const audioDone = !currentTtsAudio || currentTtsAudio.ended || currentTtsAudio.paused;
-      const elapsed = Date.now() - start;
-      if (audioDone && elapsed > 300) return resolve(); // min 300ms even if instant
-      if (elapsed > 8000) return resolve();
-      setTimeout(poll, 100);
-    };
-    setTimeout(poll, 200); // give audio.play() a chance to start first
-  });
-  // If we got cancelled mid-question, don't speak the choices.
   if (_quizNarrationToken !== myToken) return;
+  // Real wall-clock pause before the choices block.
   await new Promise((r) => setTimeout(r, QUIZ_TTS_GAP_MS));
   if (_quizNarrationToken !== myToken) return;
   try {
-    speak(parts.choices, { force });
+    await speak(parts.choices, { force });
   } catch {}
 }
 
