@@ -734,7 +734,10 @@
     gap: 16px;
     overflow-x: auto; overflow-y: visible;
     padding: 10px 4px 30px;
-    scroll-snap-type: x mandatory;
+    /* scroll-snap removed (#infinite-scroll) — the instant scrollLeft
+       reset at the loop boundary fought with x mandatory snapping
+       and caused visible jitter. Native momentum + smooth-scroll
+       feels fine without explicit snap-to-card. */
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
     scroll-behavior: smooth;
@@ -3959,16 +3962,82 @@ function buildRow(cat, isRecent) {
       ${subHtml}
       ${progressHtml}
     </div>
-    <div class="scroller-wrap at-start">
+    <div class="scroller-wrap is-infinite">
       <button class="scroll-btn left" type="button" aria-label="Scroll left">‹</button>
       <div class="scroller" id="row-${cat.id}"></div>
       <button class="scroll-btn right" type="button" aria-label="Scroll right">›</button>
     </div>
   `;
   const scroller = row.querySelector(".scroller");
-  cat.books.forEach((book) => scroller.appendChild(buildCard(book)));
+  // Triple-render so we can loop: when the user scrolls past the
+  // end of one copy, snap to the equivalent position in the middle
+  // copy. Cards in each copy share the same data-book-id; click +
+  // hover work identically. Cost: 3× the DOM nodes per row, fine
+  // at the catalog's scale (~10-15 books per row).
+  for (let i = 0; i < 3; i++) {
+    cat.books.forEach((book) => scroller.appendChild(buildCard(book)));
+  }
   _wireScrollerArrows(row.querySelector(".scroller-wrap"));
+  _wireInfiniteScroller(row.querySelector(".scroller-wrap"));
   return row;
+}
+
+// Make a .scroller-wrap loop infinitely. Pairs with the triple-
+// rendered cards in buildRow: we start scroll position at the
+// boundary between copy 0 and copy 1 (so the visible row IS copy
+// 1), then snap-back by ±oneCopyWidth whenever the user scrolls
+// far enough into copy 0 or copy 2. The visual content at the
+// snap source and destination is identical (same books), so the
+// user perceives a seamless loop. scroll-snap-type: x mandatory
+// would fight us during the instant scrollLeft set, so we toggle
+// scrollBehavior to "auto" for the snap and back to "smooth".
+function _wireInfiniteScroller(wrap) {
+  if (!wrap || !wrap.classList.contains("is-infinite")) return;
+  const scroller = wrap.querySelector(".scroller");
+  if (!scroller) return;
+
+  // Center scroll on copy 1 (the middle of three). Has to run after
+  // layout so scrollWidth is final.
+  function centerToMiddle() {
+    scroller.scrollLeft = scroller.scrollWidth / 3;
+  }
+  requestAnimationFrame(centerToMiddle);
+
+  let isSnapping = false;
+  function maybeSnap() {
+    if (isSnapping) return;
+    const oneCopyWidth = scroller.scrollWidth / 3;
+    if (oneCopyWidth <= 0) return;
+    const x = scroller.scrollLeft;
+    // Snap thresholds at the middle of the outer copies — gives
+    // us a full half-copy of buffer in both directions before
+    // running out of content.
+    const leftThreshold = oneCopyWidth * 0.5;
+    const rightThreshold = oneCopyWidth * 2.5;
+    if (x < leftThreshold) {
+      isSnapping = true;
+      scroller.style.scrollBehavior = "auto";
+      scroller.scrollLeft = x + oneCopyWidth;
+      requestAnimationFrame(() => {
+        scroller.style.scrollBehavior = "";
+        isSnapping = false;
+      });
+    } else if (x > rightThreshold) {
+      isSnapping = true;
+      scroller.style.scrollBehavior = "auto";
+      scroller.scrollLeft = x - oneCopyWidth;
+      requestAnimationFrame(() => {
+        scroller.style.scrollBehavior = "";
+        isSnapping = false;
+      });
+    }
+  }
+  scroller.addEventListener("scroll", maybeSnap, { passive: true });
+  // Re-center on resize so the user doesn't end up stranded near
+  // an edge after the layout changes.
+  window.addEventListener("resize", () => {
+    requestAnimationFrame(centerToMiddle);
+  }, { passive: true });
 }
 
 // Wire the left/right arrow buttons for one .scroller-wrap. Each
@@ -3984,7 +4053,12 @@ function _wireScrollerArrows(wrap) {
   const btnRight = wrap.querySelector(".scroll-btn.right");
   if (!scroller || !btnLeft || !btnRight) return;
 
+  // Infinite-scroll rows never run out of content — keep both
+  // arrows shown at all times. Finite rows get the edge-fade
+  // behaviour so the arrow doesn't sit there pointing to nothing.
+  const isInfinite = wrap.classList.contains("is-infinite");
   function updateEdges() {
+    if (isInfinite) return;
     const max = scroller.scrollWidth - scroller.clientWidth;
     const left = scroller.scrollLeft;
     wrap.classList.toggle("at-start", left <= 2);
