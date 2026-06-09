@@ -5584,7 +5584,15 @@ async function openQuiz(bookId) {
   setQuizProgress(0);
 
   try {
-    const r = await fetch(`/api/quiz?bookId=${encodeURIComponent(bookId)}`, {
+    // Cache-buster: append the live schema version as a query param so
+    // browsers can't serve a stale disk-cached /api/quiz response from
+    // before the static bank shipped. Browsers cache by full URL, so a
+    // new v= value forces a fresh server fetch even if the old response
+    // is still within its max-age. After 68357e3 the server sends
+    // no-store, but this query param flushes the existing 24h-cached
+    // entries from every kid's browser the next time they open a quiz.
+    const cb = state.session?.quizSchemaVersion || Date.now();
+    const r = await fetch(`/api/quiz?bookId=${encodeURIComponent(bookId)}&v=${cb}`, {
       credentials: "same-origin",
     });
     const data = await r.json();
