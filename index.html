@@ -2301,7 +2301,7 @@
         Tell me about the book
       </h2>
       <p style="margin:0 0 24px;color:var(--muted);font-size:15px;line-height:1.5;max-width:380px;margin-left:auto;margin-right:auto">
-        I'll ask you a few quick questions. Talk into the mic — I'll know when you're done.
+        Tell me about the book. Talk into the mic — I'll know when you're done.
       </p>
       <button id="retellStartBtn" style="
         background:#2563eb;color:#fff;border:none;padding:16px 28px;
@@ -2350,8 +2350,13 @@
         <div class="retell-eq-bar"></div>
         <div class="retell-eq-bar"></div>
       </div>
-      <div style="color:var(--muted);font-size:11px">
-        <span id="retellTurnLabel">Question 1 of 3</span>
+      <!-- Polish: dropped the "Question 1 of 3" label. The retell now
+           reads as an open conversation ("tell me about the book") with
+           the tutor asking follow-ups as needed, not a multi-step quiz.
+           Label kept as a hidden node so JS that still writes to it
+           doesn't blow up. -->
+      <div style="color:var(--muted);font-size:11px;display:none">
+        <span id="retellTurnLabel"></span>
       </div>
     </div>
 
@@ -5467,26 +5472,36 @@ function buildQuizSpeakParts(q) {
 // question before the options start, short enough not to drag.
 const QUIZ_TTS_GAP_MS = 900;
 
+// Local token for quiz-narration sequencing — decoupled from the
+// global _ttsSeq. Earlier version predicted `mySeq = _ttsSeq + 1`
+// before calling speak(), but speak() internally calls cancelSpeech()
+// which ALSO bumps _ttsSeq, so the actual delta was +2. The seq check
+// immediately failed → choices never spoken (intermittent dead-air
+// bug on quiz questions). Local token is incremented HERE and ONLY
+// here, so we can reason about it without worrying about speak()'s
+// internal seq math.
+let _quizNarrationToken = 0;
+
 // Speak the question, wait for it to finish (or the gap to elapse,
 // whichever is later), then speak the choices. Cancels cleanly if a
-// new quiz speak fires (the speak() helper bumps _ttsSeq on cancel).
+// new speakQuizQuestion call supersedes us.
 async function speakQuizQuestion(q, opts = {}) {
   const { force = false } = opts;
   if (!ttsOn && !force) return;
   const parts = buildQuizSpeakParts(q);
-  const mySeq = _ttsSeq + 1; // sentinel — speak() will increment to this
+  const myToken = ++_quizNarrationToken;
   try {
     speak(parts.question, { force });
   } catch {}
   // Wait until the question audio finishes (audio.ended) OR a hard
-  // ceiling of 8 seconds in case `ended` never fires (e.g. browser
-  // synth fallback that doesn't expose the event the same way).
+  // ceiling of 8 seconds in case `ended` never fires (browser synth
+  // fallback can be quirky on the ended event).
   await new Promise((resolve) => {
     const start = Date.now();
     const poll = () => {
-      // Bail if a newer speak() came along — don't continue with a
+      // Bail if a newer call superseded us — don't continue with a
       // stale choices block.
-      if (_ttsSeq !== mySeq) return resolve();
+      if (_quizNarrationToken !== myToken) return resolve();
       const audioDone = !currentTtsAudio || currentTtsAudio.ended || currentTtsAudio.paused;
       const elapsed = Date.now() - start;
       if (audioDone && elapsed > 300) return resolve(); // min 300ms even if instant
@@ -5496,9 +5511,9 @@ async function speakQuizQuestion(q, opts = {}) {
     setTimeout(poll, 200); // give audio.play() a chance to start first
   });
   // If we got cancelled mid-question, don't speak the choices.
-  if (_ttsSeq !== mySeq) return;
+  if (_quizNarrationToken !== myToken) return;
   await new Promise((r) => setTimeout(r, QUIZ_TTS_GAP_MS));
-  if (_ttsSeq !== mySeq) return;
+  if (_quizNarrationToken !== myToken) return;
   try {
     speak(parts.choices, { force });
   } catch {}
@@ -8006,12 +8021,25 @@ function openRetell(bookId) {
 
 function closeRetell({ confirmed = false } = {}) {
   if (retell.active && !confirmed) {
-    // Mid-session close → warn the kid. They forfeit all XP if they bail.
-    const ok = confirm(
-      "If you stop now, you won't earn any XP for this book. " +
-      "Are you sure you want to close?"
-    );
-    if (!ok) return;
+    // Mid-session close. If the LAST attempted turn errored out (timeout
+    // or network blip), the kid isn't bailing — they're trapped in a
+    // broken state. Don't bully them about losing XP; just acknowledge
+    // the fault and close cleanly. The server's reading session lives
+    // on its 30-min TTL so admin can finalize XP later if needed.
+    const techFaultRecent =
+      retell.lastTurnError &&
+      Date.now() - retell.lastTurnError.atMs < 5 * 60_000;
+    if (techFaultRecent) {
+      // No confirm dialog — the kid already knows it broke.
+      console.warn("[retell] closing after tech fault — held XP path will not penalize", retell.lastTurnError);
+    } else {
+      // Normal voluntary close (kid bailing).
+      const ok = confirm(
+        "If you stop now, you won't earn any XP for this book. " +
+        "Are you sure you want to close?"
+      );
+      if (!ok) return;
+    }
   }
   retell._closed = true;
   retell.active = false;
@@ -8378,6 +8406,13 @@ function _retellEndTurn() {
 async function _retellUploadTurn(blob) {
   if (!retell.sessionId) return;
   let data;
+  // Bound the turn round-trip at 60 s. Whisper transcription + LLM
+  // turn typically completes in 4-15 s; >60 s is almost always a hung
+  // request, not slow inference. AbortController lets us recover with
+  // a clear error message and a retry, instead of the "thinking…"
+  // dead-end the kid hit earlier.
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 60_000);
   try {
     const r = await fetch(
       `/api/tutor?action=turn&sessionId=${encodeURIComponent(retell.sessionId)}`,
@@ -8386,14 +8421,31 @@ async function _retellUploadTurn(blob) {
         headers: { "Content-Type": "audio/webm" },
         credentials: "same-origin",
         body: blob,
+        signal: controller.signal,
       }
     );
     data = await r.json();
     if (!r.ok) throw new Error(data.error || "turn_failed");
   } catch (err) {
-    retell.statusEl.textContent = "Hmm, that didn't work. Tap × to try again later.";
+    clearTimeout(timeoutId);
+    const wasTimeout = err?.name === "AbortError";
+    // Mark that this session ran into a tech fault so closeRetell()
+    // knows NOT to bully the kid about losing XP — it wasn't their
+    // fault. The server also keeps the reading session open via its
+    // 30-min TTL so an admin can still finalize XP for them later.
+    retell.lastTurnError = {
+      reason: wasTimeout ? "timeout" : "network",
+      atMs: Date.now(),
+      message: String(err?.message || err),
+    };
+    console.error("[retell] turn upload failed", retell.lastTurnError);
+    retell.statusEl.textContent = wasTimeout
+      ? "The reading buddy is taking too long — tap × to close and try again later."
+      : "Hmm, that didn't work. Tap × to close and try again later.";
+    _retellSetState("idle");
     return;
   }
+  clearTimeout(timeoutId);
   if (retell._closed) return;
   // Show what Whisper heard (if anything) before the tutor speaks again.
   if (data.studentTranscript) {
