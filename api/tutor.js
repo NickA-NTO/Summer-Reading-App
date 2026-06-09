@@ -46,6 +46,7 @@ import {
 } from "../lib/store.js";
 import { resolveVisibleTracks, trackForBook } from "../lib/tracks.js";
 import { getBook } from "../lib/books.js";
+import { getBookSummary } from "./quiz.js";
 import { normalizeGrade, pointsForBook, xpForReadingSession, retellOutcomeFromRubric } from "../lib/xp.js";
 import { trackError, trackEvent } from "../lib/observability.js";
 import { checkRateLimit, send429, LIMITS } from "../lib/rate-limit.js";
@@ -448,6 +449,7 @@ async function actionTurn(req, res, sessionAuth, url) {
         book,
         ageGrade: tutorSession.ageGrade,
         studentText: transcript,
+        bookSummary: getBookSummary(tutorSession.bookId),
       });
     } catch (err) {
       trackError("tutor_preview_grade_failed", { err: String(err?.message || err) });
@@ -590,6 +592,7 @@ async function finalizeAndGrade(res, tutorSession, book) {
         ageGrade: tutorSession.ageGrade,
         transcript: tutorSession.transcript,
         mode: "commit",
+        bookSummary: getBookSummary(tutorSession.bookId),
       });
     } catch (err) {
       trackError("tutor_grade_failed", { err: String(err?.message || err) });

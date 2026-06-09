@@ -12,7 +12,7 @@
 //       reading time, the XP is either held for admin review or partially
 //       reduced. Manual "I read this" reads skip fraud detection entirely.
 
-import { verifySession, parseCookies, isAdmin, displayName, isTombstoned, verifyQuizAnswer } from "../lib/session.js";
+import { verifySession, parseCookies, isAdmin, displayName, isTombstoned, verifyQuizAnswer, isHardcodedBypassQuizHolds } from "../lib/session.js";
 import { resolveVisibleTracks, trackForBook } from "../lib/tracks.js";
 import {
   recordRead,
@@ -750,7 +750,7 @@ export default async function handler(req, res) {
     // detector still applies (this is the "QA tester or fast reader,
     // not a free pass" use case). Debug objects are preserved so the
     // admin can still see WHAT the underlying gap was.
-    if (profile?.bypassQuizHolds) {
+    if (profile?.bypassQuizHolds || isHardcodedBypassQuizHolds(session.email)) {
       if (recentStartDebug) recentStartDebug.bypassed = true;
       if (wcpmDebug) wcpmDebug.bypassed = true;
       recentStartStatus = "clean";

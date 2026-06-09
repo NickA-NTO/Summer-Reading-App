@@ -1,7 +1,7 @@
 // Returns the current session as JSON. Called by the client on page load to
 // populate the user's name / email / avatar / working grade / visible tracks.
 
-import { verifySession, parseCookies, isAdmin } from "../../lib/session.js";
+import { verifySession, parseCookies, isAdmin, isHardcodedBypassQuizHolds } from "../../lib/session.js";
 import {
   guessGradeFromEmail,
   redis,
@@ -269,7 +269,12 @@ export default async function handler(req, res) {
       // speed check. Reopen-pattern check still applies. Client uses
       // this to skip the "Slow down a sec" overlay. Granted via the
       // admin panel toggle; NOT the same as admin permission.
-      bypassQuizHolds: !!profile?.bypassQuizHolds,
+      // Bypass holds true if EITHER the profile flag is set via the
+      // admin panel OR the email is in the hard-coded VIP list
+      // (Andy Montgomery for the COO demo). Hard-coded list bypasses
+      // first-login requirement — no need to seed the Redis profile.
+      bypassQuizHolds:
+        !!profile?.bypassQuizHolds || isHardcodedBypassQuizHolds(session.email),
       // Onboarding state (#17) — client uses these to decide whether to
       // show the first-run voice picker + spotlight tour. tourCompleted=true
       // suppresses it forever (admin can reset via the admin endpoint).

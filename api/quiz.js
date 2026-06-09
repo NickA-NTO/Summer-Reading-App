@@ -71,6 +71,12 @@ try {
 function getBookSummary(bookId) {
   return BOOK_SUMMARIES.get(String(bookId).toLowerCase()) || null;
 }
+// Exported so api/tutor.js's grader can ground its rubric in the
+// hand-authored summary (not just book.blurb, which is a 1-paragraph
+// marketing description that can't catch a kid making up genre
+// details). The same summary used to generate quiz questions is the
+// reference truth for "did this fact come from the book?".
+export { getBookSummary };
 
 // ============================================================
 // Pre-authored quiz questions — the static question bank.
