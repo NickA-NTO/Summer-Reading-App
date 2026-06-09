@@ -737,8 +737,53 @@
     scroll-snap-type: x mandatory;
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
   }
   .scroller::-webkit-scrollbar { display: none; }
+
+  /* Netflix-style left/right scroll buttons. Visible only on
+     desktop (where mousewheel + trackpad swipes don't reliably
+     scroll horizontal). Hidden on touch — kids swipe natively.
+     Hidden at each end of the row (.at-start hides left arrow,
+     .at-end hides right) so they don't sit there pointing to
+     nothing scrollable. */
+  .scroll-btn {
+    position: absolute;
+    top: 10px; bottom: 30px;
+    width: 48px;
+    border: none;
+    color: #fff;
+    font-size: 24px;
+    font-weight: 700;
+    cursor: pointer;
+    z-index: 4;
+    display: grid;
+    place-items: center;
+    opacity: 0;
+    transition: opacity .2s ease, background .2s ease;
+    font-family: inherit;
+  }
+  .scroller-wrap:hover .scroll-btn { opacity: 0.9; }
+  .scroll-btn:hover { opacity: 1 !important; }
+  .scroll-btn.left {
+    left: 0;
+    background: linear-gradient(90deg, rgba(11,16,26,.92), rgba(11,16,26,.4) 70%, transparent);
+    border-radius: 0;
+  }
+  .scroll-btn.right {
+    right: 0;
+    background: linear-gradient(-90deg, rgba(11,16,26,.92), rgba(11,16,26,.4) 70%, transparent);
+    border-radius: 0;
+  }
+  .scroller-wrap.at-start .scroll-btn.left,
+  .scroller-wrap.at-end .scroll-btn.right {
+    opacity: 0 !important;
+    pointer-events: none;
+  }
+  /* Hide arrows on touch devices — native swipe is better UX. */
+  @media (hover: none) {
+    .scroll-btn { display: none; }
+  }
 
   .card {
     scroll-snap-align: start;
@@ -3914,11 +3959,62 @@ function buildRow(cat, isRecent) {
       ${subHtml}
       ${progressHtml}
     </div>
-    <div class="scroller-wrap"><div class="scroller" id="row-${cat.id}"></div></div>
+    <div class="scroller-wrap at-start">
+      <button class="scroll-btn left" type="button" aria-label="Scroll left">‹</button>
+      <div class="scroller" id="row-${cat.id}"></div>
+      <button class="scroll-btn right" type="button" aria-label="Scroll right">›</button>
+    </div>
   `;
   const scroller = row.querySelector(".scroller");
   cat.books.forEach((book) => scroller.appendChild(buildCard(book)));
+  _wireScrollerArrows(row.querySelector(".scroller-wrap"));
   return row;
+}
+
+// Wire the left/right arrow buttons for one .scroller-wrap. Each
+// click scrolls 80% of the visible width (one "page" feel without
+// being so aggressive it loses context). Edge classes (.at-start /
+// .at-end) toggle so the arrow auto-hides when scrolling can't go
+// further that way. Native horizontal-scroll (touch / trackpad)
+// still works alongside.
+function _wireScrollerArrows(wrap) {
+  if (!wrap) return;
+  const scroller = wrap.querySelector(".scroller");
+  const btnLeft = wrap.querySelector(".scroll-btn.left");
+  const btnRight = wrap.querySelector(".scroll-btn.right");
+  if (!scroller || !btnLeft || !btnRight) return;
+
+  function updateEdges() {
+    const max = scroller.scrollWidth - scroller.clientWidth;
+    const left = scroller.scrollLeft;
+    wrap.classList.toggle("at-start", left <= 2);
+    // Allow a 2-pixel slack to account for fractional rounding so
+    // the right arrow correctly hides when the row is fully
+    // scrolled to the end.
+    wrap.classList.toggle("at-end", left >= max - 2);
+    // If the row fits in one screen, hide both arrows.
+    if (max <= 2) {
+      wrap.classList.add("at-start");
+      wrap.classList.add("at-end");
+    }
+  }
+
+  function pageWidth() {
+    return Math.max(120, Math.floor(scroller.clientWidth * 0.8));
+  }
+  btnLeft.addEventListener("click", (e) => {
+    e.stopPropagation();
+    scroller.scrollBy({ left: -pageWidth(), behavior: "smooth" });
+  });
+  btnRight.addEventListener("click", (e) => {
+    e.stopPropagation();
+    scroller.scrollBy({ left: pageWidth(), behavior: "smooth" });
+  });
+  scroller.addEventListener("scroll", updateEdges, { passive: true });
+  window.addEventListener("resize", updateEdges, { passive: true });
+  // Initial check needs to be deferred a tick so the row's cards
+  // have been measured by layout. requestAnimationFrame is enough.
+  requestAnimationFrame(updateEdges);
 }
 
 function buildCard(book) {
