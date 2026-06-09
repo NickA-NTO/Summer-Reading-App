@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generatedAt": "2026-06-09T03:32:36.700Z",
+  "generatedAt": "2026-06-09T03:39:26.974Z",
   "comment": "Auto-populated by scripts/enrich-catalog.js. Each record carries source-cited structured data per book (characters/items/plot_beats/specific_facts/unknown_fields). The quiz generator + QC enforce a closed-list citation contract against this data when a record exists. Run `node scripts/enrich-catalog.js` to populate.",
   "records": {
     "e07": {
@@ -2936,6 +2936,329 @@
           "How long Mudge is lost",
           "Where exactly Mudge is found",
           "What grade Henry is in"
+        ]
+      }
+    },
+    "a06": {
+      "bookId": "a06",
+      "cachedAt": 1780976366974,
+      "sources_found": {
+        "wikipedia": true,
+        "openLibrary": true,
+        "googleBooks": false,
+        "webSearch": true
+      },
+      "source_urls": {
+        "wikipedia": "https://en.wikipedia.org/wiki/The_Dot_(book)",
+        "openLibrary": "https://openlibrary.org/isbn/9780763619619"
+      },
+      "searched_urls": [],
+      "record": {
+        "premise": "A short picture book about a girl named Vashti who is sure she cannot draw. Her art teacher gently encourages her to just make a mark and see where it takes her. From one small dot, Vashti grows into a real artist and at the end passes the same lesson on to another child who thinks he cannot draw either.",
+        "characters": [
+          {
+            "name": "Vashti",
+            "role": "Main character; a girl who believes at first that she cannot draw but becomes a confident artist through the book",
+            "source_ids": [
+              1,
+              2,
+              3
+            ]
+          },
+          {
+            "name": "The art teacher",
+            "role": "A patient, calm teacher (never named) whose simple words drive the whole story",
+            "source_ids": [
+              2,
+              3
+            ]
+          },
+          {
+            "name": "A little boy",
+            "role": "Appears at the end; admires Vashti's art and tells her he cannot draw either; becomes the next 'Vashti' in the story's cycle",
+            "source_ids": [
+              3
+            ]
+          }
+        ],
+        "key_objects": [
+          {
+            "item": "Blank sheet of paper",
+            "detail": "Appears at the start in front of Vashti and again at the end when she gives one to the boy",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "Marker/pen",
+            "detail": "What Vashti uses to make her first dot",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "The single small dot",
+            "detail": "The seed of the whole story; Vashti's first mark",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "Gold frame",
+            "detail": "Hangs Vashti's signed dot above the teacher's desk",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "Vashti's many dot paintings",
+            "detail": "Small, large, multi-coloured, overlapping, and the 'dot without a dot'",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "item": "The boy's wobbly line",
+            "detail": "His first mark, drawn with a trembling pencil",
+            "source_ids": [
+              3
+            ]
+          }
+        ],
+        "plot_beats": [
+          {
+            "beat": "Art class is over. Everyone has finished but Vashti is still sitting at her desk with a blank sheet of paper in front of her.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Vashti tells her teacher 'I just can't draw!'",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "The teacher smiles and says 'Just make a mark and see where it takes you.'",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Vashti grabs a marker and jabs at the paper, making a small, sharp dot.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "The teacher pushes the paper back and says 'Now sign it.' Vashti thinks this is silly but signs her name in the corner.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "The following week, Vashti comes back to art class and sees her signed dot hanging in a gold frame above the teacher's desk.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Looking at her framed dot, Vashti decides she can make a better dot than that.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Vashti starts experimenting and paints lots of dots — small dots, bigger dots, dots in many colours (red, yellow, blue, green), dots that overlap to make purple, and huge dots.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Vashti makes one painting that is a dot made by NOT painting a dot — just empty space in the middle.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Vashti's many dot paintings are displayed at a school art show — a whole wall of them.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "A little boy comes up to Vashti at the show and says he wishes he could draw like her. He says he can't even draw a straight line with a ruler.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Vashti hands the boy a blank sheet of paper and tells him to show her a line.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "With a shaky, trembling pencil, the boy draws a wobbly line.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "beat": "Vashti looks at his line, hands it back, and says 'Please… sign it.' The story ends with the cycle of encouragement passed on.",
+            "source_ids": [
+              3
+            ]
+          }
+        ],
+        "setting": "Vashti's school — specifically her art class, where the story opens with her sitting at an empty desk staring at a blank piece of paper. The story later moves to the art room where her framed dot hangs and the wider school for the art show.",
+        "themes": [
+          "Creative courage — believing you can't do something stops you from starting",
+          "Encouragement from a teacher",
+          "Signing your work gives you ownership and turns a mark into art",
+          "Passing it on — confidence spreads from person to person",
+          "Small beginnings lead to big results"
+        ],
+        "specific_facts": [
+          {
+            "fact": "The main character's name is Vashti.",
+            "source_ids": [
+              1,
+              2,
+              3
+            ]
+          },
+          {
+            "fact": "At the start, Vashti says 'I just can't draw!'",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The story begins in Vashti's art class with everyone else finished and Vashti at her desk.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Vashti has a blank sheet of paper in front of her at the start.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The teacher's first famous line is 'Just make a mark and see where it takes you.'",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Vashti jabs the paper with a marker and makes a small dot.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The teacher's second instruction is 'Now sign it.'",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Vashti signs her dot in the corner of the page.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The next week, Vashti finds her signed dot hanging in a gold frame above the teacher's desk.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "When Vashti sees her framed dot, she thinks she can make a better one.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Vashti paints dots in many different sizes and colours including red, yellow, blue, and green.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Some of Vashti's dots overlap to make purple.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "One of Vashti's clever paintings is a dot made by not painting a dot — just empty space.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Vashti's dot paintings are displayed at a school art show.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "A little boy comes up to Vashti at the art show.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The boy says he can't even draw a straight line with a ruler.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Vashti gives the boy a blank sheet of paper.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The boy draws a wobbly/shaky line using a trembling pencil.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "Vashti's last words in the book are 'Please… sign it.'",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The art teacher is never named in the book.",
+            "source_ids": [
+              3
+            ]
+          },
+          {
+            "fact": "The little boy at the end is not named in the book.",
+            "source_ids": [
+              3
+            ]
+          }
+        ],
+        "confidence": "high",
+        "unknown_fields": [
+          "Vashti's age",
+          "Vashti's grade level in school",
+          "The art teacher's name",
+          "The little boy's name",
+          "Exact number of dot paintings Vashti creates",
+          "Color of Vashti's hair or clothing",
+          "Name of Vashti's school",
+          "What day of the week events occur on"
         ]
       }
     }

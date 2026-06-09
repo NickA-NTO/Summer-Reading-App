@@ -578,6 +578,18 @@ const QCSchema = z.object({
             "commentary, identity-based statements); " +
             "10 = unambiguously safe for the target grade."
         ),
+      form: z
+        .number()
+        .int()
+        .min(0)
+        .max(10)
+        .describe(
+          "0 = correct answer is given away by GRAMMAR alone (e.g., " +
+            "three options start with 'A' and the fourth starts with " +
+            "'His'); options use inconsistent determiners, number, or " +
+            "part-of-speech form. 10 = all four options share the same " +
+            "grammatical form — indistinguishable by grammar."
+        ),
       issues: z
         .array(z.string())
         .optional()
@@ -626,7 +638,14 @@ const QCSchema = z.object({
 //      the new grounding (e07 picked up Gox boxing gloves; a01
 //      enriched for the first time using its hand-authored Peter
 //      Rabbit summary).
-const SCHEMA_VERSION = 12;
+//   v13: grammatical-parallelism rule. Quizzes were leaking the right
+//      answer through determiner / number / part-of-speech mismatch
+//      (kid screenshot: "A wagon / A scooter / A car / His bike"). New
+//      hard rule in the generation prompt + a third QC axis (form, min
+//      4) reject options where the correct answer stands out by
+//      grammar alone. Bump invalidates v12 pools so they regenerate
+//      under the new rule.
+const SCHEMA_VERSION = 13;
 // Exported alias so api/activity.js can build the same cache key when it
 // validates a quiz_submit. Kept as a renamed export so the local const can
 // be reassigned independently if we ever split client / server schemas.
@@ -687,6 +706,15 @@ const QC_MIN_ACCURACY = 7;
 // being so strict that the QC reviewer flags every mild conflict
 // (which would gut the catalog of any books with stakes).
 const QC_MIN_SAFETY = 7;
+// Form-parallelism threshold. A question fails when its 4 options give
+// away the correct answer by grammar alone (e.g., three "A wagon /
+// scooter / car" distractors against a "His bike" answer). 4 is a
+// softer bar than accuracy/safety — we tolerate mild surface drift
+// (capitalisation, trailing punctuation) but reject answers that
+// visibly stand out by determiner / number / part-of-speech form.
+// Missing field in legacy QC responses defaults to 10 so we don't
+// gut existing pools during the rollout window.
+const QC_MIN_FORM = 4;
 // SCHEMA_VERSION bump below to invalidate cached quizzes generated
 // before the safety filter shipped.
 // Minimum survivors — below this, the pool is unusable and we fail
@@ -918,6 +946,20 @@ async function generateOnce(bookId, book, studentGrade, guidance, temperature, a
     `- Avoid trick questions.\n` +
     lengthRules +
     `- No two questions should be near-duplicates.\n` +
+    `- GRAMMATICAL PARALLELISM (critical): all four options for a single ` +
+    `  question MUST share the same grammatical form. If one option starts ` +
+    `  with the determiner "A" / "An", they ALL must (or all "The", all ` +
+    `  "His"/"Her", all bare nouns, all "-ing" verbs, etc. — but never ` +
+    `  mixed). If one option is plural, they all are. If one is a verb ` +
+    `  phrase, they all are. The correct answer must NOT stand out by ` +
+    `  grammar alone — a student who can't read the question shouldn't be ` +
+    `  able to pick the right answer just from how the options look.\n` +
+    `    BAD example (gives away "His bike"):\n` +
+    `      A. A wagon   B. A scooter   C. A car   D. His bike\n` +
+    `    GOOD example:\n` +
+    `      A. A wagon   B. A scooter   C. A car   D. A bike\n` +
+    `    Also GOOD:\n` +
+    `      A. Mike's wagon   B. Mike's scooter   C. Mike's car   D. Mike's bike\n` +
     (record
       ? `- Every fact you assert must be supported by a specific entry in ` +
         `the structured record above.\n` +
@@ -988,12 +1030,30 @@ function buildQCSystemPrompt(record, studentGrade) {
       "color, action, or event you can't find in the summary, score it LOW. " +
       "Don't pad scores to be nice — accuracy matters more than volume.\n\n";
 
+  const formBlock =
+    "AXIS 3 — FORM (0-10). Catch questions where the correct answer " +
+    "gives itself away by GRAMMAR, not content. All four options for a " +
+    "question must share the same grammatical form (same determiner, " +
+    "same number, same part-of-speech pattern). If three options start " +
+    "with \"A\" and the fourth starts with \"His\", a student who can't " +
+    "read the question can still guess it. Score 0 in those cases — " +
+    "they're functionally broken even if the content is accurate.\n" +
+    "  10 = all 4 options share determiner / number / form. Indistinguishable by grammar alone.\n" +
+    "   7 = minor surface inconsistency (capitalisation, trailing punctuation) but grammar matches.\n" +
+    "   4 = one option's article or number differs; correct answer is still NOT the giveaway.\n" +
+    "   0 = the correct answer's grammar visibly differs from the distractors (e.g., \"A wagon / A scooter / A car / His bike\"). REJECT.\n\n" +
+    "Examples:\n" +
+    "  REJECT: \"A wagon\" / \"A scooter\" / \"A car\" / \"His bike\"  ← determiner mismatch reveals answer.\n" +
+    "  ACCEPT: \"A wagon\" / \"A scooter\" / \"A car\" / \"A bike\"\n" +
+    "  ACCEPT: \"Riding a bike\" / \"Riding a scooter\" / \"Riding a car\" / \"Riding a wagon\"\n\n";
+
   return (
     "You are a strict reading-comprehension QC reviewer for an " +
     "elementary-school reading app (Kindergarten through Grade 8, " +
-    "though most readers are K-3). You score TWO axes per question.\n\n" +
+    "though most readers are K-3). You score THREE axes per question.\n\n" +
     accuracyBlock +
-    safetyBlock
+    safetyBlock + "\n\n" +
+    formBlock
   );
 }
 
@@ -1065,13 +1125,15 @@ async function qcAndFilter(bookId, book, studentGrade, questions) {
       survivors.push(questions[i]);
       continue;
     }
-    // #60 — drop on EITHER accuracy or safety below threshold.
-    // Safety field is optional on legacy QC responses (the model may
-    // omit it during the rollout window) — treat missing as 10/clean
-    // so we don't accidentally gut every cached pool.
+    // Drop on accuracy, safety, OR form below threshold. The safety
+    // and form fields are optional on legacy QC responses (the model
+    // may omit them during the rollout window) — treat missing as
+    // 10/clean so we don't accidentally gut every cached pool.
     const safetyScore = Number.isInteger(r.safety) ? r.safety : 10;
+    const formScore   = Number.isInteger(r.form)   ? r.form   : 10;
     const passes = r.accuracy >= QC_MIN_ACCURACY &&
-                   safetyScore >= QC_MIN_SAFETY;
+                   safetyScore >= QC_MIN_SAFETY &&
+                   formScore   >= QC_MIN_FORM;
     if (passes) {
       survivors.push(questions[i]);
     } else {
@@ -1079,7 +1141,11 @@ async function qcAndFilter(bookId, book, studentGrade, questions) {
         idx: i,
         accuracy: r.accuracy,
         safety: safetyScore,
-        reason: r.accuracy < QC_MIN_ACCURACY ? "accuracy" : "safety",
+        form: formScore,
+        reason:
+          r.accuracy < QC_MIN_ACCURACY ? "accuracy" :
+          safetyScore < QC_MIN_SAFETY  ? "safety"   :
+          "form",
         issues: r.issues || [],
         question: questions[i].q,
       });
@@ -1089,7 +1155,7 @@ async function qcAndFilter(bookId, book, studentGrade, questions) {
   if (dropped.length > 0) {
     console.log(
       `[quiz_qc] ${book.title} grade=${studentGrade}: kept ${survivors.length}/${questions.length}`,
-      dropped.map((d) => `Q${d.idx}(acc=${d.accuracy}/safe=${d.safety}/${d.reason})`).join(", ")
+      dropped.map((d) => `Q${d.idx}(acc=${d.accuracy}/safe=${d.safety}/form=${d.form}/${d.reason})`).join(", ")
     );
   }
 

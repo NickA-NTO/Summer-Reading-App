@@ -5599,18 +5599,15 @@ function renderQuizQuestion() {
   document.getElementById("qSpeak").addEventListener("click", () => {
     speakQuizQuestion(q, { force: true });
   });
-  // Auto-speak on render when TTS is on. Now uses speakQuizQuestion
-  // which speaks the question, waits for it to finish, pauses ~900ms,
-  // then speaks the choices. Two separate utterances = real wall-
-  // clock silence between them, which is the only thing tts-1
-  // honors reliably.
+  // Auto-TTS on render was removed (user-requested). It produced a
+  // race condition between questions where, if cancelSpeech() landed
+  // mid-narration of Q(n), the kid could hear Q(n+1)'s choices
+  // without its question (or just the wrong segment). Click-to-hear
+  // via the "Hear it" button is now the only way to start narration
+  // — deterministic, kid-controlled, no race. Still cancel any
+  // leftover audio from the previous question so the new question
+  // renders in silence.
   cancelSpeech();
-  if (ttsOn) {
-    // Small startup delay so the screen settles before audio starts.
-    setTimeout(() => {
-      speakQuizQuestion(q);
-    }, 250);
-  }
   document.querySelectorAll("#qOpts .quiz-option").forEach((btn) => {
     btn.addEventListener("click", () => answerQuestion(Number(btn.dataset.i)));
   });
