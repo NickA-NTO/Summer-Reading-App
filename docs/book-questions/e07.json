@@ -1,6 +1,6 @@
 {
   "bookId": "e07",
-  "version": 1,
+  "version": 2,
   "_note": "Hand-authored from docs/book-summaries/e07-one-fish-two-fish-red-fish-blue-fish.md as a working example. Replace with your authoring-agent output when ready.",
   "questions": [
     {
@@ -24,8 +24,8 @@
       "answer": 3
     },
     {
-      "q": "What color socks does the narrator wear while boxing the Gox?",
-      "options": ["Red socks", "Blue socks", "Yellow socks", "Green socks"],
+      "q": "What color are the socks worn to box the Gox?",
+      "options": ["Red", "Blue", "Yellow", "Green"],
       "answer": 2
     },
     {
@@ -35,13 +35,13 @@
     },
     {
       "q": "What does the Yop do?",
-      "options": ["Yops sing", "Yops swim", "Yops hop", "Yops fly"],
-      "answer": 2
+      "options": ["Hops", "Sings", "Swims", "Flies"],
+      "answer": 0
     },
     {
-      "q": "What is the cookbook on the Nook's hook called?",
-      "options": ["How to Read", "How to Cook", "How to Look", "How to Play"],
-      "answer": 1
+      "q": "Who can't read so can't cook?",
+      "options": ["The Wump", "The Yink", "The Nook", "The Zans"],
+      "answer": 2
     },
     {
       "q": "How many fingers does the creature in the book have?",
@@ -59,8 +59,8 @@
       "answer": 0
     },
     {
-      "q": "What does Ish use to wish for fish?",
-      "options": ["A wish", "A dish", "A cup", "A net"],
+      "q": "Who wishes for fish using a dish?",
+      "options": ["The Yink", "Ish", "The Yop", "The Wump"],
       "answer": 1
     }
   ]
