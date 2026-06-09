@@ -1,0 +1,136 @@
+{
+  "bookId": "e03",
+  "version": 2,
+  "questions": [
+    {
+      "q": "What kind of animal is Gerald?",
+      "options": [
+        "Elephant",
+        "Pig",
+        "Worm",
+        "Bird"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What happens that makes Piggie upset the first time?",
+      "options": [
+        "It starts to rain",
+        "Gerald goes home",
+        "The sun is too hot",
+        "She falls down"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does Gerald use as an umbrella to help Piggie?",
+      "options": [
+        "His big ear",
+        "His long trunk",
+        "A large leaf",
+        "A paper bag"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What kind of creatures play happily in the rain?",
+      "options": [
+        "Two worms",
+        "Two birds",
+        "Two frogs",
+        "Two mice"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What are the worms doing in the puddles?",
+      "options": [
+        "Splashing and playing",
+        "Sleeping and resting",
+        "Hiding and waiting",
+        "Swimming and diving"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What do Gerald and Piggie do after learning from the worms?",
+      "options": [
+        "Splash and dance in the rain",
+        "Run home to stay dry",
+        "Wait under a tree",
+        "Look for the sun"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What happens just when Gerald and Piggie start to have fun splashing?",
+      "options": [
+        "It stops raining",
+        "The worms leave",
+        "Gerald gets tired",
+        "Piggie falls down"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "How does Piggie feel when the rain stops?",
+      "options": [
+        "Upset",
+        "Sleepy",
+        "Hungry",
+        "Scared"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What color is Piggie?",
+      "options": [
+        "Pink",
+        "Grey",
+        "Brown",
+        "White"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What color is Gerald the elephant?",
+      "options": [
+        "Grey",
+        "Pink",
+        "Blue",
+        "Green"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What is the weather like at the very start of the book?",
+      "options": [
+        "Sunny",
+        "Rainy",
+        "Cloudy",
+        "Snowy"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What matters most at the end of the book?",
+      "options": [
+        "Being with your friend",
+        "Having sunny weather",
+        "Finding a big umbrella",
+        "Staying dry outside"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "How do the worms feel about the rain?",
+      "options": [
+        "They love it",
+        "They hate it",
+        "They ignore it",
+        "They fear it"
+      ],
+      "answer": 0
+    }
+  ]
+}

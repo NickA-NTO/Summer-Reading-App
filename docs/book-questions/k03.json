@@ -1,0 +1,146 @@
+{
+  "bookId": "k03",
+  "version": 2,
+  "questions": [
+    {
+      "q": "Who leads the bear hunt?",
+      "options": [
+        "The father",
+        "The mother",
+        "The dog",
+        "The bear"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What do they say about the day in their chant?",
+      "options": [
+        "It is beautiful",
+        "It is rainy",
+        "It is cold",
+        "It is windy"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What is the first thing they go through?",
+      "options": [
+        "Long wavy grass",
+        "Thick oozy mud",
+        "A deep cold river",
+        "A big dark forest"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What sound does the grass make?",
+      "options": [
+        "Swishy swashy",
+        "Splash splosh",
+        "Squelch squerch",
+        "Stumble trip"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What sound does the river make?",
+      "options": [
+        "Splash splosh",
+        "Swishy swashy",
+        "Hoooo wooooo",
+        "Tiptoe"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What sound does the mud make?",
+      "options": [
+        "Squelch squerch",
+        "Swishy swashy",
+        "Splash splosh",
+        "Stumble trip"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What sound do they make in the big dark forest?",
+      "options": [
+        "Stumble trip",
+        "Swishy swashy",
+        "Splash splosh",
+        "Squelch squerch"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What comes after the forest on the bear hunt?",
+      "options": [
+        "A snowstorm",
+        "A river",
+        "A cave",
+        "A meadow"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "How does the family describe the cave they enter?",
+      "options": [
+        "Narrow and gloomy",
+        "Wide and sunny",
+        "Small and cozy",
+        "Bright and sandy"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "How do they move inside the cave?",
+      "options": [
+        "They tiptoe",
+        "They run fast",
+        "They skip along",
+        "They crawl down"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What part of the bear is shiny and wet?",
+      "options": [
+        "Its nose",
+        "Its tail",
+        "Its paw",
+        "Its ear"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What do they do when they see the bear?",
+      "options": [
+        "Run home",
+        "Wave hello",
+        "Feed it",
+        "Sit down"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Where does the family hide at the end?",
+      "options": [
+        "In bed under the covers",
+        "In the closet upstairs",
+        "In the basement downstairs",
+        "In the kitchen cupboard"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does the last picture of the book show?",
+      "options": [
+        "The bear walking back alone",
+        "The family eating dinner",
+        "The dog playing outside",
+        "The children waving goodbye"
+      ],
+      "answer": 0
+    }
+  ]
+}

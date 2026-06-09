@@ -1,0 +1,146 @@
+{
+  "bookId": "k04",
+  "version": 2,
+  "questions": [
+    {
+      "q": "What is the little girl's name in this story?",
+      "options": [
+        "Goldilocks",
+        "Mama Bear",
+        "Baby Bear",
+        "Papa Bear"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What errand does Goldilocks's mother send her to do?",
+      "options": [
+        "Buy muffins",
+        "Buy bread",
+        "Buy milk",
+        "Buy cookies"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Why does Goldilocks's mother warn her about taking the shortcut?",
+      "options": [
+        "Because there are bears",
+        "Because there are wolves",
+        "Because it might rain",
+        "Because she might get lost"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What do the three bears eat for breakfast?",
+      "options": [
+        "Porridge",
+        "Muffins",
+        "Pancakes",
+        "Toast"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Why do the bears leave their cottage before eating?",
+      "options": [
+        "The porridge is too hot",
+        "The porridge is too cold",
+        "They need more milk",
+        "They want to pick berries"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What do the three bears ride while waiting for breakfast to cool?",
+      "options": [
+        "A three-seat bicycle",
+        "A wagon",
+        "A scooter",
+        "A horse"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What funny thing does Papa Bear wear on his feet?",
+      "options": [
+        "Bunny slippers",
+        "Striped socks",
+        "Red boots",
+        "Fuzzy sandals"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Whose porridge does Goldilocks eat all up?",
+      "options": [
+        "Baby Bear's",
+        "Papa Bear's",
+        "Mama Bear's",
+        "Goldilocks's mother's"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What happens when Goldilocks sits in Baby Bear's chair?",
+      "options": [
+        "It breaks to pieces",
+        "It tips over",
+        "It squeaks loudly",
+        "It spins around"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "How does Papa Bear's chair feel to Goldilocks?",
+      "options": [
+        "Too hard",
+        "Too soft",
+        "Too bumpy",
+        "Too wobbly"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Where does Goldilocks fall asleep?",
+      "options": [
+        "In Baby Bear's bed",
+        "In Papa Bear's bed",
+        "In Mama Bear's bed",
+        "In the sitting room"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does Baby Bear say when he finds Goldilocks?",
+      "options": [
+        "She's still in it",
+        "She ate my muffins",
+        "She broke the window",
+        "She took my slippers"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does Goldilocks do when she wakes up and sees the bears?",
+      "options": [
+        "Screams and runs away",
+        "Says she is sorry",
+        "Hides under the bed",
+        "Asks for more porridge"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What lesson does the story teach at the end?",
+      "options": [
+        "Listen to your mother",
+        "Help cook breakfast",
+        "Share your porridge",
+        "Ride a bicycle"
+      ],
+      "answer": 0
+    }
+  ]
+}
