@@ -5601,6 +5601,16 @@ async function openQuiz(bookId) {
     }
     quizState.pool = data.questions;
     quizState.style = data.quizStyle || "comprehension";
+    // Stash the bank version on quizState (saved to localStorage on
+    // progress save) AND in state.session.bankVersions so future
+    // loadQuizProgress calls can detect a content bump.
+    quizState.bankVersion = Number(data.bankVersion) || null;
+    if (state.session) {
+      state.session.bankVersions = state.session.bankVersions || {};
+      if (Number(data.bankVersion) > 0) {
+        state.session.bankVersions[bookId] = Number(data.bankVersion);
+      }
+    }
     // Admin-only: server flags admin sessions via `adminMode: true` and
     // includes the canonical `answer` per question. withShuffledOptions
     // translates that to a shuffled-position field used by the renderer.
@@ -6071,6 +6081,13 @@ function saveQuizProgress() {
       // the corrected pool because their localStorage held the
       // old questions baked in.
       schemaVersion: state.session?.quizSchemaVersion || null,
+      // Also stamp the static-bank version. SCHEMA_VERSION only bumps
+      // when the generation/grading pipeline changes; the bank
+      // version bumps when the question CONTENT in
+      // docs/book-questions/<id>.json changes. Stamping both means a
+      // pure content edit (fix a typo in a question) invalidates
+      // saved progress without needing a SCHEMA_VERSION bump.
+      bankVersion: Number(quizState.bankVersion) || null,
       ts:         Date.now(),
     }));
   } catch {
@@ -6096,8 +6113,7 @@ function loadQuizProgress(bookId) {
       clearQuizProgress(bookId);
       return null;
     }
-    // Schema-version check (CRITICAL: this is what closes the
-    // stale-cached-question bug). If the server bumped SCHEMA_VERSION
+    // Schema-version check. If the server bumped SCHEMA_VERSION
     // since this resume was saved, the questions baked into
     // localStorage are no longer valid — they were generated under
     // older rules that we've since corrected. Drop the resume so
@@ -6106,6 +6122,20 @@ function loadQuizProgress(bookId) {
     // field) are likewise treated as stale.
     const currentVersion = state.session?.quizSchemaVersion || null;
     if (currentVersion != null && saved.schemaVersion !== currentVersion) {
+      clearQuizProgress(bookId);
+      return null;
+    }
+    // Static-bank version check. When the .json content for this
+    // book changes (typo fix, distractor swap, etc.) the bank's
+    // `version` field bumps. /api/quiz returns it as
+    // `bankVersion` on every response and the client stashes the
+    // latest into state.session.bankVersions[bookId]. If the saved
+    // blob's bankVersion is older than what the server is now
+    // serving, the questions in localStorage are stale content
+    // even if the schema is the same — invalidate.
+    const latestBankVersion =
+      state.session?.bankVersions?.[bookId] || null;
+    if (latestBankVersion != null && saved.bankVersion !== latestBankVersion) {
       clearQuizProgress(bookId);
       return null;
     }
