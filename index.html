@@ -5388,6 +5388,14 @@ async function openQuiz(bookId) {
   const resumed = loadQuizProgress(bookId);
   if (resumed) {
     Object.assign(quizState, resumed);
+    // Backfill adminMode for resumes that pre-date saveQuizProgress
+    // persisting the flag. The server's question objects already
+    // carry `correctShuffledIdx` (baked in at first shuffle for
+    // admins only), so this just re-enables the green outline on
+    // the renderer. Non-admins fall through to false.
+    if (resumed.adminMode === undefined) {
+      quizState.adminMode = !!state.session?.isAdmin;
+    }
     document.getElementById("quizBookTitle").textContent = `Quiz · ${book.title}`;
     document.getElementById("quizOverlay").classList.add("open");
     document.body.style.overflow = "hidden";
@@ -5835,6 +5843,13 @@ function saveQuizProgress() {
       pool:       quizState.pool,
       attemptNum: quizState.attemptNum,
       seenQTexts: quizState.seenQTexts,
+      // Persist the admin-session flag so a page refresh mid-quiz
+      // still shows the green "✓ correct" outline on admin sessions.
+      // Safe to put in localStorage — the questions only carry
+      // correctShuffledIdx if the SERVER sent the answer key (admin
+      // only), so a non-admin flipping this flag manually sees no
+      // change (no correctShuffledIdx to render against).
+      adminMode:  !!quizState.adminMode,
       ts:         Date.now(),
     }));
   } catch {
