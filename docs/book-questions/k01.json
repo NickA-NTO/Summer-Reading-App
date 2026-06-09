@@ -3,7 +3,7 @@
   "version": 2,
   "questions": [
     {
-      "q": "On what day does the caterpillar hatch from the egg?",
+      "q": "On what day does the caterpillar come out of the egg?",
       "options": [
         "Sunday morning",
         "Saturday morning",
@@ -47,10 +47,10 @@
       "options": [
         "Oranges",
         "Plums",
-        "Pears",
-        "Strawberries"
+        "Strawberries",
+        "Pears"
       ],
-      "answer": 3
+      "answer": 2
     },
     {
       "q": "How many oranges does the caterpillar eat on Friday?",
@@ -63,64 +63,84 @@
       "answer": 2
     },
     {
-      "q": "Which treat does the caterpillar eat on Saturday?",
+      "q": "On which day does the caterpillar eat chocolate cake and ice cream?",
       "options": [
-        "A green leaf",
-        "A red apple",
-        "A chocolate cake",
-        "A yellow pear"
+        "Friday",
+        "Sunday",
+        "Saturday",
+        "Thursday"
       ],
       "answer": 2
+    },
+    {
+      "q": "How does the caterpillar feel that night after eating so much on Saturday?",
+      "options": [
+        "He has a stomachache",
+        "He feels very hungry",
+        "He feels much better",
+        "He feels very sleepy"
+      ],
+      "answer": 0
     },
     {
       "q": "What does the caterpillar eat to feel better after his stomachache?",
       "options": [
         "A nice green leaf",
-        "A juicy red apple",
-        "A sweet ripe pear",
-        "A cold ice cream"
+        "A red apple",
+        "A juicy pear",
+        "A ripe plum"
       ],
       "answer": 0
     },
     {
-      "q": "What does the caterpillar become after eating all week long?",
+      "q": "What does the caterpillar look like after all that eating?",
       "options": [
-        "A big fat caterpillar",
-        "A tiny hungry caterpillar",
-        "A beautiful bright butterfly",
-        "A small round cocoon"
+        "Big and fat",
+        "Small and hungry",
+        "Tired and sleepy",
+        "Tiny and sad"
       ],
       "answer": 0
     },
     {
       "q": "What does the caterpillar build around himself?",
       "options": [
-        "A cocoon",
         "A nest",
         "A web",
+        "A cocoon",
         "A hole"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
-      "q": "What does the caterpillar become at the end of the book?",
+      "q": "How long does the caterpillar stay inside his cocoon?",
+      "options": [
+        "One week",
+        "More than two weeks",
+        "Three days",
+        "One month"
+      ],
+      "answer": 1
+    },
+    {
+      "q": "What does the caterpillar turn into when he comes out of the cocoon?",
       "options": [
         "A beautiful butterfly",
-        "A bigger caterpillar",
-        "A colorful egg",
-        "A green leaf"
+        "A tiny egg",
+        "A green leaf",
+        "A red apple"
       ],
       "answer": 0
     },
     {
       "q": "What special thing do the pages of this book have?",
       "options": [
-        "Holes cut through them",
-        "Flaps that open up",
-        "Buttons to press",
-        "Stickers to peel"
+        "Shiny stickers",
+        "Pop-up pictures",
+        "Little holes",
+        "Fuzzy textures"
       ],
-      "answer": 0
+      "answer": 2
     }
   ]
 }

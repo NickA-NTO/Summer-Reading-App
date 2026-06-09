@@ -13,42 +13,52 @@
       "answer": 0
     },
     {
-      "q": "What does Stuart look like?",
+      "q": "What does Stuart look like even though he is born to a human family?",
       "options": [
         "A mouse",
         "A bird",
-        "A rabbit",
-        "A squirrel"
+        "A frog",
+        "A rabbit"
       ],
       "answer": 0
     },
     {
-      "q": "In what city do the Little family live?",
-      "options": [
-        "Boston",
-        "Chicago",
-        "New York City",
-        "Philadelphia"
-      ],
-      "answer": 2
-    },
-    {
       "q": "What does Stuart rescue from the bathroom sink drain?",
       "options": [
-        "A marble",
-        "A thimble",
-        "A button",
-        "A ring"
+        "A wedding ring",
+        "A silver coin",
+        "A gold button",
+        "A tiny key"
       ],
-      "answer": 3
+      "answer": 0
+    },
+    {
+      "q": "Where does Stuart climb to fix the sticking keys?",
+      "options": [
+        "Inside the piano",
+        "Inside the clock",
+        "Inside the radio",
+        "Inside the stove"
+      ],
+      "answer": 0
     },
     {
       "q": "What is the name of the family cat?",
       "options": [
         "Snowbell",
         "Margalo",
-        "George",
-        "Wasp"
+        "Wasp",
+        "George"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "How do the Littles find Margalo on their windowsill?",
+      "options": [
+        "Half-frozen",
+        "Half-asleep",
+        "Half-hidden",
+        "Half-buried"
       ],
       "answer": 0
     },
@@ -58,62 +68,52 @@
         "A bird",
         "A mouse",
         "A cat",
-        "A rabbit"
+        "A squirrel"
       ],
       "answer": 0
-    },
-    {
-      "q": "Where do the Littles find Margalo?",
-      "options": [
-        "In the piano",
-        "On the windowsill",
-        "In the drain",
-        "On the garbage scow"
-      ],
-      "answer": 1
     },
     {
       "q": "What is the name of the sailboat Stuart captains in Central Park?",
       "options": [
-        "Wasp",
-        "Margalo",
-        "Snowbell",
-        "Lillian"
+        "The Wasp",
+        "The Hornet",
+        "The Bumble",
+        "The Sparrow"
       ],
       "answer": 0
     },
     {
-      "q": "Who owns the sailboat that Stuart races?",
+      "q": "What is Dr. Carey's job?",
       "options": [
-        "Dr. Carey",
-        "Mr. Little",
-        "George Little",
-        "Harriet Ames"
+        "A dentist",
+        "A teacher",
+        "A doctor",
+        "A baker"
       ],
       "answer": 0
     },
     {
-      "q": "What job does Stuart take for a day in a small town?",
+      "q": "What special vehicle does Dr. Carey lend Stuart for his journey?",
+      "options": [
+        "A tiny gasoline-powered car",
+        "A tiny wooden wagon",
+        "A tiny sailboat",
+        "A tiny airplane"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What job does Stuart take for one day while traveling?",
       "options": [
         "Substitute teacher",
-        "Mail carrier",
-        "Shop clerk",
-        "Piano tuner"
+        "Substitute mailman",
+        "Substitute baker",
+        "Substitute farmer"
       ],
       "answer": 0
     },
     {
-      "q": "Who is the girl Stuart meets in Ames Crossing?",
-      "options": [
-        "Harriet Ames",
-        "Margalo Little",
-        "Mrs. Carey",
-        "Lillian Womrath"
-      ],
-      "answer": 0
-    },
-    {
-      "q": "Which direction does Stuart travel at the end of the book?",
+      "q": "In which direction does Stuart travel at the end of the book?",
       "options": [
         "North",
         "South",

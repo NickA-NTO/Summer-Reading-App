@@ -1,67 +1,126 @@
 {
   "bookId": "e07",
   "version": 2,
-  "_note": "Hand-authored from docs/book-summaries/e07-one-fish-two-fish-red-fish-blue-fish.md as a working example. Replace with your authoring-agent output when ready.",
   "questions": [
     {
-      "q": "What does the Yink drink?",
-      "options": ["Pink milk", "Pink ink", "Pink juice", "Pink water"],
-      "answer": 1
-    },
-    {
-      "q": "What does the Zans open?",
-      "options": ["Boxes", "Cans", "Doors", "Books"],
-      "answer": 1
-    },
-    {
-      "q": "Who has a hook on his head?",
-      "options": ["The Wump", "The Yink", "The Nook", "The Zans"],
-      "answer": 2
+      "q": "What does the fat fish wear?",
+      "options": [
+        "A yellow hat",
+        "A red scarf",
+        "A blue bow",
+        "A green coat"
+      ],
+      "answer": 0
     },
     {
       "q": "How many humps does Mr. Gump's Wump have?",
-      "options": ["One hump", "Three humps", "Five humps", "Seven humps"],
-      "answer": 3
-    },
-    {
-      "q": "What color are the socks worn to box the Gox?",
-      "options": ["Red", "Blue", "Yellow", "Green"],
-      "answer": 2
-    },
-    {
-      "q": "Where is Clark found?",
-      "options": ["In the park", "In the bed", "In the shed", "In the boat"],
+      "options": [
+        "Seven",
+        "One",
+        "Three",
+        "Five"
+      ],
       "answer": 0
     },
     {
-      "q": "What does the Yop do?",
-      "options": ["Hops", "Sings", "Swims", "Flies"],
+      "q": "What is on the Nook's hook?",
+      "options": [
+        "A cookbook",
+        "A teapot",
+        "A small fish",
+        "A yellow hat"
+      ],
       "answer": 0
     },
     {
-      "q": "Who can't read so can't cook?",
-      "options": ["The Wump", "The Yink", "The Nook", "The Zans"],
-      "answer": 2
-    },
-    {
-      "q": "How many fingers does the creature in the book have?",
-      "options": ["Nine fingers", "Ten fingers", "Eleven fingers", "Twelve fingers"],
-      "answer": 2
-    },
-    {
-      "q": "What is the bedtime pet at the end of the book called?",
-      "options": ["Zeep", "Zans", "Yink", "Yop"],
+      "q": "What does the Zans open?",
+      "options": [
+        "Cans",
+        "Doors",
+        "Books",
+        "Boxes"
+      ],
       "answer": 0
     },
     {
-      "q": "What do the Zeds have on top of their heads?",
-      "options": ["One hair each", "Two hairs each", "Three hairs each", "Four hairs each"],
+      "q": "What color socks does the person wear while boxing the Gox?",
+      "options": [
+        "Yellow",
+        "Red",
+        "Blue",
+        "Green"
+      ],
       "answer": 0
     },
     {
-      "q": "Who wishes for fish using a dish?",
-      "options": ["The Yink", "Ish", "The Yop", "The Wump"],
-      "answer": 1
+      "q": "What does the Yink like to drink?",
+      "options": [
+        "Pink ink",
+        "Orange juice",
+        "Lemonade",
+        "Hot cocoa"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Where does the Yop hop?",
+      "options": [
+        "From finger top to finger top",
+        "From tree to tree",
+        "From hill to hill",
+        "From bed to bed"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "How many hairs does each Zed have on its head?",
+      "options": [
+        "One",
+        "Two",
+        "Three",
+        "Five"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Why do the Zeds need a haircut every day?",
+      "options": [
+        "Their hair grows very fast",
+        "Their hair changes color",
+        "Their hair gets very dirty",
+        "Their hair falls out"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Who cut the telephone wire when someone tried to call Joe?",
+      "options": [
+        "A mouse",
+        "A cat",
+        "A bird",
+        "A dog"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does Ish use to wish for fish?",
+      "options": [
+        "A dish",
+        "A hat",
+        "A book",
+        "A bell"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Where was Clark found?",
+      "options": [
+        "In the park in the dark",
+        "In the yard by the car",
+        "In the den with a hen",
+        "In the boat by the moat"
+      ],
+      "answer": 0
     }
   ]
 }

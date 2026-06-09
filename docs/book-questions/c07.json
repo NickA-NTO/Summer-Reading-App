@@ -3,7 +3,7 @@
   "version": 2,
   "questions": [
     {
-      "q": "Where does Opal first find the dog she names Winn-Dixie?",
+      "q": "Where does Opal first find the stray dog she decides to keep?",
       "options": [
         "At a supermarket",
         "At a trailer park",
@@ -13,27 +13,27 @@
       "answer": 0
     },
     {
-      "q": "Why does Opal tell the manager the stray dog belongs to her?",
+      "q": "Why does Opal claim the dog is hers when the manager gets upset?",
       "options": [
         "To stop him from going to the pound",
-        "To give him to her father",
-        "To win a prize",
-        "To trade him for groceries"
+        "To stop him from running away",
+        "To stop him from eating more food",
+        "To stop him from scaring customers"
       ],
       "answer": 0
     },
     {
-      "q": "What is the name of the town where Opal and her father move?",
+      "q": "How many things does Opal ask her father to tell her about her mother?",
       "options": [
-        "Naomi",
-        "Tampa",
-        "Orlando",
-        "Friendly"
+        "Five",
+        "Ten",
+        "Seven",
+        "Three"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
-      "q": "What is Opal's father's job?",
+      "q": "What kind of job does Opal's father have in Naomi, Florida?",
       "options": [
         "Preacher",
         "Teacher",
@@ -43,42 +43,32 @@
       "answer": 0
     },
     {
-      "q": "How many things does Opal ask her father to tell her about her mother?",
+      "q": "What book did Miss Franny use to chase a bear out of the library?",
       "options": [
-        "Ten",
-        "Five",
-        "Three",
-        "Seven"
+        "War and Peace",
+        "Gone with the Wind",
+        "The Bible",
+        "A dictionary"
       ],
       "answer": 0
     },
     {
-      "q": "What did Miss Franny Block once chase out of the library when she was young?",
+      "q": "Why does Gloria hang bottles on her tree?",
       "options": [
-        "A bear",
-        "A dog",
-        "A raccoon",
-        "A cat"
+        "To catch the ghosts of her past mistakes",
+        "To catch rainwater for her garden",
+        "To scare away birds from her plants",
+        "To make music when the wind blows"
       ],
       "answer": 0
     },
     {
-      "q": "What musical instrument does Otis play for the animals at the pet shop?",
+      "q": "What instrument does Otis play for the animals at the pet shop?",
       "options": [
         "A guitar",
         "A piano",
-        "A harmonica",
-        "A violin"
-      ],
-      "answer": 0
-    },
-    {
-      "q": "What is the name of the church where Opal's father preaches?",
-      "options": [
-        "Open Arms Baptist Church",
-        "Friendly Corners Church",
-        "Naomi First Church",
-        "Gloria's Garden Church"
+        "A flute",
+        "A drum"
       ],
       "answer": 0
     },
@@ -86,29 +76,9 @@
       "q": "What is Winn-Dixie most afraid of?",
       "options": [
         "Thunderstorms",
+        "Strangers",
         "Other dogs",
-        "Loud music",
-        "Car rides"
-      ],
-      "answer": 0
-    },
-    {
-      "q": "Where do Opal and her father live in Naomi?",
-      "options": [
-        "Friendly Corners Trailer Park",
-        "Open Arms Apartments",
-        "Gloria's Garden House",
-        "Dewberry Lane"
-      ],
-      "answer": 0
-    },
-    {
-      "q": "Who do the Dewberry boys tease and call a witch?",
-      "options": [
-        "Gloria Dump",
-        "Miss Franny Block",
-        "Amanda Wilkinson",
-        "Sweetie Pie Thomas"
+        "Loud music"
       ],
       "answer": 0
     },
@@ -116,19 +86,39 @@
       "q": "Where is Winn-Dixie finally found after he goes missing during the storm?",
       "options": [
         "Inside Gloria Dump's house",
-        "Inside the Winn-Dixie store",
-        "Inside the church",
-        "Inside the pet shop"
+        "Inside the pet shop",
+        "Inside the library",
+        "Inside the church"
       ],
       "answer": 0
     },
     {
-      "q": "What does Opal do for Gloria Dump during their daily visits?",
+      "q": "What habit does five-year-old Sweetie Pie Thomas have?",
+      "options": [
+        "Sucking her knuckle",
+        "Chewing her hair",
+        "Biting her nails",
+        "Tapping her foot"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Where do Opal and her father live in Naomi, Florida?",
+      "options": [
+        "A trailer park",
+        "A church house",
+        "A small apartment",
+        "A big farmhouse"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What activity does Opal do with Gloria Dump to help her nearly blind friend?",
       "options": [
         "Reads aloud to her",
         "Cooks meals for her",
-        "Cleans her bottles",
-        "Plays guitar for her"
+        "Cleans her house",
+        "Walks her around town"
       ],
       "answer": 0
     }

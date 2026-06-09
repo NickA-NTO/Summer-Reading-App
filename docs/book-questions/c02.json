@@ -3,122 +3,122 @@
   "version": 2,
   "questions": [
     {
-      "q": "What is the name of the town where Dink, Josh, and Ruth Rose live?",
+      "q": "What is the name of the bookshop where the signing was supposed to happen?",
       "options": [
-        "Green Lawn",
-        "Shangri-la",
-        "Book Nook",
-        "Squires"
+        "The Book Nook",
+        "The Reading Room",
+        "The Story Shop",
+        "The Page Turner"
       ],
       "answer": 0
     },
     {
-      "q": "What is the name of the airport where Wallis Wallace landed?",
+      "q": "How old are Dink, Josh, and Ruth Rose?",
       "options": [
-        "Squires Airport",
-        "Green Lawn Airport",
-        "Wallace Airport",
-        "Maine Airport"
+        "Nine",
+        "Eight",
+        "Ten",
+        "Seven"
       ],
       "answer": 0
     },
     {
-      "q": "What does Dink's letter from Wallis Wallace say would be the only reason she would miss the event?",
+      "q": "What is the name of the famous mystery writer Dink invited to town?",
       "options": [
-        "Being kidnapped",
-        "Being sick",
-        "Missing her flight",
-        "Getting lost"
+        "Wallis Wallace",
+        "Mavis Green",
+        "Olivia Parker",
+        "Ruth Rose"
       ],
       "answer": 0
     },
     {
-      "q": "Who owns the bookshop called the Book Nook?",
+      "q": "Who owns the Book Nook bookshop?",
       "options": [
         "Mr. Paskey",
         "Mr. Linkletter",
-        "Olivia",
-        "Mavis Green"
+        "Josh Pinto",
+        "Dink Duncan"
       ],
       "answer": 0
     },
     {
-      "q": "What hotel was Wallis Wallace booked to stay at?",
+      "q": "What is the name of the place where the writer had a room booked?",
       "options": [
-        "The Shangri-la Hotel",
-        "The Book Nook Inn",
-        "The Green Lawn Lodge",
-        "The Castle Hotel"
+        "The Shangri-la",
+        "The Green Lawn Inn",
+        "The Castle Lodge",
+        "The Book Nook Inn"
       ],
       "answer": 0
     },
     {
-      "q": "Which friend sneaks a peek at the hotel register to find a clue?",
+      "q": "What room number was Wallis Wallace checked into at the hotel?",
       "options": [
-        "Josh",
-        "Dink",
-        "Ruth Rose",
-        "Mavis"
+        "303",
+        "302",
+        "305",
+        "301"
       ],
       "answer": 0
     },
     {
-      "q": "Who is the stiff receptionist at the Shangri-la Hotel?",
+      "q": "Who is the stiff receptionist at the hotel?",
       "options": [
         "Mr. Linkletter",
         "Mr. Paskey",
         "Josh Pinto",
-        "Olivia"
+        "Dink Duncan"
       ],
       "answer": 0
     },
     {
-      "q": "What do the M's on Mavis's scarf really look like upside down?",
+      "q": "What did Josh secretly look at to find a clue at the hotel?",
       "options": [
-        "W's",
+        "The register",
+        "The menu",
+        "The newspaper",
+        "The guest book"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What letters on Mavis's scarf are really W's turned upside down?",
+      "options": [
+        "M's",
         "N's",
-        "E's",
-        "S's"
+        "V's",
+        "A's"
       ],
       "answer": 0
     },
     {
-      "q": "Where does Wallis Wallace really live?",
-      "options": [
-        "A castle in Maine",
-        "A cottage in Connecticut",
-        "A hotel in Green Lawn",
-        "A house in New York"
-      ],
-      "answer": 0
-    },
-    {
-      "q": "What is Wallis Wallace's favourite colour?",
+      "q": "What is Wallis Wallace's favorite color?",
       "options": [
         "Green",
         "Blue",
         "Red",
-        "Yellow"
+        "Purple"
       ],
       "answer": 0
     },
     {
-      "q": "Who turns out to really be Wallis Wallace in disguise?",
+      "q": "Who turned out to be Wallis Wallace in disguise?",
       "options": [
         "Mavis Green",
-        "Olivia",
         "Mr. Linkletter",
+        "Olivia",
         "Mr. Paskey"
       ],
       "answer": 0
     },
     {
-      "q": "Why did Wallis Wallace set up her own fake case?",
+      "q": "Who was the guest staying in Room 302 next to the writer's room?",
       "options": [
-        "To see how kids would solve it",
-        "To play a trick on her fans",
-        "To take a secret trip",
-        "To hide from a bad person"
+        "Wallace's brother",
+        "Wallace's sister",
+        "Mr. Paskey",
+        "Mr. Linkletter"
       ],
       "answer": 0
     }
