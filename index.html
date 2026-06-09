@@ -2374,6 +2374,14 @@
         font-weight:900;font-size:22px;box-shadow:0 8px 24px rgba(249,115,22,.35)">
         +0 XP
       </div>
+      <!-- Admin-only retell rubric breakdown. _retellShowResult fills
+           this in when state.session.isAdmin is true. Hidden for kids. -->
+      <div id="retellAdminDebug" style="
+        display:none;text-align:left;background:rgba(139,92,246,.08);
+        border:1px solid rgba(139,92,246,.35);border-radius:10px;
+        padding:12px 14px;margin:14px auto;max-width:480px;
+        font-size:13px;line-height:1.5;color:var(--ink-soft);
+        font-family:ui-monospace,monospace"></div>
       <div>
         <button id="retellResultClose" style="
           background:var(--panel);color:var(--ink);border:1px solid var(--line);
@@ -8362,7 +8370,7 @@ function openRetell(bookId) {
                                         1500;
 }
 
-function closeRetell({ confirmed = false } = {}) {
+async function closeRetell({ confirmed = false } = {}) {
   if (retell.active && !confirmed) {
     // Mid-session close. If the LAST attempted turn errored out (timeout
     // or network blip), the kid isn't bailing — they're trapped in a
@@ -8373,8 +8381,35 @@ function closeRetell({ confirmed = false } = {}) {
       retell.lastTurnError &&
       Date.now() - retell.lastTurnError.atMs < 5 * 60_000;
     if (techFaultRecent) {
-      // No confirm dialog — the kid already knows it broke.
-      console.warn("[retell] closing after tech fault — held XP path will not penalize", retell.lastTurnError);
+      // Tech fault — the kid did their part (passed the quiz to get
+      // here, gave at least one turn of retell before things broke).
+      // Don't penalize them with 0 XP. Finalize the session with
+      // whatever transcript exists so the grader treats this as
+      // retell=fail (quiz XP still counts at the p_fF ratio). Server
+      // marks it graded so admin can also see + optionally upgrade.
+      console.warn("[retell] tech-fault close — finalizing with quiz-only XP", retell.lastTurnError);
+      try {
+        const r = await fetch(
+          `/api/tutor?action=grade&sessionId=${encodeURIComponent(retell.sessionId)}`,
+          { method: "POST", credentials: "same-origin" }
+        );
+        if (r.ok) {
+          const data = await r.json();
+          // Show the result screen so the kid sees their quiz XP
+          // landed. The grader will report retellOutcome=fF (or
+          // null/held) but the recordRead pipeline still awards the
+          // p1_fF / p2_fF XP for the quiz half.
+          _retellShowResult(data);
+          // refresh the top XP stat
+          try { refreshMyRank(); } catch {}
+          return;
+        }
+      } catch (err) {
+        console.warn("[retell] tech-fault finalize failed", err);
+      }
+      // If the finalize call ALSO fails, fall through to a clean
+      // close without confirm — the server's 30-min TTL keeps the
+      // reading session alive for admin to finalize later.
     } else {
       // Normal voluntary close (kid bailing).
       const ok = confirm(
@@ -8389,7 +8424,8 @@ function closeRetell({ confirmed = false } = {}) {
   retell.overlay.classList.remove("open");
   _retellTearDownAudio();
   // No XP awarded on a mid-session close — server reading session
-  // expires on its 30-min TTL.
+  // expires on its 30-min TTL. (Tech-fault path above does award via
+  // /api/tutor?action=grade before reaching this point.)
 }
 
 function _retellTearDownAudio() {
@@ -8837,6 +8873,44 @@ function _retellShowResult(data) {
   }
   retell.resultMsg.textContent =
     (data.gradeResult?.feedback) || "Thanks for telling me about the book!";
+
+  // Admin debug — show the full rubric breakdown so admins can audit
+  // their own retell grading. Two kids saying VASTLY different things
+  // can end up with the same XP if both score in the same outcome
+  // bucket (e.g. both fF) — this surfaces the why.
+  const adminDebugEl = document.getElementById("retellAdminDebug");
+  if (adminDebugEl) {
+    if (state.session?.isAdmin && (data.gradeResult || data.xpBreakdown)) {
+      const g = data.gradeResult || {};
+      const xpB = data.xpBreakdown || {};
+      const total =
+        (Number.isInteger(g.retell_quality) ? g.retell_quality : "?") + " + " +
+        (Number.isInteger(g.character_recall) ? g.character_recall : "?") + " + " +
+        (Number.isInteger(g.event_recall) ? g.event_recall : "?") + " + " +
+        (Number.isInteger(g.stayed_on_topic) ? g.stayed_on_topic : "?");
+      const sum =
+        (g.retell_quality || 0) + (g.character_recall || 0) +
+        (g.event_recall || 0) + (g.stayed_on_topic || 0);
+      adminDebugEl.innerHTML =
+        `<div style="font-weight:700;color:#a78bfa;margin-bottom:6px">🔧 Admin · retell rubric</div>` +
+        `<div>retell_quality:&nbsp;<b>${g.retell_quality ?? "?"}</b> / 2</div>` +
+        `<div>character_recall:&nbsp;<b>${g.character_recall ?? "?"}</b> / 2</div>` +
+        `<div>event_recall:&nbsp;<b>${g.event_recall ?? "?"}</b> / 2</div>` +
+        `<div>stayed_on_topic:&nbsp;<b>${g.stayed_on_topic ?? "?"}</b> / 2</div>` +
+        `<div style="margin-top:6px">total:&nbsp;<b>${sum}</b> / 8 &nbsp; (${total})</div>` +
+        `<div>pass threshold ≥ 5/8 · clear-pass on turn 1 ≥ 6/8</div>` +
+        `<div>overall_pass: <b>${String(g.overall_pass)}</b></div>` +
+        `<div style="margin-top:6px;color:#94a3b8">` +
+          `outcome key: ${xpB.outcomeKey || "?"} · ratio: ${xpB.ratio || "?"}× · ` +
+          `read ${(xpB.readingMin || 0).toFixed?.(1) || "?"}m + quiz ${xpB.quizMin || "?"}m + retell ${xpB.retellMin || "?"}m = ${(xpB.totalMin || 0).toFixed?.(1) || "?"}m → ${xpB.xp || "?"} XP` +
+        `</div>` +
+        (data.serverDebug ? `<pre style="margin-top:6px;font-size:11px;white-space:pre-wrap">${escapeHtml(JSON.stringify(data.serverDebug, null, 2))}</pre>` : "");
+      adminDebugEl.style.display = "block";
+    } else {
+      adminDebugEl.style.display = "none";
+    }
+  }
+
   // #77 — Always refresh /api/auth/me after a finalized retell session,
   // regardless of XP outcome. The server clears currentlyReading on
   // ALL paths now (pass, held, zero) so the client needs to mirror.
