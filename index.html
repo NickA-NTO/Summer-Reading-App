@@ -2621,9 +2621,6 @@ const CATEGORIES = [
       { id: "k04", isbn: "9780140563665", title: "Goldilocks and the Three Bears", author: "James Marshall", age: "Ages 4–7",
         palette: ["#fbbf24","#92400e"],
         blurb: "A nosy little girl wanders into a bear family's house and tries every chair, every bowl, and every bed. The bears come home with quite a surprise." },
-      { id: "k05", isbn: "9780192721808", title: "Mother Goose's Nursery Rhymes", author: "Iona Opie (ed.)", age: "Ages 2–6",
-        palette: ["#fda4af","#bae6fd"],
-        blurb: "A classic collection of rhymes and verses — from Humpty Dumpty to Jack and Jill — perfect for reading aloud, singing, and learning by heart." },
       { id: "k06", isbn: "9780142403877", title: "The Gruffalo", author: "Julia Donaldson", age: "Ages 3–7",
         palette: ["#7c2d12","#f97316"],
         blurb: "A clever little mouse takes a walk through the deep dark wood and meets a fox, an owl, and a snake — and then something far scarier. Or is it?" },
@@ -2812,7 +2809,7 @@ const WORD_COUNTS = {
   e01: 220, e02: 200, e03: 240, e04: 250, e05: 220,
   e06: 348, e07: 619, e08: 240, e09: 800, e10: 1700, e11: 100, e12: 75,
   // Grade K
-  k01: 225, k02: 1629, k03: 225, k04: 600, k05: 2000, k06: 750, k07: 290, k08: 750,
+  k01: 225, k02: 1629, k03: 225, k04: 600, k06: 750, k07: 290, k08: 750,
   u01: 350, u02: 350, u03: 400,
   // Grade 1
   a01: 900, a02: 1800, a03: 1900, a04: 1200, a05: 1500, a06: 600,
@@ -2947,7 +2944,6 @@ const BOOK_TAGS = {
   k02: ["funny"],
   k03: ["adventures"],
   k04: ["classics"],
-  k05: ["classics"],
   k06: ["adventures", "funny"],
   k07: ["funny", "animals"],
   k08: ["funny"],
@@ -6748,11 +6744,12 @@ function renderRetellLog(entries) {
   }
 
   // Score-axis helper. Returns one row per axis with color-coded
-  // bullet so 0s leap out vs 2s.
+  // bullet on the 0-3 scale: 3 = excellent (🟢), 2 = adequate (🟢),
+  // 1 = marginal (🟡), 0 = nothing/wrong (🔴), unknown (⚪).
   const axisLine = (label, val) => {
     const v = Number.isInteger(val) ? val : null;
-    const dot = v === 2 ? "🟢" : v === 1 ? "🟡" : v === 0 ? "🔴" : "⚪";
-    return `<div>${dot} ${label}: <b>${v ?? "?"}</b> / 2</div>`;
+    const dot = v >= 2 ? "🟢" : v === 1 ? "🟡" : v === 0 ? "🔴" : "⚪";
+    return `<div>${dot} ${label}: <b>${v ?? "?"}</b> / 3</div>`;
   };
 
   body.innerHTML = entries.map((entry, idx) => {
@@ -6761,11 +6758,19 @@ function renderRetellLog(entries) {
     const sum =
       (r.retell_quality || 0) + (r.character_recall || 0) +
       (r.event_recall || 0) + (r.stayed_on_topic || 0);
-    const passLabel = r.overall_pass === true
-      ? `<span style="color:var(--good);font-weight:700">PASS</span>`
-      : r.overall_pass === false
-      ? `<span style="color:var(--bad);font-weight:700">FAIL</span>`
-      : `<span style="color:var(--warm);font-weight:700">HELD</span>`;
+    // Quality tier derived from rubric total. Matches the server's
+    // retellOutcomeFromRubric thresholds: ≥10 clear pass (p1, 1.30×),
+    // 7-9 marginal (p2, 1.15×), <7 fail (fF). overall_pass=null still
+    // means "held" (grader infrastructure fault), which is its own
+    // label regardless of tier.
+    const tierLabel = r.overall_pass === null
+      ? `<span style="color:var(--warm);font-weight:700">HELD</span>`
+      : sum >= 10
+      ? `<span style="color:var(--good);font-weight:700">CLEAR PASS</span>`
+      : sum >= 7
+      ? `<span style="color:var(--warm);font-weight:700">MARGINAL</span>`
+      : `<span style="color:var(--bad);font-weight:700">FAIL</span>`;
+    const passLabel = tierLabel;
     const date = new Date(entry.ts || 0);
     const dateStr = date.toLocaleString();
     const transcript = Array.isArray(entry.transcript) ? entry.transcript : [];
@@ -6794,7 +6799,7 @@ function renderRetellLog(entries) {
           <div style="font-size:12px;color:var(--muted)">${escapeHtml(dateStr)} · grade ${escapeHtml(String(entry.workingGrade || "?"))}${entry.earlyPass ? " · early-pass" : ""}${entry.held ? " · held" : ""}</div>
         </div>
         <div style="font-size:13px">
-          ${passLabel} · <b>${sum}</b>/8 · ${escapeHtml(String(xp.outcomeKey || "?"))} · <b>${xp.xp ?? "?"}</b> XP
+          ${passLabel} · <b>${sum}</b>/12 · ${escapeHtml(String(xp.outcomeKey || "?"))} · <b>${xp.xp ?? "?"}</b> XP
         </div>
       </summary>
       <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line);display:grid;grid-template-columns:1fr 1fr;gap:14px">
@@ -6804,8 +6809,8 @@ function renderRetellLog(entries) {
           ${axisLine("character_recall", r.character_recall)}
           ${axisLine("event_recall", r.event_recall)}
           ${axisLine("stayed_on_topic", r.stayed_on_topic)}
-          <div style="margin-top:6px">total: <b>${sum}</b> / 8</div>
-          <div>pass threshold ≥ 5/8 · clear-pass ≥ 6/8</div>
+          <div style="margin-top:6px">total: <b>${sum}</b> / 12</div>
+          <div>tiers: ≥10 clear pass · 7-9 marginal · &lt;7 fail</div>
           ${r.feedback ? `<div style="margin-top:8px;font-size:12px;color:var(--muted)">"${escapeHtml(String(r.feedback))}"</div>` : ""}
         </div>
         <div>
@@ -9227,14 +9232,22 @@ function _retellShowResult(data) {
       const sum =
         (g.retell_quality || 0) + (g.character_recall || 0) +
         (g.event_recall || 0) + (g.stayed_on_topic || 0);
+      // Rubric is 0-3 per axis (was 0-2), max 12 (was 8). XP tier
+      // derives from rubric total: ≥10=clear pass (p1, 1.30×), 7-9=
+      // marginal (p2, 1.15×), <7=fail (fF, 1.00×). Tier label makes
+      // the meaning legible without forcing admin to memorize bins.
+      const tierLabel =
+        sum >= 10 ? `<span style="color:var(--good);font-weight:700">CLEAR PASS</span>` :
+        sum >= 7  ? `<span style="color:var(--warm);font-weight:700">MARGINAL</span>` :
+                    `<span style="color:var(--bad);font-weight:700">FAIL</span>`;
       adminDebugEl.innerHTML =
         `<div style="font-weight:700;color:#a78bfa;margin-bottom:6px">🔧 Admin · retell rubric</div>` +
-        `<div>retell_quality:&nbsp;<b>${g.retell_quality ?? "?"}</b> / 2</div>` +
-        `<div>character_recall:&nbsp;<b>${g.character_recall ?? "?"}</b> / 2</div>` +
-        `<div>event_recall:&nbsp;<b>${g.event_recall ?? "?"}</b> / 2</div>` +
-        `<div>stayed_on_topic:&nbsp;<b>${g.stayed_on_topic ?? "?"}</b> / 2</div>` +
-        `<div style="margin-top:6px">total:&nbsp;<b>${sum}</b> / 8 &nbsp; (${total})</div>` +
-        `<div>pass threshold ≥ 5/8 · clear-pass on turn 1 ≥ 6/8</div>` +
+        `<div>retell_quality:&nbsp;<b>${g.retell_quality ?? "?"}</b> / 3</div>` +
+        `<div>character_recall:&nbsp;<b>${g.character_recall ?? "?"}</b> / 3</div>` +
+        `<div>event_recall:&nbsp;<b>${g.event_recall ?? "?"}</b> / 3</div>` +
+        `<div>stayed_on_topic:&nbsp;<b>${g.stayed_on_topic ?? "?"}</b> / 3</div>` +
+        `<div style="margin-top:6px">total:&nbsp;<b>${sum}</b> / 12 &nbsp; (${total}) → ${tierLabel}</div>` +
+        `<div>tiers: ≥10 clear pass · 7-9 marginal · &lt;7 fail</div>` +
         `<div>overall_pass: <b>${String(g.overall_pass)}</b></div>` +
         `<div style="margin-top:6px;color:#94a3b8">` +
           `outcome key: ${xpB.outcomeKey || "?"} · ratio: ${xpB.ratio || "?"}× · ` +

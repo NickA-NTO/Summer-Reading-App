@@ -46,7 +46,7 @@ import {
 } from "../lib/store.js";
 import { resolveVisibleTracks, trackForBook } from "../lib/tracks.js";
 import { getBook } from "../lib/books.js";
-import { normalizeGrade, pointsForBook, xpForReadingSession, outcomeCode } from "../lib/xp.js";
+import { normalizeGrade, pointsForBook, xpForReadingSession, retellOutcomeFromRubric } from "../lib/xp.js";
 import { trackError, trackEvent } from "../lib/observability.js";
 import { checkRateLimit, send429, LIMITS } from "../lib/rate-limit.js";
 import {
@@ -660,23 +660,27 @@ async function finalizeAndGrade(res, tutorSession, book) {
   const quizOutcome = readingSession?.quizOutcome || "fF";
   const quizAttempt = readingSession?.quizAttempt || 2;
 
-  // Map LLM grader verdict → retell outcome code.
-  //   grader pass=true  → retell pass on this attempt (p1 or p2)
-  //   grader pass=false → retell fail this attempt (could be p2 if att 2)
-  //   grader pass=null  → defer to admin review (treat as held; still
-  //                       compute XP as if pass for the user response,
-  //                       but mark held so XP goes to the queue not the
-  //                       leaderboard).
-  // Server uses the per-(email,bookId) attempt counter to know what
-  // retell attempt this was — for now we infer from tutorSession.
-  // TODO: retell-specific attempt counter is a follow-up; v1 counts
-  // any reaching of finalize as attempt 1.
-  const retellAttempt = 1; // v1 — single retell attempt per session
+  // Map LLM grader verdict + rubric total → retell outcome code.
+  // The p1/p2/fF codes here encode QUALITY TIER (not attempt count
+  // like the quiz path — retell is one-shot per session, so
+  // "attempt 2" doesn't exist). retellOutcomeFromRubric tiers the
+  // 0-12 rubric total:
+  //   ≥ 10 → "p1" — clear pass (full retell bonus)
+  //    7-9 → "p2" — marginal pass (partial bonus)
+  //    < 7 → "fF" — fail (no retell bonus)
+  // grader returning overall_pass=null is still treated as "held"
+  // (infrastructure fault). Both pass and fail go through the
+  // rubric tier so even a marginal pass differentiates from a
+  // clear-pass on XP.
   const retellPassed = grade.overall_pass === true;
-  const retellOutcome = retellPassed
-    ? outcomeCode(true, retellAttempt)
-    : "fF";
   const retellHeld = grade.overall_pass === null;
+  const rubricTotal = totalRubricScore(grade);
+  // If the grader said overall_pass=false but the rubric total is
+  // ≥ 7, we still treat it as a quality-tier failure (fF). The
+  // grader's binary pass/fail is no longer the sole gate — the
+  // rubric is. Matches the user's spec: 5-6/12 (or now 7-9) is the
+  // marginal floor; below that is fF regardless of grader's verdict.
+  const retellOutcome = retellPassed ? retellOutcomeFromRubric(rubricTotal) : "fF";
 
   // Compute combined XP using the ratio table.
   const xpCalc = xpForReadingSession({
