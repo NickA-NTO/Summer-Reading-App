@@ -1,367 +1,395 @@
-# MEMORIES — Reading Spine session context
+# Reading Spine — operating memory
 
-Created 2026-06-03 as a pre-compaction snapshot. If you're a future Claude reading this, treat it as authoritative for everything that happened before whatever "now" you're in. Cross-check with `git log dev --oneline` and the TaskList tool for the live state.
-
----
+Updated 2026-06-09. The human-readable handover doc for the Alpha
+Summer Reading app. Captures the things a teammate (or me in a
+fresh session) needs to know without reading every commit.
 
 ## 0. The user
 
-- **Nick Alsford** (nick.alsford@trilogy.com) — sole admin, sole developer
-- Communication style: direct, factual, bullet-heavy, no fluff. Wants concrete numbers and specific examples. Pushes back on over-engineering. Asks for tables and console snippets when the work is mechanical.
+- **Nick Alsford** (`nick.alsford@trilogy.com`) — sole admin, sole
+  developer.
+- Communication style: direct, factual, bullet-heavy, no fluff.
+  Wants concrete numbers and specific examples. Pushes back on
+  over-engineering. Calls out architectural mistakes when he sees
+  them.
 - Hard preferences (do not violate):
-  - **"Use XP, not points. Kids know what XP is."** Every kid-facing string says XP.
-  - **"I should be the only one"** — admin. ADMIN_EMAILS is just him.
-  - **"No teachers. Don't ever suggest having a teacher do something again."** Use "guide" or "admin" instead.
-  - **"Shouldn't need empty commits going forward."** Don't use `git commit --allow-empty` for ANY reason. Make a real change or use the Vercel dashboard redeploy button.
-  - **"Student comments show as First L."** (first name + last initial only — privacy).
-  - Tour TTS speakers should not overlap when clicked quickly (shipped — keep working).
-  - Fake comments/upvotes in seed data should be removed (still pending #46).
+  - **"Use XP, not points. Kids know what XP is."**
+  - **"I should be the only one"** — admin. `ADMIN_EMAILS` env var
+    on Vercel = only `nick.alsford@trilogy.com`.
+  - **"No teachers. Don't ever suggest having a teacher do
+    something again."** Use "guide" or "admin" instead.
+  - **"Stop doing your enrichment bullshit. I told you to only
+    use my summaries."** No LLM synthesis of book records.
+  - **"I cannot do anything that requires humans at this stage"**
+    means no per-kid runtime moderation. One-time authoring is OK.
+  - Don't scrape Scribd / Z-Library / Anna's Archive / Internet
+    Archive borrowable books (legal: Hachette v. IA 2023).
+  - Repo-root files `Clade PAYG Key.txt` and `OpenAI key.txt` are
+    git-ignored and must NEVER be tracked.
+- Don't commit unless explicitly asked. He confirms before pushes
+  in most cases.
 
----
+## 1. What the app is
 
-## 1. The app
+A K-8 reading web app on **Vercel + Upstash Redis**. Kids:
 
-- **Name**: "Alpha Summer Reading" (internal repo name: `reading-spine`)
-- **Production URL**: https://reading-spine.vercel.app
-- **Preview / dev URL** (stable branch alias): https://reading-spine-git-dev-alpha-academics-projects.vercel.app
-- **GitHub**: https://github.com/NickA-NTO/Summer-Reading-App
-- **Local path**: `C:\Users\nicka\OneDrive\Desktop\Reading Spine App`
-- **Vercel project**: `reading-spine`, **Hobby tier** (12-function ceiling — currently AT 12)
-- Pre-launch: **no real student users yet**. Free to break things on dev; main is what real kids will eventually use.
+1. Browse a catalog of books filtered by grade band.
+2. Tap "I'm reading this" to declare a current book.
+3. Read it off-app (physical book or audiobook).
+4. Come back, take a quiz (5 of 12 multiple-choice).
+5. If the quiz passes, do a voice retell with the conversational
+   tutor (Whisper transcribe + GPT-4o grade).
+6. Earn XP — only if quiz + retell both complete.
+7. Compete on a grade-cohort leaderboard.
 
-### Stack
-- Single-file frontend `index.html` (~6900 lines, ~1500 CSS + ~5400 JS, 133 functions, ~52 inline innerHTML templates)
-- Backend: `/api/*` Vercel functions (Node 24, Fluid Compute default)
-- State: **Upstash Redis** (KV_REST_API_URL / KV_REST_API_TOKEN env vars)
-- Audio + TTS cache: **Vercel Blob** (currently `access: "public"` — privacy risk noted)
-- Auth: **Google OAuth** (HD claim + email_verified; **signature NOT verified** — #58 pending)
-- LLMs:
-  - **Anthropic Claude Opus 4.5** (`claude-opus-4-5`) for quiz generation (multi-pass cross-validation, 3 temperatures, QC review pass)
-  - **OpenAI GPT-4o** for retell tutor conversation
-  - **OpenAI GPT-4o-mini** for per-turn topic moderation
-  - **OpenAI `whisper-1`** for retell transcription
-  - **OpenAI `tts-1`** for voice (dev) — production still has `gpt-4o-mini-tts` (slower, more expressive)
-- Allowed sign-in domains: `alpha.school, trilogy.com, superbuilders.school, 2hourlearning.com, gt.school` (env: `ALLOWED_DOMAIN`)
-- Crons (`vercel.json`): TimeBack sync daily 06:00 UTC, Caliper drain daily 06:30 UTC (Hobby = daily only, no */15)
+Auth: Google sign-in restricted to `@alpha.school` /
+`@trilogy.com` / `@2hourlearning.com` / `@superbuilders.com`.
 
-### Key file map
+## 2. Production vs preview — the env split
 
-| File | LOC | What |
-|---|---|---|
-| `index.html` | 6863 | Whole client. Header, stats, hero, catalog, book modal, quiz overlay, retell overlay, admin overlay, leaderboard overlay, achievements overlay |
-| `lib/store.js` | 1359 | All Redis. Reading sessions, attempts, fraud state, held XP, comments, achievements, leaderboard zincrby |
-| `api/quiz.js` | 1119 | Multi-pass quiz generation + QC + cache. `getCachedQuizPool(bookId, grade, ageGrade)` lives here |
-| `api/activity.js` | 819 | Quiz submit + read recording. **~385 lines of dead code post-#9 refactor** (post-quiz_submit fall-through is unreachable) |
-| `api/admin/index.js` | 631 | All admin actions via `?action=` routing |
-| `api/tutor.js` | 624 | Retell server: start / turn / grade actions |
-| `lib/tutor.js` | 425 | Retell helpers: sessions, OpenAI calls, Whisper, hallucination filter, grader |
-| `lib/xp.js` | ~250 | `OUTCOME_RATIOS` table + `xpForReadingSession()` |
-| `lib/tts.js` | ~150 | OpenAI TTS wrapper. Cache prefix `v4`. Voices `{nova,shimmer,coral,ash,fable}` |
-| `lib/moderation.js` | 245 | Three-tier comment classification (block/review/allow) |
-| `lib/timeback.js`, `lib/timeback-sync.js` | ~300 | Caliper transport + grade-sync cron logic |
-| `lib/caliper.js` | 223 | Caliper envelope builder |
-| `lib/observability.js` | ~80 | `trackError(category, err, ctx)` and `trackEvent` — **bug: called with `{err}` object as 2nd arg in 11 places, dropping context** |
-| `docs/Reading-Spine-Technical-Brief.md` | new | Spec doc I just wrote, mirroring the AR brief format |
-| `docs/MEMORIES.md` | this file | |
+The app is deployed twice, with **shared Upstash + isolated Redis
+namespaces**:
 
----
+| URL | Branch | Vercel env | Redis prefix |
+|---|---|---|---|
+| Production domain (configure when ready) | `main` | `production` | `""` (un-prefixed; historical data lives here) |
+| `https://reading-spine-git-dev-alpha-academics-projects.vercel.app` | `dev` | `preview` | `preview:` |
 
-## 2. Branch state — CRITICAL
+The `KEY_PREFIX` constant in `lib/store.js` derives from
+`process.env.VERCEL_ENV`. Preview writes never touch production
+leaderboards, fraud state, currentlyReading, quiz cache, held-XP
+queue, or anything else in Redis.
 
-- **`main` (production, on `reading-spine.vercel.app`)**: latest `d0b68f0`. Quiz-only flow, OpenAI TTS via `gpt-4o-mini-tts` (slower model), hero filter, anti-cheat counters (#40/#41), admin track-locking. **No retell tutor.**
-- **`dev` (preview, on `reading-spine-git-dev-...vercel.app`)**: **20+ commits ahead of main, latest `070a2bd`-ish**. Has the entire #9 conversational retell tutor + atomic XP model + admin tools + cache-key fix + tts-1 swap + 15-min countdown + book modal cleanup + dev/prod env split.
+**Per-commit URLs** like `reading-spine-2l0j62guf-…vercel.app`
+must NOT be used for testing — every push gets a new hash, Google
+OAuth rejects them as `redirect_uri_mismatch`. Always test via the
+stable branch alias above. Same goes for production once the
+domain is wired.
 
-**EXPLICIT USER DIRECTIVE**: do NOT promote dev → main. Voice retell tutor "is not working as expected" per the user. The dev branch is the working iteration lane until they explicitly approve a promotion.
+## 3. The directories that matter
 
-**OpenAI voices ARE already on production** and "working" (just slower model). User confirmed this is fine.
-
-The user reviewed the **customer-facing roadmap** version multiple times and finalized it as the "What's Coming" outline. Don't push the "Just Launched" items to main unprompted.
-
----
-
-## 3. The atomic XP model (final, agreed)
-
-After much back-and-forth (5+ iteration rounds with tables), the user signed off on this exact shape:
-
-### Time formula (flat — NO attempt-count scaling)
 ```
-totalMin = readingMin + quizMin + retellMin
-readingMin = wordCount / WCPM_BY_GRADE[workingGrade]
-quizMin    = 1 min/question (5 min standard, 3 min emergent)
-retellMin  = 3 min flat
+api/                         Serverless handlers (Vercel functions).
+  quiz.js                    Quiz pool fetch + grading helpers.
+                             Static bank loader at module init.
+  activity.js                Reads, quiz_submit, kind="open"/"start".
+                             HMAC-grading path + legacy cache fallback.
+  tutor.js                   Conversational retell endpoint.
+  admin/index.js             Consolidated admin endpoint (Hobby tier's
+                             12-function cap forced this). All routes
+                             behind ?action=... .
+  auth/                      Google OAuth + /me + data-request submission.
+  tts.js                     OpenAI TTS proxy + Vercel Blob cache.
+  health.js                  Status + counts.
+
+lib/                         Server-side modules.
+  store.js                   Upstash Redis wrapper. All Redis through here.
+                             KEY_PREFIX env namespacing. Includes data-
+                             request helpers (createDataRequest etc).
+  session.js                 JWT verify, isAdmin, HMAC helpers
+                             (signQuizAnswer / verifyQuizAnswer for the
+                             self-contained quiz grading, emailHash for
+                             comment moderation).
+  tutor.js                   Retell session state, second-chance rubric,
+                             pre-grade + commit-mode graders.
+  tts.js                     OpenAI TTS + Blob upload + cost cap.
+  books.js                   Catalog metadata (server-side).
+  xp.js                      WCPM tables, points-for-book, ratio
+                             table (quizOutcome × retellOutcome).
+  tracks.js                  Track-locking (admin gates books per kid).
+  moderation.js              Comment + quiz safety classifier.
+  observability.js           trackEvent / trackError → Redis log.
+  caliper.js                 IMS Caliper event emission for TimeBack.
+  timeback-sync.js           Pulls working-grade overrides via
+                             persistQueryToAPI on a Vercel cron.
+
+docs/
+  book-summaries/<id>-*.md   Hand-authored book summaries — the only
+                             editorial source. NO LLM enrichment.
+  book-summaries/RULESET.md  Authoring rules for summaries.
+  book-questions/<id>.json   Pre-authored quiz banks — the only quiz
+                             source. NO runtime LLM generation.
+  book-questions/README.md   Authoring rules + format for question banks.
+  MEMORIES.md                This file.
+
+index.html                   The whole client. One file. Hand-rolled
+                             vanilla JS, no framework. ~9000 lines.
+
+vercel.json                  CSP, security headers, runtime config.
 ```
 
-### Ratio table (lib/xp.js OUTCOME_RATIOS)
+`scripts/` is intentionally empty. The previous `enrich-catalog.js`
+script and `rag-experiment.*` files were deleted — both were
+artifacts of the LLM-enrichment era we've moved past.
+
+## 4. The quiz pipeline (current architecture)
+
+**Critical history:** we tried LLM-at-runtime three different ways
+(legacy summaries, enriched book-records, summaries-only with
+deterministic checks). All produced hallucinations. **Final
+architecture: static question banks authored OUTSIDE the app.**
+
 ```
-p1_p1: 1.30   # both clean — 30% bonus
-p1_p2: 1.15   # one retake — 15% bonus
-p2_p1: 1.15
-p2_p2: 0.55   # both messy — real penalty
-p1_fF: 1.00   # one section clean, other failed → baseXP
-p2_fF: 0.70   # one section attempt-2, other failed
-fF_p1: 1.00
-fF_p2: 0.70
-fF_fF: 0.00
+External authoring agent  (Claude or similar, NOT in production)
+  reads docs/book-summaries/<id>-*.md
+  writes docs/book-questions/<id>.json
+  format spec in docs/book-questions/README.md
+
+External QC agent         (separate, also outside the app — TODO build)
+  reviews each generated question against the QC checklist below
+  flags telegraphed / circular / self-referential / grade-vocab issues
+  returns either "pass" or list of fixes needed
+
+Human review              (Nick, before committing)
+  open the .json, verify every question + answer + 4 distractors
+
+Commit + push             Vercel rebuild picks up the file
+
+App at request time:
+  /api/quiz?bookId=...&v=<schemaVersion>
+    → BOOK_QUESTION_BANKS map lookup (loaded at module init)
+    → attachAnswerTokens (HMAC each question's correct index)
+    → strip raw answer index (admin sees it, kid doesn't)
+    → respond with questions + answerToken per Q
+
+Client picks 5 of 12 randomly, shuffles options per Q.
+
+On submit, /api/activity quiz_submit:
+  for each answer: verifyQuizAnswer(bookId, qText, chosen, token)
+  recomputes HMAC, compares — no Redis pool lookup needed
+  → grading is self-contained, schema changes can't break it
 ```
 
-### XP formula
-```
-xp = floor(ratio × totalMin)
-```
+### QC checklist (every question must pass)
 
-### Cap
-- **2 quiz attempts + 2 retell attempts per book, PERMANENT.** No daily reset, no 72h rolling. Admin can reset via the `reset-my-book` endpoint.
-- `QUIZ_ATTEMPT_TTL_SEC = 365 days` (effectively forever)
-- Client `getAttemptRecord` no longer resets on date change
+1. **Telegraphing** — question stem must not contain words that
+   match the correct answer. ("What is the cookbook called?" with
+   answer "How to Cook" — REJECTED.)
+2. **Circular** — answer text must not appear verbatim in the
+   question. ("What color socks does she wear?" → "Yellow socks"
+   when "yellow socks" was already in the question — REJECTED.)
+3. **Self-referential distractors** — distractor must not use the
+   question's subject noun. ("What do fish have?" with "A fish"
+   as a distractor — REJECTED.)
+4. **Grade-inappropriate vocabulary** — no "narrator" /
+   "protagonist" / "theme" / "perspective" for PK/K/G1. Say "the
+   person telling the story" / "the main kid" / "the lesson".
+5. **Parallelism** — all 4 options share determiner / number /
+   form. No 3-vs-1 mismatch (e.g. "A car / A wagon / A scooter /
+   His bike" — REJECTED).
+6. **Source grounding** — every fact in question + answer must
+   trace to a line in the hand-authored .md.
+7. **Closed-list distractors** — distractors should use other
+   content FROM the same book where possible (other characters,
+   other items). Generic real-world distractors are weaker.
+8. **No exclusionary phrasing** — no "besides" / "except" /
+   "not" / "never" / "doesn't" — K-2 can't reliably parse
+   negation.
 
-### Notes the user explicitly approved
-- Flat 30% bonus (NO sliding cap by book size — they reversed earlier "sliding scale" decision)
-- "Pass 1 of 2 on first attempt = baseXP exactly" — even if the other section failed
-- Mid-session close → 0 XP, both attempts consumed (confirmation prompt fires first)
-- Retell auto-launches **even if quiz failed** (redemption path)
+### Cache invalidation — two axes
 
----
-
-## 4. Open critical issues NOT YET FIXED
-
-These came out of the production audit I ran (general-purpose agent). User has seen them but they're not ticketed yet. Listed in the backend list as "code-quality (from audit, not yet ticketed)" — items 20-24 in their renumbered backend display:
-
-1. **Dead code**: ~385 lines in `api/activity.js` post-`quiz_submit` (the fraud detection + recordRead fall-through path). Unreachable after the #9 atomic refactor because every book has a quiz and `kind:"read"` is rejected for quiz-enabled books. ~10% of total codebase.
-2. **`trackError` arg-shape bug**: Called as `trackError(cat, {ctx})` in 11 places, but signature is `trackError(cat, err, ctx)`. Result: every observed error logs message `[object Object]`. Daily Redis counters still tick, but message body is useless for triage.
-3. **Open-redirect in `api/auth/callback.js:130-132`**: `next` param accepts `//evil.com/foo` because the check is only `startsWith("/")`.
-4. **XP estimate drift**: Client computes `quizMin=3/2` (old), server uses `5/3` (new). Every quiz pass shows the kid ~2 fewer XP than they actually got.
-5. **Error message API-key leakage risk**: Catch-all 500s in `api/tutor.js`/`api/quiz.js`/`api/activity.js` pass `err.message.slice(0, 300)` to the client. OpenAI/Anthropic error strings can contain key fragments ("Incorrect API key provided: sk-...XXX"). Sanitize before returning.
-
-The user did a security audit pass and confirmed:
-- No hardcoded keys ✓
-- No `.env` files in git ✓
-- Session cookie is HttpOnly + Secure + SameSite=Lax ✓
-- `env-check` only returns presence booleans, never values ✓
-- `user-diag` returns user data, no tokens ✓
-- Vercel Blob retell audio is `public` — child-voice privacy risk (low because URLs use UUIDs), not API keys
-
-#79 (cache-key mismatch) was the critical 0/5-grading bug. **Fixed on dev**, awaiting promotion.
-
----
-
-## 5. Task list state (as of 2026-06-03)
-
-User split into two layers and renumbered locally. Display labels are local 1..N per layer; underlying task IDs are global 1..79.
-
-### 🟢 Active
-- **#1 (display) — Polish UI** — frontend-led, just told me to start in preview. **Phase 1 plan presented, awaiting their go before I execute.** Phases 1-3 outlined below.
-
-### 🛠️ Backend / Technical (24 items)
-Security & Privacy:
-1. Security vulnerability audit *(umbrella, task #19)*
-2. Moderation block list expansion (#44)
-3. Admin audit log (#49)
-4. Security headers + CSP (#50)
-5. Held-comment TTL + email hashing (#52)
-6. Google JWT signature verification (#58)
-7. Parent data export + delete (#59)
-8. Rate-limit /api/auth/me (#66)
-9. Caliper transport HTTPS assert (#67)
-
-AI / Content:
-10. LLM safety pass on AI quiz content (#60)
-11. Moderation false-positives "sextet/essex" (#61)
-12. Audio-recording retention policy review (#73)
-
-Data / Drift:
-13. Leaderboard masking for small cohorts (#53)
-14. `markedCorrect` undefined after answer-strip (#62)
-15. `TRACK_LEVEL` hardcoded client-side (#65)
-
-Observability / Ops:
-16. TimeBack Cognito refresh-token rotation (#54)
-17. Caliper retry queue alerts + schema drift (#63)
-18. Comment review queue SLA (#64)
-19. Observability hardening (#68)
-
-Code-quality (UN-TICKETED, from audit):
-20. Purge ~385 lines dead code in api/activity.js
-21. Fix `trackError` arg-shape (logs `[object Object]`)
-22. Close open-redirect in api/auth/callback.js
-23. Resolve client/server XP estimate drift
-24. Sanitize error messages to prevent key-fragment leak
-
-### 🎨 Frontend / UI & UX (14 items)
-1. **Polish UI** (the active one — see Section 6)
-2. Grade 4–8 catalog (#18)
-3. Remove fake comments/upvotes from seed (#46)
-4. Spotlight currently-reading book in catalog (#76)
-5. Hero CTA verb mismatch (#56)
-6. iPad Safari support for tutor (#72)
-7. Live transcript in retell (#78)
-8. Parent-confirmation popup for held XP (#69)
-9. Parent portal (#74)
-10. Welcome screen parent content v2 (#75)
-11. Student comments as "First L." (#47)
-12. Clear localStorage on logout (#48)
-13. iPad usability (#35)
-14. Adaptive instructional copy (#70)
-
-### Completed milestones worth remembering
-- #9 conversational retell tutor server + client (on dev only)
-- #32 OpenAI TTS migration (on main with gpt-4o-mini-tts, dev with tts-1)
-- #39 Hero filter by visible tracks (on main)
-- #40 Server-side daily attempt counter (now permanent — on dev)
-- #41 Quiz-open tracking
-- #71 Dev/prod environment split with Redis prefix
-- #77 Active tag clears after retell finalize
-- #79 Cache-key mismatch (the 0/5 grading bug — fixed on dev)
-
-### Deleted
-- #55 "For parents" welcome panel — user rejected v1, will revisit as v2 (#75)
-- #57 Tighten fraud freshness window — user said leave as-is, kids may already own the book
-
----
-
-## 6. Active work: UI/UX polish (Phase 1 plan, awaiting sign-off)
-
-User asked me to "begin this process in the preview environment". Said "we need to simplify while still being functional and awesome". Counted ~15 widgets above the fold on the home page.
-
-### Phase 1 — Header simplification (proposed, NOT executed)
-
-| Currently | After |
+| Bump when | What invalidates |
 |---|---|
-| `🔊 Text to Speech` label + voice dropdown + on/off switch (3 widgets) | Single **🔊** button — tap toggles on/off, long-press opens voice picker popover |
-| `?` help button | Removed — "Replay intro tour" already exists in avatar menu |
-| Brand: "Alpha Summer Reading" + "ALPHA SCHOOL" subtitle | Just "Alpha Summer Reading" — drop subtitle |
-| Stats row: 5 metric chips (XP, books, reviews, rank, currently reading) | 2 chips — XP + currently reading. Books read / reviews / rank move to leaderboard page and achievements modal |
-| Filter row: Grade dropdown + Genre dropdown | One **Filter** button → popover with both |
+| `SCHEMA_VERSION` in `api/quiz.js` | Generation/grading pipeline changes |
+| `version` in `<bookId>.json` | Question content edits |
 
-Net: 15 → 7 visible widgets, same functionality.
+Both stamps land on the client's saved-quiz-progress blob in
+localStorage. `loadQuizProgress` invalidates if either is stale.
 
-### Phase 2 — Book modal (planned)
-Pills currently: Grade / Category / XP / Rating (4). Cut to XP + reading time (2).
-Action buttons currently: I'm reading this / Done / Take Quiz / Vote up / Vote down / Amazon / Reset-for-me (admin) — collapse vote up/down into a single "Did you like it?" after read; Amazon to a less prominent spot.
+### HTTP cache
 
-### Phase 3 — Catalog & global (planned)
-Tighter card spacing, cleaner row headers, type scale unification, button-style consistency pass.
+`/api/quiz` sends `Cache-Control: no-store`. Client appends
+`?v=<schemaVersion>` so any old cached URL becomes a new cache key
+(forces a fresh fetch even for kids whose browsers cached the old
+24h max-age responses).
 
-### Last instruction received before this memory dump
-> "These tasks should only be initiated within the preview environment for now and only rolled out into production when explicitly approved by me."
-> "Begin this process in the preview environment. Once complete, add a task #1 to backend to check the preview app for code bloat and refinements."
+## 5. The retell pipeline
 
-So: when polish is complete (all 3 phases), **add a new task at the TOP of the backend list** for "audit preview for code bloat + refinements".
+Voice-only path that runs AFTER quiz pass. Whisper transcribes the
+kid's audio; GPT-4o grades against a 4-axis rubric
+(retell_quality, character_recall, event_recall, stayed_on_topic,
+each 0-2).
 
----
+### Second-chance flow (#85)
 
-## 7. Architecture and conventions that matter
+1. Kid answers initial open-ended question.
+2. **Preliminary grade** (gpt-4o-mini): if total ≥ 6/8 AND every
+   axis non-zero → clear pass, finalize immediately, award bonus XP.
+3. Otherwise → tutor asks one targeted follow-up probing the
+   weakest axis.
+4. After turn 2 → commit-mode grade. Pass = final ≥ 5/8 AND
+   improved over preliminary. Restating the same low answer twice
+   doesn't earn the bonus.
+5. `null` verdicts only fire on grader infrastructure faults →
+   held-XP queue.
 
-### Conventions
-- **No "teachers"** anywhere in code or copy
-- **XP not points** in all kid-facing strings
-- **Server-resolved grade** (never trust client `body.grade`)
-- **Track-locking gate is duplicated 4×** across endpoints — same logic, different inline implementations (audit flagged this)
-- **Email is the primary key** everywhere. Lowercased. `email.toLowerCase()` defensively.
-- **`isAdmin(email)` bypass** is added to gates that admin would hit testing (attempt counter, 15-min countdown, track-locking). NOT bypassed: fraud detection (it's already light-touch).
-- **`process.env.VERCEL_ENV`-keyed Redis prefix**: `""` (production), `"preview:"`, `"development:"`. Wraps the Upstash client via Proxy so prefix is auto-applied to single-key methods.
-- **`@vercel/blob`**: TTS at `tts/{hash}.mp3`, retell at `tutor/{date}/{sessionId}/turn-N.webm`, both currently `access: "public"`.
+## 6. XP
 
-### Magic constants
-- `STARTED_RECENTLY_HOLD_MS = 1 hour` (per-book quiz-after-reading-claim floor)
-- `FIRST_OPEN_SUSPICION_HOURS = 6` (acquisition-time fraud check)
-- `FRAUD_RATIO_HOLD = 0.25`, `FRAUD_RATIO_SOFT = 0.5` (WCPM speed ratios)
-- `QUIZ_DAILY_ATTEMPT_LIMIT = 2` (permanent, despite the name)
-- `RETELL_TIME_MIN = 3`
-- `QUIZ_MIN_PER_QUESTION = 1`
-- `SCHEMA_VERSION = 8` (quiz cache key version)
-- TTS cache prefix: `v4`
+Computed in `lib/xp.js` per reading session:
 
-### Catalog
-- 57 books across 5 tracks:
-  - `e` Beginning Readers (PK, 12 books)
-  - `k` Grade K (11 books)
-  - `a` Grade 1 (14 books)
-  - `b` Grade 2 (12 books)
-  - `c` Grade 3 (8 books)
-- G4-8 expansion pending (#18) — single biggest scope item left
-
-### Identity flow
-- Google OAuth → kid signs in with school email
-- `state.session.email` is the canonical id
-- `state.session.isAdmin` from `/api/auth/me` (server uses `ADMIN_EMAILS` env)
-- TimeBack `studentId` is fetched daily but NOT persisted on Redis profile (#74 / Section 8 of the brief)
-
-### Workflow
-- Develop on `dev` → preview auto-deploys
-- Manual promote: `git checkout main && git merge dev --no-ff && git push`
-- DO NOT auto-promote. User signs off explicitly.
-- Cherry-pick option exists (`git cherry-pick <sha>`) if user wants one specific commit on main
-
----
-
-## 8. Things the user has explicitly punted or rejected
-
-- **#57 Tighten fraud freshness window** — REJECTED. "Some kids may own the book already." Leave 1h / 6h thresholds.
-- **#55 v1 welcome screen parent panel** — REJECTED on aesthetic grounds. Will revisit as v2 (#75) with different approach (maybe popup/modal triggered from "For parents" link rather than inline card).
-- **Live transcript in retell (#78)** — wanted but deferred to after retell core works
-- **Realtime API for tutor** — discussed, deferred. Sequential mode is v1.
-- **iPad voice support (#72)** — known gap, separate task. Chrome-first for now.
-- **Sliding bonus by book size** — user initially wanted but reversed in favor of flat 30%
-- **"Try again tomorrow" wording** — user rejected because the cap is permanent, not daily
-
----
-
-## 9. Recent significant pivots / decisions
-
-- **2026-05-XX**: User decided "2 attempts ever per book, no daily reset". Changed both server TTL (72h → 365 days) and client localStorage (dropped daily-reset branch).
-- **2026-05-XX**: User wanted ratio model where ratio applies to total time (reading + quiz + retell). Pass-1-of-2 on attempt 1 = baseXP exactly. No sliding bonus by book size.
-- **2026-05-XX**: User asked for fully conversational tutor (not quizmaster-style). System prompt rewritten with reactive examples, temperature bumped 0.7 → 0.95, frequency/presence penalties added. Banned "Awesome" / "Nice" default opener.
-- **2026-06-XX**: User found Whisper hallucinating "Thank you for watching". Filter added in `lib/tutor.js transcribeAudio` + prompt-bias with book context.
-- **2026-06-XX**: User found cache-key mismatch (the 0/5 grading bug). Fixed.
-- **2026-06-XX**: User added `gt.school` to ALLOWED_DOMAIN.
-- **Today (2026-06-03)**: User wants UI polish in preview, no prod promotion until they say so.
-
----
-
-## 10. Open questions waiting on user input
-
-These are not on the task list but came up in conversation and don't have decisions yet:
-
-1. **Polish UI Phase 1**: which specific cuts to keep — TTS as switch or stateful button? Which metric chips visible? Filter as popover or inline? (Asked just before this memory dump was requested.)
-2. **TimeBack store integration**: Caliper schema sign-off (Section 7 of the brief). Identity field format (email vs studentId). Idempotency key.
-3. **Audio retention policy**: 14-day default OK pre-launch; needs parent-portal pairing (#73) once parents enter the picture.
-4. **Parent portal auth**: password (option A in #74) vs magic link (option B). User leaned A but not locked in.
-5. **iPad retell**: ship v1 to production without iPad parity, or hold until #72 is done?
-
----
-
-## 11. Files to NEVER touch without permission
-
-- `vercel.json` cron schedules — Hobby tier only allows daily
-- `.gitignore` — already covers all sensitive patterns
-- `package.json` engines field (Node ≥20)
-- Anything under `.claude/`
-- Direct edits to `main` branch (always go through `dev → merge → push`)
-
----
-
-## 12. If you need to verify branch state RIGHT NOW
-
-```bash
-cd "C:\Users\nicka\OneDrive\Desktop\Reading Spine App"
-git branch --show-current        # should be `dev`
-git log main..dev --oneline      # commits ahead of main
-git log dev --oneline -5         # recent commits on dev
-git status --short               # uncommitted changes
+```
+xp = readingMin × ratio
+where:
+  readingMin = wordCount / WCPM(workingGrade)
+  ratio comes from a table keyed by (quizOutcome, retellOutcome)
+    p1 + p1 (passed both, first attempt) → 1.3×
+    p2 + p1 (passed quiz on retake)       → 0.95×
+    ... etc, fF + fF → 0
 ```
 
-If `dev` is way ahead of `main`, that's expected — the whole #9 retell tutor + polish work lives there.
+WCPM by working grade: PK=15, K=30, 1=60, 2=100, 3=110, 4=130, 5=140.
 
----
+Example: One Fish Two Fish (619 words):
+- PK reader: 619/15 × 1.3 ≈ **64 XP max**
+- K reader: ≈ **37 XP max**
+- G1 reader: ≈ **23 XP max**
+- G2 reader: ≈ **18 XP max**
+- G3 reader: ≈ **17 XP max**
 
-## 13. The most important paragraph
+**The XP stat at the top of the page reads from `/api/leaderboard`,
+NOT from `/api/auth/me`.** `refreshMyRank()` is the function that
+updates it. `renderStats()` updates books/streak/comments but NOT
+XP. After any server-side XP change (retell completion, quiz
+pass, etc.) you must call BOTH `renderStats()` AND
+`refreshMyRank()`. The retell-done handler does this as of the
+latest deploy.
 
-**Do not push to `main` without explicit approval from Nick.** The voice retell tutor on dev "is not working as expected" per his words. The previous successful promotion was `d0b68f0` (Bundle B + dev/prod split). Everything since is dev-only. Production is currently quiz-only with the older OpenAI TTS model — and Nick has confirmed that's fine while the retell stabilizes.
+## 7. Admin
 
-The user's testing has surfaced a long tail of small bugs in the retell flow (mic permission delays, TTS dropouts on turns 2/3, Whisper hallucinations, the cache-key 0/5 grading bug). Most are fixed on dev but he hasn't done end-to-end signoff yet.
+`ADMIN_EMAILS` env var on Vercel (comma-separated, case-insensitive
+match). Current intent: **only `nick.alsford@trilogy.com`**.
+Verify both `production` and `preview` environments in Vercel
+dashboard → Settings → Environment Variables.
 
-The UI/UX polish work I'm about to start does NOT change the retell mechanics; it's purely surface-level simplification. Stay surgical.
+Admin gets:
+- Full quiz pool with answer key visible (green outline + ✓ correct).
+- Unlimited quiz retries.
+- Admin menu in the header.
+- Skip wait button (bypasses the "you just started reading"
+  cooldown).
+- ♻️ Regen Quiz button (wipes localStorage + in-memory state;
+  with static banks it doesn't bust Redis since there's nothing
+  to bust).
+- Per-answer debug box on the result screen.
 
----
+## 8. Security guardrails (shipped)
 
-*End of memory dump. Read SECTION 6 carefully before resuming work — there's a specific question awaiting user response that should resolve before any code changes.*
+- Google JWT verified against JWKS at sign-in.
+- CSP with allowlisted `img-src` (covers.openlibrary.org,
+  *.openlibrary.org, archive.org, *.archive.org for OL's redirect
+  chain, *.googleusercontent.com, books.google.com),
+  `connect-src`, `script-src`.
+- HSTS, COOP, `X-Frame-Options: DENY`, Permissions-Policy locked.
+- Per-email rate limits on /tts, /quiz, /tutor, /activity,
+  /leaderboard, /admin, selfData (5/hr).
+- HMAC quiz answer tokens (no Redis lookup at grade time).
+- All localStorage scoped under `rs.*` prefix; logout wipes them.
+- Held-XP queue for borderline retells; admin approves.
+- Comment moderation (3-tier: block / review / allow) with TTL'd
+  held queue.
+- Pre-quiz "you just started reading" warning, per-grade thresholds
+  (PK/K 15min, G1 30min, G2+ 60min).
+
+## 9. Privacy
+
+- `parent-data` requests now go through admin approval (not
+  self-service). `POST /api/auth/me?action=request-data` and
+  `?action=request-deletion` queue a pending request.
+- `users:tombstoned` Redis set blocks writes after a delete.
+- Comments stored with HMAC email hash, not raw email.
+- Leaderboard masks grade cohorts < 5 members (anonymous +
+  bucketed).
+- COPPA / GDPR endpoints exist (exportUserData / deleteUserData)
+  but only run via admin approval now.
+
+## 10. Authoring workflow (the static bank flow)
+
+1. Hand-write the book summary in
+   `docs/book-summaries/<id>-<title-slug>.md`. Use the format in
+   `docs/book-summaries/RULESET.md`. Commit when ready.
+2. Run the external **quiz-authoring agent** (NOT part of the
+   app). It reads the .md, produces a draft `<id>.json` in
+   `docs/book-questions/`.
+3. Run the external **QC agent** against the .json. It applies
+   the QC checklist (Section 4) and returns pass / fixes-needed.
+4. Iterate steps 2-3 until clean.
+5. Bump the `version` field in the JSON.
+6. Commit + push. Vercel picks it up; kids' saved progress
+   auto-invalidates via the bankVersion stamp.
+
+If a question bank is missing or invalid, the book returns
+`no_quiz_questions: 503` and the kid sees a clear "Quiz not ready"
+message. The app does NOT fall back to LLM generation.
+
+## 11. Open TODOs (post-launch nice-to-haves)
+
+### High impact
+- **Grade 4-8 catalog expansion** (#18) — only Grade 3 is shipped.
+- **External QC agent** — build the standalone QC tool that runs
+  the checklist (Section 4) over a generated `<id>.json`.
+- **iPad / tablet usability** (#35, #72) — retell mic + audio
+  playback on Safari needs verification.
+- **Admin audit log** (#49) for user-diag and users actions.
+- **Comment-review queue SLA** (#64) + admin alert when pending grows.
+
+### Medium impact
+- **Caliper retry queue overflow alert** + schema-version drift
+  monitor in `/api/health` (#63).
+- **Rate-limit `/api/auth/me`** and other read endpoints (#66).
+- **TRACK_LEVEL hardcoded client-side** drift risk (#65) — same
+  pattern we just closed for SCHEMA_VERSION.
+- **TimeBack Cognito refresh-token rotation** + admin alert on
+  auth_failed (#54).
+- **Retell anti-cheat** (#83) — detect verbatim summary recitation.
+- **Live transcript in retell** (#78) — kid sees their words as they speak.
+- **Observability hardening** (#68) — alert routing + longer
+  retention + error grouping.
+
+### Low impact
+- **Moderation false-positives** on innocent text ("sextet" /
+  "essex") (#61).
+- **Adaptive instructional copy** based on working + age grade (#70).
+- **Audio retention beyond 14 days** (post-launch policy review) (#73).
+- **Parent portal** — read-only dashboard + held-XP approvals (#74).
+- **Pre-auth welcome screen v2** — parent-facing content (#75).
+- **Parent-confirm popup for held XP** — release sooner (#69).
+- **Caliper transport HTTPS startup assert** (#67).
+
+## 12. Operational gotchas
+
+- **Vercel Hobby tier caps at 12 serverless functions.** That's
+  why admin endpoints are all behind `/api/admin?action=...`.
+- **Vercel preview URLs change per commit.** Google OAuth only
+  trusts the `git-dev` branch alias — always test there.
+- **`ADMIN_EMAILS` is env-only.** Setting it in code would leak.
+- **Hard refresh ≠ load fresh JS** if the browser already has the
+  page in its disk cache and the URL/headers haven't changed. The
+  cache-buster `?v=...` on `/api/quiz` is what guarantees a kid
+  picks up new bank content.
+- **`state.session.quizSchemaVersion`** on the client refreshes
+  at every `openQuiz` call (re-fetches `/api/auth/me`) so a
+  server-side schema bump invalidates kids' saved quizzes without
+  requiring a hard refresh.
+- **localStorage quiz progress** is stamped with BOTH
+  `schemaVersion` and `bankVersion`. Either mismatching wipes the
+  blob. SCHEMA bumps when the generation/grading pipeline
+  changes; bank version bumps when question content edits.
+- **`process.cwd()` in serverless functions** resolves to the
+  project root on Vercel. `docs/book-summaries/` and
+  `docs/book-questions/` are both readable at runtime — that's
+  how the loaders work at module init.
+
+## 13. Last-known commits worth referencing
+
+- **HMAC answer tokens** (12fd101) — grading self-contained, no
+  Redis lookup at submit.
+- **Static question bank** (263756d) — runtime LLM removed
+  entirely.
+- **bankVersion + schemaVersion dual invalidation** (3e9f2b1) —
+  content edits and pipeline changes are independent.
+- **Code audit cleanup** (c66b5d8) — 371 lines of stale LLM-era
+  code removed.
+- **Per-grade pre-quiz warning thresholds** (bab2b1b) — PK/K 15min,
+  G1 30min, G2+ 60min.
+- **Retell second-chance rubric** (8573d17) — early-pass + targeted
+  follow-up + score-must-increase rule.

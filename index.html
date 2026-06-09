@@ -8850,6 +8850,12 @@ function _retellShowResult(data) {
       state.session.currentlyReading = me.currentlyReading || null;
       try { renderStats(); } catch {}
       try { renderRows(); } catch {}
+      // refreshMyRank pulls XP + rank from /api/leaderboard and
+      // updates the stat pill at the top. renderStats only renders
+      // books/comments/streak — XP lives in a separate fetch and
+      // was the missing call after a retell completed (user saw
+      // their XP not update without a page refresh).
+      try { refreshMyRank(); } catch {}
     })
     .catch(() => {});
 }
