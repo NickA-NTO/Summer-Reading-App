@@ -5596,12 +5596,14 @@ function startAttempt() {
     const all = [];
     for (const q of quizState.questions) {
       const parts = buildQuizSpeakParts(q);
-      all.push(parts.question, parts.choices);
+      all.push(parts.question, parts.intro, parts.options);
     }
-    // Priority: Q1's question + choices fire immediately. Everything
-    // else trickles in over the next few seconds — long before the
-    // kid finishes Q1 and moves to Q2.
-    all.slice(0, 2).forEach((t) => prewarmTts(t));
+    // Priority: Q1's three parts fire immediately. Everything else
+    // trickles in over the next few seconds — long before the kid
+    // finishes Q1 and moves to Q2. parts.intro ("Here are your
+    // choices.") is the same string for every question so it'll hit
+    // the cache instantly after the first synthesis.
+    all.slice(0, 3).forEach((t) => prewarmTts(t));
     all.slice(2).forEach((t, i) => setTimeout(() => prewarmTts(t), 400 * (i + 1)));
   })();
   renderQuizQuestion();
@@ -5625,12 +5627,16 @@ function startAttempt() {
 // Making the letter grammatically required keeps it audible.
 function buildQuizSpeakParts(q) {
   const letters = ["A", "B", "C", "D"];
-  const opts = q.options
-    .map((o, i) => `Option ${letters[i]} is ${o}.`)
-    .join("\n\n");
   return {
     question: q.q,
-    choices: `Here are your choices.\n\n${opts}`,
+    // Split "Here are your choices" from the option list so we can
+    // insert a real wall-clock pause between them — periods alone
+    // don't give tts-1 enough of a break for K-2 listeners. The
+    // speak chain becomes: question → gap → intro → gap → options.
+    intro: "Here are your choices.",
+    options: q.options
+      .map((o, i) => `Option ${letters[i]} is ${o}.`)
+      .join("\n\n"),
   };
 }
 
@@ -5670,20 +5676,22 @@ async function speakQuizQuestion(q, opts = {}) {
   if (!ttsOn && !force) return;
   const parts = buildQuizSpeakParts(q);
   const myToken = ++_quizNarrationToken;
-  // Await the question audio's actual `ended` event. If the kid
-  // clicks again or navigates away, a newer call will bump
-  // _quizNarrationToken AND cancelSpeech() — both paths resolve the
-  // speak() promise and we bail on the token check below.
-  try {
-    await speak(parts.question, { force });
-  } catch {}
+  const gap = () => new Promise((r) => setTimeout(r, QUIZ_TTS_GAP_MS));
+  // Three-part narration with real wall-clock gaps between each:
+  //   1) question
+  //   2) "Here are your choices."
+  //   3) "Option A is X. Option B is Y. ..."
+  // If a newer speakQuizQuestion call (or cancelSpeech) supersedes
+  // us mid-way, the token check below bails out before the next part.
+  try { await speak(parts.question, { force }); } catch {}
   if (_quizNarrationToken !== myToken) return;
-  // Real wall-clock pause before the choices block.
-  await new Promise((r) => setTimeout(r, QUIZ_TTS_GAP_MS));
+  await gap();
   if (_quizNarrationToken !== myToken) return;
-  try {
-    await speak(parts.choices, { force });
-  } catch {}
+  try { await speak(parts.intro, { force }); } catch {}
+  if (_quizNarrationToken !== myToken) return;
+  await gap();
+  if (_quizNarrationToken !== myToken) return;
+  try { await speak(parts.options, { force }); } catch {}
 }
 
 function closeQuiz() {

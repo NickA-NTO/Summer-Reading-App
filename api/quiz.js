@@ -523,7 +523,7 @@ const QCSchema = z.object({
 //
 // Previous versions retired in commit history; see git log for
 // per-version rationale.
-const SCHEMA_VERSION = 16;
+const SCHEMA_VERSION = 17;
 // Exported alias so api/activity.js can build the same cache key when it
 // validates a quiz_submit. Kept as a renamed export so the local const can
 // be reassigned independently if we ever split client / server schemas.
@@ -758,6 +758,31 @@ async function generateOnce(bookId, book, studentGrade, guidance, temperature, a
     `but-wrong things a kid who skimmed might pick. Vary which index ` +
     `(0,1,2,3) is correct across all questions — don't bunch the ` +
     `correct answers at the same position.\n\n` +
+    `DISTRACTOR QUALITY (critical — failing this makes the quiz ` +
+    `trivially solvable from common sense alone):\n` +
+    `  • Distractors should come from OTHER content in the same ` +
+    `    summary whenever possible. A kid who didn't read should be ` +
+    `    able to confuse the wrong answers with the right one.\n` +
+    `  • If the correct answer is a uniquely identifiable real-world ` +
+    `    thing (e.g. "pink ink" is the only beverage in the book; ` +
+    `    "bike" is the only thing you pedal), FLIP the question to ` +
+    `    ask about the SUBJECT instead — e.g. instead of "What does ` +
+    `    the Yink drink?" with pink-ink/water/milk/juice (3 of which ` +
+    `    aren't in the book), ask "Who drinks pink ink?" with ` +
+    `    The Yink / The Yop / The Zans / The Nook (all from the book).\n` +
+    `  • All four options must be plausible answers to the question — ` +
+    `    "What does Mike pedal?" with A bike / A car / A scooter / ` +
+    `    A wagon is BAD because only a bike is pedalable. Rephrase as ` +
+    `    "Who rides the back of the bike?" with Mike / Ned / Joe / ` +
+    `    Mr. Gump so all four are characters from the book.\n` +
+    `  • OPTION PARALLELISM (CRITICAL — enforced by code, not by ` +
+    `    judgment). All four options must share the same leading ` +
+    `    determiner / article. If three start with "A" and one starts ` +
+    `    with "His", the question is DROPPED before the LLM QC sees ` +
+    `    it. Make them all "A X" OR all "The X" OR all bare nouns ` +
+    `    OR all possessive — never mixed.\n` +
+    `    BAD: A wagon / A scooter / A car / His bike (REJECTED by code)\n` +
+    `    GOOD: A bike / A car / A scooter / A wagon (parallel)\n\n` +
     `CRITICAL — REQUIRED SOURCE CITATION (enforced by code, not by ` +
     `judgment). The book summary below is hand-authored and is the ` +
     `ONLY source of truth. Every question you write must include a ` +
@@ -1008,6 +1033,68 @@ function verifyQuestionGrounded(q, summary) {
       source: src,
     };
   }
+  // QUESTION CONTENT WORDS MUST ALL APPEAR IN sourceText. This catches
+  // cases like "What does Mike pedal?" where the LLM cites a source
+  // ("Mike sits in the back of a bike") that contains "Mike" and
+  // "bike" but NOT the question's key verb "pedal" — the verb was
+  // invented. The answer-in-source check alone would pass because
+  // "bike" appears. Forcing every content word of the question to
+  // appear catches the verb-invention class of hallucination.
+  const stopwords = new Set([
+    "the","a","an","and","or","but","not","of","in","on","at","to","for","with","from",
+    "is","are","was","were","be","been","being","has","have","had","do","does","did",
+    "will","would","could","should","may","might","can","like","by","as",
+    "this","that","these","those","there","here","where","when","why","how","what","who","which","whose",
+    "his","her","its","their","our","my","your","i","he","she","it","they","we","you",
+    "out","up","down","off","over","under","into","onto","than",
+  ]);
+  const questionWords = String(q.q || "").toLowerCase().match(/\b[a-z]+\b/g) || [];
+  const content = questionWords.filter((w) => w.length >= 3 && !stopwords.has(w));
+  const missing = content.filter((w) => !srcNorm.includes(w));
+  if (missing.length > 0) {
+    return {
+      ok: false,
+      reason: "question_words_not_in_source",
+      missing,
+      source: src,
+      question: q.q,
+    };
+  }
+  return { ok: true };
+}
+
+// Deterministic option-parallelism check. Catches the case where 3
+// of 4 options share a leading determiner ("A wagon / A scooter /
+// A car / His bike") and the 4th gives away the correct answer.
+// The LLM "form" QC axis is supposed to flag this but is unreliable
+// — this code-level check can't be talked around.
+function verifyOptionsParallel(q) {
+  const opts = (q.options || []).map((o) => String(o).trim());
+  if (opts.length !== 4) return { ok: true }; // schema enforces 4 elsewhere
+  // First "word" (alpha sequence) of each option, lower-cased.
+  const leading = opts.map((o) => (o.match(/[a-zA-Z]+/)?.[0] || "").toLowerCase());
+  // Tally distinct leading words.
+  const counts = {};
+  for (const w of leading) counts[w] = (counts[w] || 0) + 1;
+  const pairs = Object.entries(counts);
+  // 3-vs-1 split: the lone leading word is the odd-one-out giveaway.
+  // (e.g. ["A", "A", "A", "His"] -> counts {a:3, his:1})
+  if (pairs.length === 2) {
+    const [, max] = pairs.sort((a, b) => b[1] - a[1])[0];
+    if (max === 3) {
+      const lone = pairs.find(([, c]) => c === 1)?.[0];
+      return {
+        ok: false,
+        reason: "option_determiner_mismatch",
+        leading,
+        lone,
+      };
+    }
+  }
+  // 1-1-1-1 with all different leading words is also a smell, but
+  // only if none of them match. Allow it for now — the LLM does
+  // sometimes generate fully-paraphrased option sets and they're
+  // not necessarily broken. Tighten later if testers flag it.
   return { ok: true };
 }
 
@@ -1020,15 +1107,25 @@ async function qcAndFilter(bookId, book, studentGrade, questions) {
   // "What do the Zans brush?", "Where do the children put their cold
   // feet?") because the LLM can rationalise anything. The deterministic
   // substring check can't be talked around.
-  let groundedQuestions = [];
+  const groundedQuestions = [];
   const groundingDropped = [];
   for (let i = 0; i < questions.length; i++) {
+    // Two deterministic checks per question:
+    //   1) Citation grounding — sourceText + answer + question-
+    //      content-words all trace to the summary text.
+    //   2) Option-determiner parallelism — no 3-vs-1 leading-word
+    //      mismatch that gives the answer away by grammar.
+    // Either failure drops the question silently before the LLM QC
+    // ever sees it. Both checks are pure substring / regex — the LLM
+    // can't talk its way past either.
     const v = verifyQuestionGrounded(questions[i], summary);
-    if (v.ok) {
+    const p = v.ok ? verifyOptionsParallel(questions[i]) : { ok: true };
+    if (v.ok && p.ok) {
       groundedQuestions.push(questions[i]);
-    } else {
-      groundingDropped.push({ idx: i, ...v, question: questions[i].q });
+      continue;
     }
+    const fail = !v.ok ? v : p;
+    groundingDropped.push({ idx: i, ...fail, question: questions[i].q });
   }
   if (groundingDropped.length > 0) {
     console.log(
