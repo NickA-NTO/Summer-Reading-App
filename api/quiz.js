@@ -1238,9 +1238,17 @@ export default async function handler(req, res) {
         // SECURITY: strip the answer key before sending to the client.
         // The cached pool keeps answers for server-side grading via
         // /api/activity kind:"quiz_submit"; clients never see them. This
-        // closes the DevTools-reveal attack (kid opens console, reads
-        // question.answer, taps the right option).
-        questions: cached.questions.map(stripAnswerKey),
+        // closes the DevTools-reveal attack.
+        //
+        // Admin exception: admins doing QA need to see the correct
+        // answer to walk the kid through each question. The full pool
+        // (with `answer` per question) goes to admins only. The server
+        // still validates submissions against the cached pool — the
+        // admin client can't lie about the answer, just see it.
+        questions: isAdmin(session.email)
+          ? cached.questions
+          : cached.questions.map(stripAnswerKey),
+        adminMode: isAdmin(session.email),
       })
     );
   }
@@ -1400,9 +1408,12 @@ export default async function handler(req, res) {
         quizStyle: style,
         cached: false,
         ...payload,
-        // SECURITY: strip the answer key before sending. The cache still
-        // has the full answers for server-side grading; clients don't.
-        questions: payload.questions.map(stripAnswerKey),
+        // Admin exception (see cached path comment): full pool with
+        // answers goes to admins only; students still get stripped.
+        questions: isAdmin(session.email)
+          ? payload.questions
+          : payload.questions.map(stripAnswerKey),
+        adminMode: isAdmin(session.email),
       })
     );
   } catch (err) {

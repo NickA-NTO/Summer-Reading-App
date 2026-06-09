@@ -1183,6 +1183,15 @@
     border-color: var(--accent-2); background: rgba(37,99,235,.14);
   }
   .quiz-option.chosen .letter { background: var(--accent-2); color: #f5f7fb; }
+  /* Admin-only correct-answer highlight (admin sessions only; the
+     server only sends the answer key when isAdmin). */
+  .quiz-option.admin-correct {
+    border-color: rgba(52,211,153,.6) !important;
+    background: rgba(52,211,153,.08);
+  }
+  .quiz-option.admin-correct .letter {
+    background: rgba(52,211,153,.25); color: #34d399;
+  }
 
   .quiz-result {
     text-align: center; padding: 12px 0;
@@ -5155,12 +5164,20 @@ function pickN(arr, n) {
 function withShuffledOptions(question, poolIdx) {
   const order = shuffle([0, 1, 2, 3]); // permutation of original positions
   const newOptions = order.map((i) => question.options[i]);
-  return {
+  const result = {
     poolIdx,
     q: question.q,
     options: newOptions,
     originalIndices: order, // originalIndices[shuffledPos] = originalIdx
   };
+  // Admin mode: /api/quiz includes the canonical `answer` (original
+  // un-shuffled index) for admin sessions only. Translate it to the
+  // shuffled position so the renderer can mark the right option.
+  if (Number.isInteger(question.answer)) {
+    const shuffledCorrect = order.indexOf(question.answer);
+    if (shuffledCorrect >= 0) result.correctShuffledIdx = shuffledCorrect;
+  }
+  return result;
 }
 
 // Reads + writes the per-book attempt log in localStorage.
@@ -5297,6 +5314,10 @@ async function openQuiz(bookId) {
     }
     quizState.pool = data.questions;
     quizState.style = data.quizStyle || "comprehension";
+    // Admin-only: server flags admin sessions via `adminMode: true` and
+    // includes the canonical `answer` per question. withShuffledOptions
+    // translates that to a shuffled-position field used by the renderer.
+    quizState.adminMode = !!data.adminMode;
     startAttempt();
   } catch (err) {
     document.getElementById("quizContent").innerHTML = `
@@ -5337,39 +5358,84 @@ function startAttempt() {
   quizState.questions = chosenIndices.map((poolIdx) =>
     withShuffledOptions(quizState.pool[poolIdx], poolIdx)
   );
-  // Pre-warm TTS for every question + answer-choices block in the
-  // attempt. The auto-speak after each question render hits the cache
-  // instead of a cold synth. Strings must match renderQuizQuestion's
-  // speakText exactly or the cache won't hit.
+  // Pre-warm TTS for both parts of every question (question + choices
+  // are spoken as two separate utterances now — see speakQuizQuestion
+  // for the rationale). Strings must match exactly so the cache hits.
   for (const q of quizState.questions) {
-    prewarmTts(buildQuizSpeakText(q));
+    const parts = buildQuizSpeakParts(q);
+    prewarmTts(parts.question);
+    prewarmTts(parts.choices);
   }
   renderQuizQuestion();
 }
 
-// Single source of truth for the quiz question + options speak text.
-// Both the prewarm (in startAttempt) and the live speak (in
-// renderQuizQuestion + the "Hear it" button) use this, so the cache
-// hits and there's no place for the two strings to drift apart.
+// Quiz question + options narration. Returns the TWO strings that
+// get spoken back-to-back with a wall-clock pause between them.
 //
-// Phrasing rules locked in over multiple kid-test iterations:
-//   • "Option A is …" not "A: …" — tts-1 sometimes drops the
-//     letter when it runs into the option word. Making the letter
-//     grammatically required keeps it audible.
-//   • Period + double newline between question and first option,
-//     plus a framing "Now, here are your choices." beat. The
-//     original `${q.q} ... ${options}` formatting compressed
-//     question→option1 to a near-zero gap on tts-1 (the ellipsis
-//     wasn't honored as a real pause). Kid testers reported the
-//     run-on as sounding "double speed". Double newline + framing
-//     phrase gives ~1 second of natural breath.
-//   • Period after each option keeps the cadence between A→B→C→D.
-function buildQuizSpeakText(q) {
+// History:
+//   v1: `${q.q} ... ${options}` — tts-1 ignored the ellipsis. Sounded
+//       "double speed" because question and option-A ran together.
+//   v2: switched to "Now, here are your choices.\n\n" framing line +
+//       double newlines. Better, but tts-1 still compressed the
+//       newlines. Kid testers still reported the gap as too short.
+//   v3 (this): split into TWO speak() calls with a real ~900ms
+//       setTimeout between them. The only thing that reliably gives
+//       a full second of silence on tts-1.
+//
+// "Option A is …" phrasing kept — kid-test feedback: tts-1 drops the
+// letter label when it runs into the option word with just a colon.
+// Making the letter grammatically required keeps it audible.
+function buildQuizSpeakParts(q) {
   const letters = ["A", "B", "C", "D"];
   const opts = q.options
     .map((o, i) => `Option ${letters[i]} is ${o}.`)
     .join("\n\n");
-  return `${q.q}\n\nNow, here are your choices.\n\n${opts}`;
+  return {
+    question: q.q,
+    choices: `Here are your choices.\n\n${opts}`,
+  };
+}
+
+// Pause between the question and the choices block. ~900ms feels
+// like natural breath — long enough for the kid to register the
+// question before the options start, short enough not to drag.
+const QUIZ_TTS_GAP_MS = 900;
+
+// Speak the question, wait for it to finish (or the gap to elapse,
+// whichever is later), then speak the choices. Cancels cleanly if a
+// new quiz speak fires (the speak() helper bumps _ttsSeq on cancel).
+async function speakQuizQuestion(q, opts = {}) {
+  const { force = false } = opts;
+  if (!ttsOn && !force) return;
+  const parts = buildQuizSpeakParts(q);
+  const mySeq = _ttsSeq + 1; // sentinel — speak() will increment to this
+  try {
+    speak(parts.question, { force });
+  } catch {}
+  // Wait until the question audio finishes (audio.ended) OR a hard
+  // ceiling of 8 seconds in case `ended` never fires (e.g. browser
+  // synth fallback that doesn't expose the event the same way).
+  await new Promise((resolve) => {
+    const start = Date.now();
+    const poll = () => {
+      // Bail if a newer speak() came along — don't continue with a
+      // stale choices block.
+      if (_ttsSeq !== mySeq) return resolve();
+      const audioDone = !currentTtsAudio || currentTtsAudio.ended || currentTtsAudio.paused;
+      const elapsed = Date.now() - start;
+      if (audioDone && elapsed > 300) return resolve(); // min 300ms even if instant
+      if (elapsed > 8000) return resolve();
+      setTimeout(poll, 100);
+    };
+    setTimeout(poll, 200); // give audio.play() a chance to start first
+  });
+  // If we got cancelled mid-question, don't speak the choices.
+  if (_ttsSeq !== mySeq) return;
+  await new Promise((r) => setTimeout(r, QUIZ_TTS_GAP_MS));
+  if (_ttsSeq !== mySeq) return;
+  try {
+    speak(parts.choices, { force });
+  } catch {}
 }
 
 function closeQuiz() {
@@ -5407,10 +5473,10 @@ function renderQuizQuestion() {
   const q = quizState.questions[i];
   setQuizProgress(i);
   const letters = ["A", "B", "C", "D"];
-  // Single source of truth for the spoken text — see buildQuizSpeakText
-  // for the phrasing rationale. Same string the prewarm fired against
-  // so the audio path hits the cache, not a cold synth.
-  const speakText = buildQuizSpeakText(q);
+  // Quiz narration is now a two-part sequence (question, then a real
+  // ~900 ms pause, then the choices). See speakQuizQuestion and
+  // buildQuizSpeakParts for the rationale. The prewarm in startAttempt
+  // already cached BOTH parts so each speak() hits the cache.
   document.getElementById("quizContent").innerHTML = `
     <h3 class="quiz-question">
       <span>${escapeHtml(q.q)}</span>
@@ -5420,11 +5486,22 @@ function renderQuizQuestion() {
       <span>Hear it</span>
     </button>
     <div class="quiz-options" id="qOpts">
-      ${q.options.map((opt, idx) => `
-        <button class="quiz-option" data-i="${idx}">
-          <span class="letter">${letters[idx]}</span>
-          <span>${escapeHtml(opt)}</span>
-        </button>`).join("")}
+      ${q.options.map((opt, idx) => {
+        // Admin-only: mark the correct option with a green outline +
+        // "✓ correct" tag so the admin can walk the quiz without
+        // guessing. Students never see this — `correctShuffledIdx` is
+        // only present when /api/quiz returned the answer key, which
+        // only happens for admin sessions.
+        const isCorrect = quizState.adminMode &&
+          Number.isInteger(q.correctShuffledIdx) &&
+          idx === q.correctShuffledIdx;
+        return `
+          <button class="quiz-option${isCorrect ? " admin-correct" : ""}" data-i="${idx}">
+            <span class="letter">${letters[idx]}</span>
+            <span>${escapeHtml(opt)}</span>
+            ${isCorrect ? `<span style="margin-left:auto;font-size:11px;font-weight:700;color:#34d399;letter-spacing:0.05em">✓ correct</span>` : ""}
+          </button>`;
+      }).join("")}
     </div>
     <div class="quiz-report-row">
       <button class="quiz-report-btn" id="qReport" type="button">
@@ -5435,21 +5512,18 @@ function renderQuizQuestion() {
       </span>
     </div>`;
   document.getElementById("qSpeak").addEventListener("click", () => {
-    speak(speakText, { force: true });
+    speakQuizQuestion(q, { force: true });
   });
-  // Auto-speak on render when TTS is on — emergent readers shouldn't
-  // have to find and tap the speaker before they can hear the
-  // question. Small delay so the screen settles + the per-tap "you
-  // chose this" transition out of the previous question finishes.
-  //
-  // Eager cancel: if Q1's audio is still playing or its fetch is
-  // in-flight when this render fires, kill it BEFORE the setTimeout
-  // so there's no chance of audible overlap. speak() also calls
-  // cancelSpeech but that runs 250 ms later — overkill is fine here.
+  // Auto-speak on render when TTS is on. Now uses speakQuizQuestion
+  // which speaks the question, waits for it to finish, pauses ~900ms,
+  // then speaks the choices. Two separate utterances = real wall-
+  // clock silence between them, which is the only thing tts-1
+  // honors reliably.
   cancelSpeech();
   if (ttsOn) {
+    // Small startup delay so the screen settles before audio starts.
     setTimeout(() => {
-      try { speak(speakText); } catch {}
+      speakQuizQuestion(q);
     }, 250);
   }
   document.querySelectorAll("#qOpts .quiz-option").forEach((btn) => {
@@ -5746,20 +5820,30 @@ async function finishQuiz() {
     return;
   }
 
-  // Failed — check if they have another attempt left today
+  // Failed — check if they have another attempt left.
+  // Admins never burn attempts (the count increment at line 5700 is
+  // gated on !isAdmin), so the raw "attemptsLeft = MAX - count" math
+  // overstates the admin's headroom. Treat admins as "always can
+  // retry" and SUPPRESS the count display — students see the real
+  // number (e.g. "1 attempt left" after first failure).
+  const isAdminUser = !!state.session?.isAdmin;
   const attemptsLeft = MAX_ATTEMPTS_PER_DAY - rec.count;
-  const canRetry = attemptsLeft > 0;
-  const retryButton = canRetry
-    ? `<button class="icon-btn" id="quizRetry">Try again (${attemptsLeft} left)</button>`
-    : "";
+  const canRetry = isAdminUser || attemptsLeft > 0;
+  const retryButton = isAdminUser
+    ? `<button class="icon-btn" id="quizRetry">Try again</button>`
+    : canRetry
+      ? `<button class="icon-btn" id="quizRetry">Try again (${attemptsLeft} left)</button>`
+      : "";
   // 2 attempts ever per book — no daily/weekly reset.
   // When canRetry is false, the retell auto-launches in 2.4 s (see
   // below) so the kid still has a path to base XP via "pass 1 of 2".
   // The message reflects that — DON'T tell them to "move on" when
   // they've actually got more to do in this session.
-  const message = canRetry
-    ? `You need ${passThreshold(quizState.style)} out of ${total}. Re-read the book and try once more — you've got ${attemptsLeft} attempt${attemptsLeft === 1 ? "" : "s"} left.`
-    : `Let's talk about the book — you can still earn XP by telling me about it.`;
+  const message = isAdminUser
+    ? `Admin: unlimited retries while testing.`
+    : canRetry
+      ? `You need ${passThreshold(quizState.style)} out of ${total}. Re-read the book and try once more — you've got ${attemptsLeft} attempt${attemptsLeft === 1 ? "" : "s"} left.`
+      : `Let's talk about the book — you can still earn XP by telling me about it.`;
   const failTts =
     `${canRetry ? "Almost there!" : "Nice try."} ` +
     `You got ${score} out of ${total} right. ${message}`;
