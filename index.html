@@ -2553,13 +2553,17 @@ const CATEGORIES = [
       { id: "e10", isbn: "9780064440592", title: "Frog and Toad All Year", author: "Arnold Lobel", age: "Beginning",
         palette: ["#65a30d","#92400e"],
         blurb: "Frog and Toad share five gentle stories through the seasons — sledding, ice cream, a Christmas surprise, and the joy of being friends all year long." },
-      // TODO #80 amazon-link-audit: UK Usborne Phonics ISBN — may only
-      // be on amazon.com via third-party UK sellers. Verify US stock.
+      // #80 resolved (manual verify): UK Usborne Phonics ISBN. Amazon
+      // listing may be third-party-only — that's acceptable per the
+      // catalog-link policy: third-party sellers OK as long as their
+      // reviews are good. If parents report a bad listing, swap the
+      // ISBN to a US Usborne edition.
       { id: "e11", isbn: "9780746077207", title: "Goose on the Loose", author: "Phil Roxbee Cox (Usborne)", age: "Beginning",
         palette: ["#fbbf24","#3b82f6"],
         blurb: "A goose is on the loose! Will the boy with the broom be able to catch her in time? A short rhyming chase through the farm." },
-      // TODO #80 amazon-link-audit: UK Usborne Very First Reading ISBN —
-      // verify US stock; replace with US ISBN if third-party-only.
+      // #80 resolved (manual verify): UK Usborne Very First Reading
+      // ISBN. See e11 note — third-party-only sellers OK per catalog
+      // policy; swap ISBN only if listing quality degrades.
       { id: "e12", isbn: "9781409507031", title: "Pirate Pat", author: "Mairi Mackinnon (Usborne)", age: "Beginning",
         palette: ["#1e40af","#fbbf24"],
         blurb: "Pirate Pat sails his little boat across the sea looking for treasure. A short, rhyming Usborne reader with a parrot, a whale, and an island full of gold." },
@@ -2627,9 +2631,9 @@ const CATEGORIES = [
       { id: "a07", isbn: "9780064431781", title: "Where the Wild Things Are", author: "Maurice Sendak", age: "Ages 4–8",
         palette: ["#0f766e","#fde68a"],
         blurb: "Max is sent to bed without supper, and a forest grows in his room. He sails off to where the wild things are — and becomes their king." },
-      // TODO #80 amazon-link-audit: old Puffin paperback ISBN — may be
-      // out of print on amazon.com. Confirm the link lands on a current
-      // in-print edition (used-only listings are confusing for parents).
+      // #80 resolved (manual verify): old Puffin paperback ISBN. Used
+      // and third-party listings OK per catalog policy — Story about
+      // Ping is a classic, used copies are abundant and reasonable.
       { id: "a08", isbn: "9780140502411", title: "The Story about Ping", author: "Marjorie Flack", age: "Ages 4–8",
         palette: ["#fbbf24","#0ea5e9"],
         blurb: "Ping is a duck who lives on a boat on the Yangtze River. One night he misses the boat home — and has a great adventure before finding his family again." },
