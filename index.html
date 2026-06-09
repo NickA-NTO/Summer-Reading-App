@@ -4393,6 +4393,13 @@ document.getElementById("readToggle").addEventListener("click", async () => {
     .trim();
   const speakHover = () => {
     if (!ttsOn) return;
+    // When this book is already the kid's active read, the button is
+    // a status badge ("Reading") not a call-to-action. Hovering over
+    // it shouldn't trigger TTS — there's nothing for the kid to do
+    // here. Only speak the label when the button is in its "start"
+    // call-to-action state (a book they haven't claimed yet).
+    const active = state.session?.currentlyReading;
+    if (active && active.bookId === activeBookId) return;
     const now = Date.now();
     if (now - lastHoverAt < HOVER_COOLDOWN_MS) return;
     lastHoverAt = now;
