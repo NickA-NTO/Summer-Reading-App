@@ -1,0 +1,975 @@
+{
+  "generatedAt": "2026-06-09T01:56:21.383Z",
+  "catalogVersion": "V1",
+  "totalBooks": 56,
+  "tiers": {
+    "e": "Beginning Readers (PK)",
+    "k": "Grade K",
+    "a": "Grade 1",
+    "b": "Grade 2",
+    "c": "Grade 3 — Chapter Books",
+    "u": "Usborne Young Reading (K-2 fairy tales)"
+  },
+  "books": [
+    {
+      "id": "a01",
+      "title": "The Tale of Peter Rabbit",
+      "author": "Beatrix Potter",
+      "isbn": "9780723247708",
+      "amazonUrl": "https://www.amazon.com/dp/0723247706",
+      "age": "Ages 4–7",
+      "grade": "1",
+      "wordCount": 900,
+      "quizStyle": "comprehension",
+      "series": null,
+      "genres": [
+        "animals",
+        "adventures",
+        "classics"
+      ],
+      "blurb": "Naughty Peter Rabbit sneaks into Mr. McGregor's garden — and almost doesn't make it home for tea. A timeless tale with beautiful watercolor pictures."
+    },
+    {
+      "id": "a02",
+      "title": "Owl at Home",
+      "author": "Arnold Lobel",
+      "isbn": "9780064440349",
+      "amazonUrl": "https://www.amazon.com/dp/0064440346",
+      "age": "Ages 4–8",
+      "grade": "1",
+      "wordCount": 1800,
+      "quizStyle": "comprehension",
+      "series": null,
+      "genres": [
+        "animals",
+        "feelings"
+      ],
+      "blurb": "Owl invites Winter in for tea, talks to two big bumps under his blanket, and tries to find his upstairs and his downstairs at the same time. Gentle, funny chapter stories."
+    },
+    {
+      "id": "a03",
+      "title": "Frog and Toad Are Friends",
+      "author": "Arnold Lobel",
+      "isbn": "9780064440202",
+      "amazonUrl": "https://www.amazon.com/dp/0064440206",
+      "age": "Ages 4–8",
+      "grade": "1",
+      "wordCount": 1900,
+      "quizStyle": "comprehension",
+      "series": "frog_toad",
+      "genres": [
+        "animals",
+        "feelings"
+      ],
+      "blurb": "Frog and Toad do everything together — even when they disagree about almost everything. Five sweet stories about best friends."
+    },
+    {
+      "id": "a04",
+      "title": "Nate the Great",
+      "author": "Marjorie Weinman Sharmat",
+      "isbn": "9780440461265",
+      "amazonUrl": "https://www.amazon.com/dp/044046126X",
+      "age": "Ages 6–8",
+      "grade": "1",
+      "wordCount": 1200,
+      "quizStyle": "comprehension",
+      "series": null,
+      "genres": [
+        "adventures"
+      ],
+      "blurb": "Nate is a kid detective, and his friend Annie has lost a picture. Time to put on the detective hat — and have some pancakes."
+    },
+    {
+      "id": "a05",
+      "title": "Henry and Mudge: The First Book",
+      "author": "Cynthia Rylant",
+      "isbn": "9780689810046",
+      "amazonUrl": "https://www.amazon.com/dp/0689810040",
+      "age": "Ages 5–7",
+      "grade": "1",
+      "wordCount": 1500,
+      "quizStyle": "comprehension",
+      "series": null,
+      "genres": [
+        "animals",
+        "feelings"
+      ],
+      "blurb": "Henry has no brothers and no sisters, so his parents get him a dog. Mudge grows from 7 pounds to 180 pounds — and becomes Henry's best friend."
+    },
+    {
+      "id": "a06",
+      "title": "The Dot",
+      "author": "Peter H. Reynolds",
+      "isbn": "9780763619619",
+      "amazonUrl": "https://www.amazon.com/dp/0763619612",
+      "age": "Ages 5–8",
+      "grade": "1",
+      "wordCount": 600,
+      "quizStyle": "comprehension",
+      "series": null,
+      "genres": [
+        "feelings"
+      ],
+      "blurb": "Vashti is sure she can't draw. Her teacher says: 'Just make a mark and see where it takes you.' What starts as one tiny dot becomes something amazing."
+    },
+    {
+      "id": "a07",
+      "title": "Where the Wild Things Are",
+      "author": "Maurice Sendak",
+      "isbn": "9780064431781",
+      "amazonUrl": "https://www.amazon.com/dp/0064431789",
+      "age": "Ages 4–8",
+      "grade": "1",
+      "wordCount": 340,
+      "quizStyle": "comprehension",
+      "series": null,
+      "genres": [
+        "adventures",
+        "feelings"
+      ],
+      "blurb": "Max is sent to bed without supper, and a forest grows in his room. He sails off to where the wild things are — and becomes their king."
+    },
+    {
+      "id": "a08",
+      "title": "The Story about Ping",
+      "author": "Marjorie Flack",
+      "isbn": "9780140502411",
+      "amazonUrl": "https://www.amazon.com/dp/0140502416",
+      "age": "Ages 4–8",
+      "grade": "1",
+      "wordCount": 1000,
+      "quizStyle": "comprehension",
+      "series": null,
+      "genres": [
+        "animals",
+        "adventures"
+      ],
+      "blurb": "Ping is a duck who lives on a boat on the Yangtze River. One night he misses the boat home — and has a great adventure before finding his family again."
+    },
+    {
+      "id": "a09",
+      "title": "Corduroy",
+      "author": "Don Freeman",
+      "isbn": "9780140501735",
+      "amazonUrl": "https://www.amazon.com/dp/0140501738",
+      "age": "Ages 3–7",
+      "grade": "1",
+      "wordCount": 750,
+      "quizStyle": "comprehension",
+      "series": null,
+      "genres": [
+        "animals",
+        "feelings"
+      ],
+      "blurb": "Corduroy is a small teddy bear in a big department store. He's been waiting a long time for someone to take him home — and tonight he sets out to find his missing button."
+    },
+    {
+      "id": "a10",
+      "title": "Knuffle Bunny",
+      "author": "Mo Willems",
+      "isbn": "9780786818709",
+      "amazonUrl": "https://www.amazon.com/dp/0786818700",
+      "age": "Ages 3–6",
+      "grade": "1",
+      "wordCount": 290,
+      "quizStyle": "comprehension",
+      "series": null,
+      "genres": [
+        "funny",
+        "feelings"
+      ],
+      "blurb": "Trixie can't talk yet. So when she loses her favorite bunny at the laundromat, telling Daddy what's wrong is the hardest part. A super-funny first adventure."
+    },
+    {
+      "id": "a11",
+      "title": "The Ugly Duckling",
+      "author": "Hans Christian Andersen",
+      "isbn": "9780688159320",
+      "amazonUrl": "https://www.amazon.com/dp/068815932X",
+      "age": "Ages 4–8",
+      "grade": "1",
+      "wordCount": 1500,
+      "quizStyle": "comprehension",
+      "series": null,
+      "genres": [
+        "classics",
+        "feelings",
+        "animals"
+      ],
+      "blurb": "A little duckling doesn't look like the others. He travels through a long winter feeling all alone — until one spring day he discovers exactly who he is."
+    },
+    {
+      "id": "b01",
+      "title": "The True Story of the Three Little Pigs",
+      "author": "Jon Scieszka",
+      "isbn": "9780140544510",
+      "amazonUrl": "https://www.amazon.com/dp/0140544518",
+      "age": "Ages 5–8",
+      "grade": "2",
+      "wordCount": 700,
+      "quizStyle": "comprehension",
+      "series": null,
+      "genres": [
+        "funny",
+        "classics"
+      ],
+      "blurb": "You think you know the story? Well, the wolf says everyone got it wrong. He just had a cold, and was borrowing a cup of sugar. A hilarious retelling."
+    },
+    {
+      "id": "b02",
+      "title": "Owl Moon",
+      "author": "Jane Yolen",
+      "isbn": "9780399214578",
+      "amazonUrl": "https://www.amazon.com/dp/0399214577",
+      "age": "Ages 4–8",
+      "grade": "2",
+      "wordCount": 825,
+      "quizStyle": "comprehension",
+      "series": null,
+      "genres": [
+        "adventures",
+        "feelings"
+      ],
+      "blurb": "Late one winter night, a girl and her father walk through the snowy woods to look for an owl. A quiet, beautiful book that whispers."
+    },
+    {
+      "id": "b03",
+      "title": "The Velveteen Rabbit",
+      "author": "Margery Williams",
+      "isbn": "9780385077255",
+      "amazonUrl": "https://www.amazon.com/dp/0385077254",
+      "age": "Ages 5–9",
+      "grade": "2",
+      "wordCount": 2800,
+      "quizStyle": "comprehension",
+      "series": null,
+      "genres": [
+        "classics",
+        "feelings"
+      ],
+      "blurb": "A toy rabbit longs to be Real. With the love of one little boy and some skin-horse wisdom, he learns what really makes something real."
+    },
+    {
+      "id": "b04",
+      "title": "The Lighthouse Family: The Storm",
+      "author": "Cynthia Rylant",
+      "isbn": "9780439800105",
+      "amazonUrl": "https://www.amazon.com/dp/0439800102",
+      "age": "Ages 6–9",
+      "grade": "2",
+      "wordCount": 5000,
+      "quizStyle": "comprehension",
+      "series": null,
+      "genres": [
+        "adventures",
+        "feelings"
+      ],
+      "blurb": "A cat, a dog, and three little mice live in a lighthouse on the sea. When a storm rolls in, they help a stranded sailor — and a family is born. Series book 1."
+    },
+    {
+      "id": "b05",
+      "title": "Flat Stanley: His Original Adventure",
+      "author": "Jeff Brown",
+      "isbn": "9780062063342",
+      "amazonUrl": "https://www.amazon.com/dp/0062063340",
+      "age": "Ages 6–9",
+      "grade": "2",
+      "wordCount": 6300,
+      "quizStyle": "comprehension",
+      "series": null,
+      "genres": [
+        "funny",
+        "adventures"
+      ],
+      "blurb": "When a bulletin board falls on Stanley, he wakes up flat as a pancake — only half an inch thick. Now he can slide under doors, fly like a kite, and even be mailed in an envelope."
+    },
+    {
+      "id": "b06",
+      "title": "Mercy Watson to the Rescue",
+      "author": "Kate DiCamillo",
+      "isbn": "9780763622701",
+      "amazonUrl": "https://www.amazon.com/dp/0763622702",
+      "age": "Ages 6–8",
+      "grade": "2",
+      "wordCount": 1800,
+      "quizStyle": "comprehension",
+      "series": null,
+      "genres": [
+        "funny",
+        "animals"
+      ],
+      "blurb": "Mercy is a pig who LOVES buttered toast. One night she crawls into her humans' bed, the bed collapses, and a chaotic 'rescue' begins."
+    },
+    {
+      "id": "b07",
+      "title": "Fantastic Mr. Fox",
+      "author": "Roald Dahl",
+      "isbn": "9780142410349",
+      "amazonUrl": "https://www.amazon.com/dp/0142410349",
+      "age": "Ages 7–10",
+      "grade": "2",
+      "wordCount": 10500,
+      "quizStyle": "comprehension",
+      "series": null,
+      "genres": [
+        "adventures",
+        "animals"
+      ],
+      "blurb": "Three nasty farmers are out to catch Mr. Fox. But Mr. Fox is faster, smarter, and has a brilliant plan. A short, thrilling Roald Dahl classic."
+    },
+    {
+      "id": "b08",
+      "title": "Stellaluna",
+      "author": "Janell Cannon",
+      "isbn": "9780942303124",
+      "amazonUrl": "https://www.amazon.com/dp/0942303121",
+      "age": "Ages 5–8",
+      "grade": "2",
+      "wordCount": 1200,
+      "quizStyle": "comprehension",
+      "series": null,
+      "genres": [
+        "animals",
+        "feelings"
+      ],
+      "blurb": "A baby fruit bat falls into a bird's nest and is raised as a bird — until one starry night she discovers who she really is. A heartwarming story about being different and finding family."
+    },
+    {
+      "id": "b09",
+      "title": "The Magic Faraway Tree",
+      "author": "Enid Blyton",
+      "isbn": "9781492679585",
+      "amazonUrl": "https://www.amazon.com/dp/1492679585",
+      "age": "Ages 7–10",
+      "grade": "2",
+      "wordCount": 46000,
+      "quizStyle": "comprehension",
+      "series": null,
+      "genres": [
+        "adventures"
+      ],
+      "blurb": "At the top of a magical tree, a different fantastic land arrives every day. The kids climb up to find Birthday Land, the Land of Topsy-Turvy, the Land of Sweets…"
+    },
+    {
+      "id": "c01",
+      "title": "Magic Tree House #1: Dinosaurs Before Dark",
+      "author": "Mary Pope Osborne",
+      "isbn": "9780679824114",
+      "amazonUrl": "https://www.amazon.com/dp/0679824111",
+      "age": "Ages 6–9",
+      "grade": "3",
+      "wordCount": 6000,
+      "quizStyle": "comprehension",
+      "series": null,
+      "genres": [
+        "adventures",
+        "animals"
+      ],
+      "blurb": "Jack and Annie find a tree house full of books. Open one and POOF — they're in a different time. Their first adventure: back to the age of the dinosaurs."
+    },
+    {
+      "id": "c02",
+      "title": "A to Z Mysteries: The Absent Author",
+      "author": "Ron Roy",
+      "isbn": "9780679881681",
+      "amazonUrl": "https://www.amazon.com/dp/0679881689",
+      "age": "Ages 7–10",
+      "grade": "3",
+      "wordCount": 6500,
+      "quizStyle": "comprehension",
+      "series": null,
+      "genres": [
+        "adventures"
+      ],
+      "blurb": "Dink's favorite author was supposed to come to the bookstore — but he never shows up! Dink and his friends Josh and Ruth Rose follow the clues to find him."
+    },
+    {
+      "id": "c03",
+      "title": "Junie B. Jones and the Stupid Smelly Bus",
+      "author": "Barbara Park",
+      "isbn": "9780679826422",
+      "amazonUrl": "https://www.amazon.com/dp/0679826424",
+      "age": "Ages 6–9",
+      "grade": "3",
+      "wordCount": 6500,
+      "quizStyle": "comprehension",
+      "series": null,
+      "genres": [
+        "funny",
+        "feelings"
+      ],
+      "blurb": "Junie B. is starting kindergarten and is NOT — repeat, NOT — getting on the smelly bus to come home. She has a hilarious plan instead."
+    },
+    {
+      "id": "c04",
+      "title": "The Boxcar Children",
+      "author": "Gertrude Chandler Warner",
+      "isbn": "9780807508527",
+      "amazonUrl": "https://www.amazon.com/dp/0807508527",
+      "age": "Ages 7–10",
+      "grade": "3",
+      "wordCount": 25000,
+      "quizStyle": "comprehension",
+      "series": null,
+      "genres": [
+        "adventures",
+        "classics",
+        "feelings"
+      ],
+      "blurb": "Four orphans — Henry, Jessie, Violet, and Benny — find an old boxcar in the woods and make it their home. Can they take care of each other?"
+    },
+    {
+      "id": "c05",
+      "title": "Charlotte's Web",
+      "author": "E.B. White",
+      "isbn": "9780064400558",
+      "amazonUrl": "https://www.amazon.com/dp/0064400557",
+      "age": "Ages 7–10",
+      "grade": "3",
+      "wordCount": 32000,
+      "quizStyle": "comprehension",
+      "series": null,
+      "genres": [
+        "animals",
+        "classics",
+        "feelings"
+      ],
+      "blurb": "A clever spider named Charlotte writes words in her web to save a friendly pig named Wilbur. A tender story of friendship, life, and goodbye."
+    },
+    {
+      "id": "c06",
+      "title": "Stuart Little",
+      "author": "E.B. White",
+      "isbn": "9780064400565",
+      "amazonUrl": "https://www.amazon.com/dp/0064400565",
+      "age": "Ages 7–10",
+      "grade": "3",
+      "wordCount": 19000,
+      "quizStyle": "comprehension",
+      "series": null,
+      "genres": [
+        "animals",
+        "classics",
+        "adventures"
+      ],
+      "blurb": "Stuart Little is a mouse born to a human family in New York City. He sails toy boats in Central Park, drives a tiny car, and sets off to find his lost friend."
+    },
+    {
+      "id": "c07",
+      "title": "Because of Winn-Dixie",
+      "author": "Kate DiCamillo",
+      "isbn": "9780763644321",
+      "amazonUrl": "https://www.amazon.com/dp/0763644323",
+      "age": "Ages 8–11",
+      "grade": "3",
+      "wordCount": 28000,
+      "quizStyle": "comprehension",
+      "series": null,
+      "genres": [
+        "animals",
+        "feelings",
+        "classics"
+      ],
+      "blurb": "Opal finds a big stray dog in the supermarket and names him Winn-Dixie. He helps her make friends and even helps her understand her family."
+    },
+    {
+      "id": "c08",
+      "title": "Geronimo Stilton: Lost Treasure of the Emerald Eye",
+      "author": "Geronimo Stilton",
+      "isbn": "9781400091201",
+      "amazonUrl": "https://www.amazon.com/dp/1400091209",
+      "age": "Ages 7–10",
+      "grade": "3",
+      "wordCount": 7500,
+      "quizStyle": "comprehension",
+      "series": null,
+      "genres": [
+        "adventures",
+        "funny",
+        "animals"
+      ],
+      "blurb": "Geronimo is a journalist mouse who doesn't really like adventure — but his cousin Trap drags him on a treasure hunt across a tropical island."
+    },
+    {
+      "id": "e01",
+      "title": "We Are in a Book!",
+      "author": "Mo Willems",
+      "isbn": "9781423133087",
+      "amazonUrl": "https://www.amazon.com/dp/1423133080",
+      "age": "Beginning",
+      "grade": "PK",
+      "wordCount": 220,
+      "quizStyle": "emergent",
+      "series": "elephant_piggie",
+      "genres": [
+        "funny",
+        "animals"
+      ],
+      "blurb": "Gerald the elephant and Piggie discover something amazing — they are characters in a BOOK! Will they say the magic word before the story ends?"
+    },
+    {
+      "id": "e02",
+      "title": "I Will Surprise My Friend!",
+      "author": "Mo Willems",
+      "isbn": "9781423109624",
+      "amazonUrl": "https://www.amazon.com/dp/1423109627",
+      "age": "Beginning",
+      "grade": "PK",
+      "wordCount": 200,
+      "quizStyle": "emergent",
+      "series": "elephant_piggie",
+      "genres": [
+        "funny",
+        "animals"
+      ],
+      "blurb": "Piggie wants to surprise Gerald — but Gerald has the same idea! They hide and hide and hide. Will they ever find each other?"
+    },
+    {
+      "id": "e03",
+      "title": "Are You Ready to Play Outside?",
+      "author": "Mo Willems",
+      "isbn": "9781423113478",
+      "amazonUrl": "https://www.amazon.com/dp/1423113470",
+      "age": "Beginning",
+      "grade": "PK",
+      "wordCount": 240,
+      "quizStyle": "emergent",
+      "series": "elephant_piggie",
+      "genres": [
+        "funny",
+        "animals",
+        "feelings"
+      ],
+      "blurb": "Piggie can't WAIT to play outside! Then it starts to rain. Can Gerald and Piggie find a way to have fun anyway?"
+    },
+    {
+      "id": "e04",
+      "title": "There Is a Bird on Your Head!",
+      "author": "Mo Willems",
+      "isbn": "9781423106869",
+      "amazonUrl": "https://www.amazon.com/dp/1423106865",
+      "age": "Beginning",
+      "grade": "PK",
+      "wordCount": 250,
+      "quizStyle": "emergent",
+      "series": "elephant_piggie",
+      "genres": [
+        "funny",
+        "animals"
+      ],
+      "blurb": "Gerald has a bird on his head. Then TWO birds. Then a nest. Then eggs. Then a whole bird family! What's an elephant to do?"
+    },
+    {
+      "id": "e05",
+      "title": "Should I Share My Ice Cream?",
+      "author": "Mo Willems",
+      "isbn": "9781423143437",
+      "amazonUrl": "https://www.amazon.com/dp/1423143434",
+      "age": "Beginning",
+      "grade": "PK",
+      "wordCount": 220,
+      "quizStyle": "emergent",
+      "series": "elephant_piggie",
+      "genres": [
+        "funny",
+        "animals",
+        "feelings"
+      ],
+      "blurb": "Gerald has a yummy ice cream. Should he share it with Piggie? He thinks. And thinks. And thinks…"
+    },
+    {
+      "id": "e06",
+      "title": "Hop on Pop",
+      "author": "Dr. Seuss",
+      "isbn": "9780394800295",
+      "amazonUrl": "https://www.amazon.com/dp/039480029X",
+      "age": "Beginning",
+      "grade": "PK",
+      "wordCount": 348,
+      "quizStyle": "emergent",
+      "series": null,
+      "genres": [
+        "funny",
+        "classics"
+      ],
+      "blurb": "Dr. Seuss's simplest book ever — short rhymes with words you already know. We like to hop. We like to hop on Pop!"
+    },
+    {
+      "id": "e07",
+      "title": "One Fish Two Fish Red Fish Blue Fish",
+      "author": "Dr. Seuss",
+      "isbn": "9780394800134",
+      "amazonUrl": "https://www.amazon.com/dp/0394800133",
+      "age": "Beginning",
+      "grade": "PK",
+      "wordCount": 619,
+      "quizStyle": "emergent",
+      "series": null,
+      "genres": [
+        "funny",
+        "classics",
+        "animals"
+      ],
+      "blurb": "Walking, talking, biking, hiking — meet a wild bunch of creatures in this silly rhyming romp from Dr. Seuss."
+    },
+    {
+      "id": "e08",
+      "title": "Biscuit",
+      "author": "Alyssa Satin Capucilli",
+      "isbn": "9780064442121",
+      "amazonUrl": "https://www.amazon.com/dp/0064442128",
+      "age": "Beginning",
+      "grade": "PK",
+      "wordCount": 240,
+      "quizStyle": "emergent",
+      "series": null,
+      "genres": [
+        "animals",
+        "feelings"
+      ],
+      "blurb": "Biscuit the little yellow puppy just won't go to bed. He wants a snack. He wants water. He wants a hug. What WILL it take?"
+    },
+    {
+      "id": "e09",
+      "title": "Little Bear",
+      "author": "Else Holmelund Minarik",
+      "isbn": "9780064440042",
+      "amazonUrl": "https://www.amazon.com/dp/0064440044",
+      "age": "Beginning",
+      "grade": "PK",
+      "wordCount": 800,
+      "quizStyle": "emergent",
+      "series": null,
+      "genres": [
+        "animals",
+        "classics",
+        "feelings"
+      ],
+      "blurb": "Four cozy stories about a little bear and his mother — a snowsuit, a birthday wish, a trip to the moon (sort of), and a goodnight kiss."
+    },
+    {
+      "id": "e10",
+      "title": "Frog and Toad All Year",
+      "author": "Arnold Lobel",
+      "isbn": "9780064440592",
+      "amazonUrl": "https://www.amazon.com/dp/0064440591",
+      "age": "Beginning",
+      "grade": "PK",
+      "wordCount": 1700,
+      "quizStyle": "emergent",
+      "series": "frog_toad",
+      "genres": [
+        "animals",
+        "classics",
+        "feelings"
+      ],
+      "blurb": "Frog and Toad share five gentle stories through the seasons — sledding, ice cream, a Christmas surprise, and the joy of being friends all year long."
+    },
+    {
+      "id": "e11",
+      "title": "Goose on the Loose",
+      "author": "Phil Roxbee Cox (Usborne)",
+      "isbn": "9780746077207",
+      "amazonUrl": "https://www.amazon.com/dp/0746077203",
+      "age": "Beginning",
+      "grade": "PK",
+      "wordCount": 100,
+      "quizStyle": "emergent",
+      "series": null,
+      "genres": [
+        "funny",
+        "animals",
+        "classics"
+      ],
+      "blurb": "A goose is on the loose! Will the boy with the broom be able to catch her in time? A short rhyming chase through the farm."
+    },
+    {
+      "id": "e12",
+      "title": "Pirate Pat",
+      "author": "Mairi Mackinnon (Usborne)",
+      "isbn": "9781409507031",
+      "amazonUrl": "https://www.amazon.com/dp/1409507033",
+      "age": "Beginning",
+      "grade": "PK",
+      "wordCount": 75,
+      "quizStyle": "emergent",
+      "series": null,
+      "genres": [
+        "adventures",
+        "funny",
+        "classics"
+      ],
+      "blurb": "Pirate Pat sails his little boat across the sea looking for treasure. A short, rhyming Usborne reader with a parrot, a whale, and an island full of gold."
+    },
+    {
+      "id": "k01",
+      "title": "The Very Hungry Caterpillar",
+      "author": "Eric Carle",
+      "isbn": "9780399226908",
+      "amazonUrl": "https://www.amazon.com/dp/0399226907",
+      "age": "Ages 2–5",
+      "grade": "K",
+      "wordCount": 225,
+      "quizStyle": "comprehension",
+      "series": null,
+      "genres": [
+        "animals"
+      ],
+      "blurb": "In the light of the moon, a little egg lay on a leaf. The caterpillar that hatches is very, very hungry — and what he eats next is delicious."
+    },
+    {
+      "id": "k02",
+      "title": "The Cat in the Hat",
+      "author": "Dr. Seuss",
+      "isbn": "9780394800011",
+      "amazonUrl": "https://www.amazon.com/dp/039480001X",
+      "age": "Ages 4–7",
+      "grade": "K",
+      "wordCount": 1629,
+      "quizStyle": "comprehension",
+      "series": null,
+      "genres": [
+        "funny"
+      ],
+      "blurb": "On a cold, wet day, Sally and her brother are stuck inside — until a tall cat in a red striped hat arrives and turns the whole house upside down."
+    },
+    {
+      "id": "k03",
+      "title": "We're Going on a Bear Hunt",
+      "author": "Michael Rosen",
+      "isbn": "9781406377736",
+      "amazonUrl": "https://www.amazon.com/dp/1406377732",
+      "age": "Ages 3–7",
+      "grade": "K",
+      "wordCount": 225,
+      "quizStyle": "comprehension",
+      "series": null,
+      "genres": [
+        "adventures"
+      ],
+      "blurb": "Swishy swashy! Splash splosh! A family stomps, splashes, and squelches through long grass, a river, and mud to find a bear."
+    },
+    {
+      "id": "k04",
+      "title": "Goldilocks and the Three Bears",
+      "author": "James Marshall",
+      "isbn": "9780140563665",
+      "amazonUrl": "https://www.amazon.com/dp/0140563660",
+      "age": "Ages 4–7",
+      "grade": "K",
+      "wordCount": 600,
+      "quizStyle": "comprehension",
+      "series": null,
+      "genres": [
+        "classics"
+      ],
+      "blurb": "A nosy little girl wanders into a bear family's house and tries every chair, every bowl, and every bed. The bears come home with quite a surprise."
+    },
+    {
+      "id": "k05",
+      "title": "Mother Goose's Nursery Rhymes",
+      "author": "Iona Opie (ed.)",
+      "isbn": "9780192721808",
+      "amazonUrl": "https://www.amazon.com/dp/0192721801",
+      "age": "Ages 2–6",
+      "grade": "K",
+      "wordCount": 2000,
+      "quizStyle": "comprehension",
+      "series": null,
+      "genres": [
+        "classics"
+      ],
+      "blurb": "A classic collection of rhymes and verses — from Humpty Dumpty to Jack and Jill — perfect for reading aloud, singing, and learning by heart."
+    },
+    {
+      "id": "k06",
+      "title": "The Gruffalo",
+      "author": "Julia Donaldson",
+      "isbn": "9780142403877",
+      "amazonUrl": "https://www.amazon.com/dp/0142403873",
+      "age": "Ages 3–7",
+      "grade": "K",
+      "wordCount": 750,
+      "quizStyle": "comprehension",
+      "series": null,
+      "genres": [
+        "adventures",
+        "funny"
+      ],
+      "blurb": "A clever little mouse takes a walk through the deep dark wood and meets a fox, an owl, and a snake — and then something far scarier. Or is it?"
+    },
+    {
+      "id": "k07",
+      "title": "If You Give a Mouse a Cookie",
+      "author": "Laura Numeroff",
+      "isbn": "9780060245863",
+      "amazonUrl": "https://www.amazon.com/dp/0060245867",
+      "age": "Ages 4–8",
+      "grade": "K",
+      "wordCount": 290,
+      "quizStyle": "comprehension",
+      "series": null,
+      "genres": [
+        "funny",
+        "animals"
+      ],
+      "blurb": "Give a mouse a cookie, and he'll ask for a glass of milk. Then a straw. Then a napkin. A funny chain of one-thing-leads-to-another."
+    },
+    {
+      "id": "k08",
+      "title": "Green Eggs and Ham",
+      "author": "Dr. Seuss",
+      "isbn": "9780394800165",
+      "amazonUrl": "https://www.amazon.com/dp/0394800168",
+      "age": "Ages 4–7",
+      "grade": "K",
+      "wordCount": 750,
+      "quizStyle": "comprehension",
+      "series": null,
+      "genres": [
+        "funny"
+      ],
+      "blurb": "Sam-I-am will not stop offering green eggs and ham. Not in a house, not with a mouse — but maybe, just maybe, one tiny taste?"
+    },
+    {
+      "id": "u01",
+      "title": "The Enormous Turnip",
+      "author": "Traditional (Usborne)",
+      "isbn": "9780794513764",
+      "amazonUrl": "https://www.amazon.com/dp/079451376X",
+      "age": "Ages 4–6",
+      "grade": "K",
+      "wordCount": 350,
+      "quizStyle": "comprehension",
+      "series": null,
+      "genres": [
+        "animals",
+        "classics"
+      ],
+      "blurb": "An old man plants a turnip seed. It grows enormous — so big that everyone has to pull together to get it out. How many helpers will it take?"
+    },
+    {
+      "id": "u02",
+      "title": "The Gingerbread Man",
+      "author": "Traditional (Usborne)",
+      "isbn": "9780746073360",
+      "amazonUrl": "https://www.amazon.com/dp/0746073364",
+      "age": "Ages 4–6",
+      "grade": "K",
+      "wordCount": 350,
+      "quizStyle": "comprehension",
+      "series": null,
+      "genres": [
+        "funny",
+        "classics",
+        "adventures"
+      ],
+      "blurb": "Run, run, as fast as you can! A freshly baked gingerbread man jumps out of the oven and runs from everyone who tries to catch and eat him."
+    },
+    {
+      "id": "u03",
+      "title": "Chicken Licken",
+      "author": "Traditional (Usborne)",
+      "isbn": "9780794515461",
+      "amazonUrl": "https://www.amazon.com/dp/0794515460",
+      "age": "Ages 4–6",
+      "grade": "K",
+      "wordCount": 400,
+      "quizStyle": "comprehension",
+      "series": null,
+      "genres": [
+        "funny",
+        "animals",
+        "classics"
+      ],
+      "blurb": "An acorn falls on Chicken Licken's head — and she's sure the sky is falling! She gathers her friends to warn the king. But a sly fox has other ideas."
+    },
+    {
+      "id": "u04",
+      "title": "Jack and the Beanstalk",
+      "author": "Traditional (Usborne)",
+      "isbn": "9781409581017",
+      "amazonUrl": "https://www.amazon.com/dp/1409581012",
+      "age": "Ages 5–7",
+      "grade": "1",
+      "wordCount": 700,
+      "quizStyle": "comprehension",
+      "series": null,
+      "genres": [
+        "adventures",
+        "classics"
+      ],
+      "blurb": "Jack trades their cow for magic beans — and overnight a beanstalk grows into the clouds. At the top is a giant's castle full of treasure. And a very large, angry giant."
+    },
+    {
+      "id": "u05",
+      "title": "The Princess and the Pea",
+      "author": "Hans Christian Andersen, illus. Dorothée Duntze",
+      "isbn": "9781558580343",
+      "amazonUrl": "https://www.amazon.com/dp/1558580344",
+      "age": "Ages 5–7",
+      "grade": "1",
+      "wordCount": 500,
+      "quizStyle": "comprehension",
+      "series": null,
+      "genres": [
+        "classics",
+        "feelings"
+      ],
+      "blurb": "A prince searches the world for a real princess. One stormy night a visitor arrives — but can the queen's clever test really tell if she's genuine?"
+    },
+    {
+      "id": "u06",
+      "title": "The Elves and the Shoemaker",
+      "author": "Brothers Grimm (Usborne)",
+      "isbn": "9781474918527",
+      "amazonUrl": "https://www.amazon.com/dp/1474918522",
+      "age": "Ages 5–7",
+      "grade": "1",
+      "wordCount": 650,
+      "quizStyle": "comprehension",
+      "series": null,
+      "genres": [
+        "classics",
+        "feelings"
+      ],
+      "blurb": "A kind shoemaker is too poor to buy leather. Each night a mystery helper secretly finishes the shoes — and business has never been better. Who is it?"
+    },
+    {
+      "id": "u08",
+      "title": "Rapunzel",
+      "author": "Susanna Davidson (Usborne)",
+      "isbn": "9781474941983",
+      "amazonUrl": "https://www.amazon.com/dp/1474941982",
+      "age": "Ages 6–9",
+      "grade": "2",
+      "wordCount": 5500,
+      "quizStyle": "comprehension",
+      "series": null,
+      "genres": [
+        "adventures",
+        "classics",
+        "feelings"
+      ],
+      "blurb": "A baby girl with long golden hair is locked in a tall tower by a wicked witch. One day a prince hears her singing — and a clever escape begins."
+    },
+    {
+      "id": "u09",
+      "title": "Pinocchio",
+      "author": "Carlo Collodi (Usborne)",
+      "isbn": "9780851790985",
+      "amazonUrl": "https://www.amazon.com/dp/0851790984",
+      "age": "Ages 6–9",
+      "grade": "2",
+      "wordCount": 5500,
+      "quizStyle": "comprehension",
+      "series": null,
+      "genres": [
+        "adventures",
+        "classics",
+        "feelings"
+      ],
+      "blurb": "Geppetto carves a wooden puppet who can talk and walk by himself. Pinocchio wants to be a real boy — but first he has to learn what it means to be good."
+    }
+  ]
+}
