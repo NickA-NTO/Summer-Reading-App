@@ -2013,6 +2013,14 @@
         </div>
         <button id="menuAdmin" style="display:none">⚙️ Admin · Users</button>
         <button id="menuRetellLog" style="display:none">🎙️ My retell history</button>
+        <!-- #99 — Admin-only toggle for the kid-side catalog filter.
+             Default "Show all" (current admin behavior). Click to flip
+             to "Hide books without quizzes" so the admin sees the same
+             filtered catalog a kid sees, for spot-checking what's
+             actually visible to non-admin users. -->
+        <button id="menuToggleNoQuizBooks" style="display:none">
+          🙈 Hide books without quizzes
+        </button>
         <button id="menuReplayTour">🎬 Replay intro tour</button>
         <!-- COPPA/GDPR — moved from self-service to admin-approval
              flow. Clicking either button queues a request that an
@@ -3788,13 +3796,25 @@ function renderHero() {
 
 /* ---------- 9. Rows ---------- */
 // Catalog visibility gate: hide books that don't have a shipped
-// question bank from non-admin kids. Admins see everything so they
-// can author + test. If the server didn't send the allowlist (e.g.
+// question bank from non-admin kids. Admins see everything by
+// default so they can author + test, but the avatar menu has a
+// per-device toggle (#99) to hide unshipped books so the admin can
+// spot-check what kids actually see. Preference persisted in
+// localStorage as rs.admin.hideNoQuizBooks ("1" = hide, anything
+// else = show). If the server didn't send the allowlist (e.g.
 // older /api/auth/me response), fall back to allowing all books —
 // matches pre-#91 behavior and avoids hiding the catalog if the
 // field ever disappears.
+function adminWantsToHideNoQuizBooks() {
+  try {
+    return localStorage.getItem("rs.admin.hideNoQuizBooks") === "1";
+  } catch { return false; }
+}
 function bookHasQuiz(bookId) {
-  if (state.session?.isAdmin) return true;
+  const isAdmin = !!state.session?.isAdmin;
+  // Non-admins are ALWAYS filtered. Admins are filtered only when
+  // they've explicitly opted in via the avatar-menu toggle.
+  if (isAdmin && !adminWantsToHideNoQuizBooks()) return true;
   const allow = state.session?.availableQuizBookIds;
   if (!Array.isArray(allow)) return true;
   return allow.includes(String(bookId).toLowerCase());
@@ -6631,6 +6651,38 @@ document.getElementById("menuAdmin").addEventListener("click", (e) => {
   openAdmin();
 });
 
+// #99 — Admin toggle for "hide books without quizzes". Flips the
+// localStorage preference, updates the button's label so the kid
+// can see the current state at a glance, and re-renders the catalog
+// (rows + hero) so the change is immediate. Non-admins never see
+// this button — their view is always filtered.
+function _refreshNoQuizBooksToggleLabel() {
+  const btn = document.getElementById("menuToggleNoQuizBooks");
+  if (!btn) return;
+  btn.textContent = adminWantsToHideNoQuizBooks()
+    ? "👁️ Show books without quizzes"
+    : "🙈 Hide books without quizzes";
+}
+document.getElementById("menuToggleNoQuizBooks")?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  document.getElementById("userMenu").classList.remove("open");
+  const wasHiding = adminWantsToHideNoQuizBooks();
+  try {
+    if (wasHiding) localStorage.removeItem("rs.admin.hideNoQuizBooks");
+    else localStorage.setItem("rs.admin.hideNoQuizBooks", "1");
+  } catch {}
+  _refreshNoQuizBooksToggleLabel();
+  // Re-render the catalog + hero so the change is immediate. Both
+  // call bookHasQuiz internally so flipping the preference flows
+  // through automatically.
+  try { renderHero(); } catch {}
+  try { renderRows(); } catch {}
+});
+// Set the initial label on script load so the first-time menu open
+// reflects the user's existing preference (default: "Hide books…"
+// because the localStorage flag is unset).
+_refreshNoQuizBooksToggleLabel();
+
 // #94 — Retell rubric history (admin only). Opens a list of the
 // admin's own past retell attempts. Each row shows the rubric scores,
 // outcome key, XP breakdown, and expandable transcript so you can
@@ -9273,6 +9325,8 @@ function _retellShowResult(data) {
       document.getElementById("menuAdmin").style.display = "block";
       const retellLogBtn = document.getElementById("menuRetellLog");
       if (retellLogBtn) retellLogBtn.style.display = "block";
+      const toggleNoQuizBtn = document.getElementById("menuToggleNoQuizBooks");
+      if (toggleNoQuizBtn) toggleNoQuizBtn.style.display = "block";
     }
     startApp({
       email: me.email,
