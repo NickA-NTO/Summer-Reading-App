@@ -3298,6 +3298,15 @@ let _ttsSeq = 0;
 // newer speak() call. NEVER rejects — callers can `await speak(...)`
 // without try/catch even when TTS fails. Fire-and-forget callers can
 // just ignore the returned promise (existing behavior preserved).
+// Tracks whether the LAST resolved speak() call actually played
+// audible audio (audio.play() resolved without rejection). The quiz
+// "Hear it" click handler reads this to detect silent failures —
+// if speakQuizQuestion completes but no audio fired, surface a
+// "tap to retry" hint to the kid instead of just restoring the
+// button label and leaving them confused.
+let _ttsAudibleSinceLastReset = false;
+function resetTtsAudibleFlag() { _ttsAudibleSinceLastReset = false; }
+
 async function speak(text, opts = {}) {
   if (!ttsOn && !opts.force) return;
   const t = String(text || "").trim();
@@ -3305,6 +3314,9 @@ async function speak(text, opts = {}) {
 
   cancelSpeech();
   const mySeq = ++_ttsSeq;
+  const startedAt = Date.now();
+  const tag = `[tts#${mySeq}]`;
+  console.log(`${tag} speak start: "${t.slice(0, 60)}${t.length > 60 ? "…" : ""}"`);
   // Per-call AbortController so a later cancelSpeech() can drop the
   // in-flight fetch rather than letting the response land and fire
   // a stale audio start.
@@ -3338,8 +3350,10 @@ async function speak(text, opts = {}) {
       `/api/tts?voice=${encodeURIComponent(voice)}&text=${encodeURIComponent(t)}`,
       { credentials: "same-origin", signal: myAbort.signal }
     );
+    const fetchMs = Date.now() - startedAt;
+    console.log(`${tag} fetch returned in ${fetchMs}ms status=${r.status}`);
     // Bail out if a newer speak() call superseded us during the fetch.
-    if (mySeq !== _ttsSeq) return;
+    if (mySeq !== _ttsSeq) { console.log(`${tag} superseded during fetch`); return; }
     // ALL fallback paths check mySeq first — if a newer speak() fired
     // during this fetch, we MUST NOT start browser TTS for the stale
     // text (otherwise Q1's fallback audio races Q2's primary audio).
@@ -3369,8 +3383,8 @@ async function speak(text, opts = {}) {
       return browserFallback();
     }
     // One more seq check after the json parse — small window but real.
-    if (mySeq !== _ttsSeq) return;
-    console.log(`[tts] voice=${data.voice} cached=${data.cached} → ${data.url.slice(0, 60)}…`);
+    if (mySeq !== _ttsSeq) { console.log(`${tag} superseded after json`); return; }
+    console.log(`${tag} url ok cached=${data.cached} voice=${data.voice}`);
 
     const audio = new Audio(data.url);
     currentTtsAudio = audio;
@@ -3412,17 +3426,24 @@ async function speak(text, opts = {}) {
     });
     try {
       await audio.play();
+      const playMs = Date.now() - startedAt;
+      console.log(`${tag} audio.play() ok (total ${playMs}ms from click to playback)`);
+      // Mark that audio actually started playing. The quiz "Hear it"
+      // click handler checks this flag after speak() resolves to
+      // detect silent failures — if speakQuizQuestion completes but
+      // this flag is false, surface a "tap to retry" hint.
+      _ttsAudibleSinceLastReset = true;
     } catch (err) {
       // Most common: NotAllowedError when the user-gesture window expired
       // during the async fetch above. Browser TTS still works in that case.
-      console.warn(`[tts] audio.play() rejected (${err?.name || "error"}) — falling back to browser`);
+      console.warn(`${tag} audio.play() rejected (${err?.name || "error"}: ${err?.message || ""}) — falling back to browser`);
       if (currentTtsAudio === audio) currentTtsAudio = null;
       if (mySeq !== _ttsSeq) return;
       return browserFallback();
     }
     return donePromise;
   } catch (err) {
-    console.warn("[tts] outer failure — falling back to browser:", err);
+    console.warn(`${tag} outer failure — falling back to browser:`, err?.name || err);
     if (mySeq !== _ttsSeq) return;
     return browserFallback();
   }
@@ -5743,6 +5764,10 @@ function renderQuizQuestion() {
   // (occasionally longer on OpenAI hiccups) and the kid sees nothing
   // happen — they think their click was ignored and click again,
   // which restarts the fetch and worsens the perceived latency.
+  // After speak() resolves we check _ttsAudibleSinceLastReset; if no
+  // audio actually played (autoplay block + browser-synth fallback
+  // also failed) we surface "Tap to retry" instead of restoring the
+  // button silently.
   const speakBtn = document.getElementById("qSpeak");
   const speakIcon = speakBtn.querySelector(".qh-icon");
   const speakLabel = speakBtn.querySelector(".qh-icon + span") || speakBtn.querySelector("span:last-child");
@@ -5755,18 +5780,41 @@ function renderQuizQuestion() {
     speakBtn.classList.add("playing");
     if (speakLabel) speakLabel.textContent = "Loading…";
     if (speakIcon) speakIcon.textContent = "⏳";
+    // Reset the audible-flag so we can tell whether audio fired during
+    // THIS click vs an older speak() call. Then escalate the label to
+    // "Still loading…" at 3s so the kid knows the app didn't freeze.
+    resetTtsAudibleFlag();
+    const stillLoadingTimer = setTimeout(() => {
+      if (document.getElementById("qSpeak") === speakBtn && !_ttsAudibleSinceLastReset) {
+        if (speakLabel) speakLabel.textContent = "Still loading…";
+      }
+    }, 3000);
     try {
       // speakQuizQuestion resolves when BOTH the question and choices
       // audio have finished playing (or got cancelled by a newer call).
       await speakQuizQuestion(q, { force: true });
     } finally {
+      clearTimeout(stillLoadingTimer);
       // Restore button state once narration completes. Guard against a
       // re-render swapping the button out from under us mid-await.
       if (document.getElementById("qSpeak") === speakBtn) {
         speakBtn.disabled = false;
         speakBtn.classList.remove("playing");
-        if (speakLabel) speakLabel.textContent = ORIGINAL_LABEL;
-        if (speakIcon) speakIcon.textContent = ORIGINAL_ICON;
+        if (_ttsAudibleSinceLastReset) {
+          // Audio played at least once — normal restore.
+          if (speakLabel) speakLabel.textContent = ORIGINAL_LABEL;
+          if (speakIcon) speakIcon.textContent = ORIGINAL_ICON;
+        } else {
+          // speak() resolved but no audio actually played (autoplay
+          // block + browser synth fallback also failed). Surface a
+          // clear "tap to retry" so the kid isn't stuck wondering
+          // why nothing happened. Most commonly this clears on a
+          // SECOND click because the gesture is fresh and the audio
+          // is now cached server-side.
+          if (speakLabel) speakLabel.textContent = "Tap to retry";
+          if (speakIcon) speakIcon.textContent = "🔁";
+          console.warn("[tts] speak resolved but no audio fired — showing retry hint");
+        }
       }
     }
   });
