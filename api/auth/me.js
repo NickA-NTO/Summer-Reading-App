@@ -11,8 +11,6 @@ import {
   setInitialGradeIfMissing,
   STARTED_RECENTLY_HOLD_MS,
   STARTED_RECENTLY_HOLD_MS_RULES,
-  exportUserData,
-  deleteUserData,
   createDataRequest,
 } from "../../lib/store.js";
 import { normalizeGrade, stallAlarmDays, estimatedMinutes } from "../../lib/xp.js";
