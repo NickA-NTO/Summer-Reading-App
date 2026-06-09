@@ -42,6 +42,7 @@ import {
   guessGradeFromEmail,
   getReadingSession,
   clearReadingSession,
+  appendRetellLog,
 } from "../lib/store.js";
 import { resolveVisibleTracks, trackForBook } from "../lib/tracks.js";
 import { getBook } from "../lib/books.js";
@@ -804,6 +805,29 @@ async function finalizeAndGrade(res, tutorSession, book) {
   // Clear the reading-session record either way — atomic award succeeded
   // or the kid bottomed out at 0 XP. New session needed for next attempt.
   await clearReadingSession(email, tutorSession.bookId);
+
+  // #94 — persist the retell rubric + transcript so admin can audit
+  // how the kid was graded. Per-user Redis LIST, capped at 50 entries,
+  // 90d TTL. Best-effort: if Redis is down we still return the
+  // response — the log is an admin aid, not a kid-facing feature.
+  try {
+    await appendRetellLog({
+      email,
+      bookId: tutorSession.bookId,
+      bookTitle: book.title || tutorSession.bookId,
+      workingGrade: tutorSession.workingGrade,
+      ageGrade: tutorSession.ageGrade,
+      rubric: grade,
+      transcript: tutorSession.transcript,
+      xpBreakdown: response.xpBreakdown,
+      quizOutcome,
+      retellOutcome,
+      earlyPass: !!tutorSession.earlyPass,
+      held: !!response.held,
+    });
+  } catch (err) {
+    trackError("tutor_retell_log_failed", { err: String(err?.message || err) });
+  }
 
   return json(res, 200, response);
 }

@@ -17,6 +17,7 @@
 
 import { verifySession, parseCookies, isAdmin } from "../../lib/session.js";
 import {
+  listRetellLog,
   listAllUsers,
   getTtsUsage,
   listQuizReports,
@@ -223,6 +224,24 @@ export default async function handler(req, res) {
       hasRedis: !!(process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL),
       hasAnthropic: !!process.env.ANTHROPIC_API_KEY,
       hasPolly: !!(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY),
+    });
+  }
+
+  // ========================= retell-log ==========================
+  // #94 — Per-admin retell rubric history. Returns the calling
+  // admin's own past retell attempts so they can audit fairness.
+  // No email parameter: scope is locked to the authed admin's own
+  // account (matches the "test by being a user" workflow). Each
+  // entry includes the transcript + rubric breakdown + xpBreakdown.
+  // GET /api/admin?action=retell-log[&limit=N]
+  if (action === "retell-log" && req.method === "GET") {
+    const limit = Math.min(50, Math.max(1, Number(url.searchParams.get("limit")) || 25));
+    const result = await listRetellLog(authedEmail, { limit });
+    return json(res, 200, {
+      hasRedis: !!result.hasRedis,
+      count: result.entries.length,
+      entries: result.entries,
+      error: result.error || null,
     });
   }
 

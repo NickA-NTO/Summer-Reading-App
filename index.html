@@ -2012,6 +2012,7 @@
           <div class="e" id="whoEmail">—</div>
         </div>
         <button id="menuAdmin" style="display:none">⚙️ Admin · Users</button>
+        <button id="menuRetellLog" style="display:none">🎙️ My retell history</button>
         <button id="menuReplayTour">🎬 Replay intro tour</button>
         <!-- COPPA/GDPR — moved from self-service to admin-approval
              flow. Clicking either button queues a request that an
@@ -2407,6 +2408,25 @@
       </div>
     </div>
     <div class="lb-body" id="adminBody">
+      <div class="lb-empty">Loading…</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Retell rubric history (#94) ============ -->
+<!-- Admin-only viewer. Lists the calling admin's past retell attempts
+     with the 4-axis rubric, outcome key, XP breakdown, and the full
+     transcript expandable per entry. The point is to QA the grader:
+     read what the kid (admin posing as kid) actually said, compare
+     it to the rubric scores, decide if the grading was fair. -->
+<div class="lb-overlay" id="retellLogOverlay" role="dialog" aria-modal="true">
+  <div class="lb-card" style="max-width:900px;width:100%">
+    <div class="lb-head">
+      <button class="quiz-close" id="retellLogClose" style="top:18px;right:18px" aria-label="Close retell history">✕</button>
+      <h2>🎙️ My Retell History</h2>
+      <p class="lb-sub">Audit how your past retells were graded. 90-day retention, capped at 50 attempts.</p>
+    </div>
+    <div class="lb-body" id="retellLogBody">
       <div class="lb-empty">Loading…</div>
     </div>
   </div>
@@ -3705,11 +3725,15 @@ function renderHero() {
       "c01", "c05",
     ];
     // #39 — filter by visibleTracks so a G3 kid doesn't see a K book.
+    // #91 — also filter by available question bank so the hero CTA
+    // doesn't drop the kid into a book whose quiz would 503.
     const visible = state.session?.visibleTracks;
     const allowed = Array.isArray(visible) ? new Set(visible) : null;
-    const candidates = allowed
-      ? FAVORITES.filter((id) => allowed.has(BOOK_BY_ID[id]?.categoryId))
-      : FAVORITES;
+    const candidates = (
+      allowed
+        ? FAVORITES.filter((id) => allowed.has(BOOK_BY_ID[id]?.categoryId))
+        : FAVORITES.slice()
+    ).filter((id) => bookHasQuiz(id));
     const favorites = candidates.length > 0 ? candidates : FAVORITES;
     const idx = Math.floor((Date.now() / (1000*60*60*6)) % favorites.length);
     featuredBook = BOOK_BY_ID[favorites[idx]];
@@ -3763,6 +3787,19 @@ function renderHero() {
 }
 
 /* ---------- 9. Rows ---------- */
+// Catalog visibility gate: hide books that don't have a shipped
+// question bank from non-admin kids. Admins see everything so they
+// can author + test. If the server didn't send the allowlist (e.g.
+// older /api/auth/me response), fall back to allowing all books —
+// matches pre-#91 behavior and avoids hiding the catalog if the
+// field ever disappears.
+function bookHasQuiz(bookId) {
+  if (state.session?.isAdmin) return true;
+  const allow = state.session?.availableQuizBookIds;
+  if (!Array.isArray(allow)) return true;
+  return allow.includes(String(bookId).toLowerCase());
+}
+
 function effectiveCounts(bookId) {
   const base = state.data.counts[bookId] || { up: 0, down: 0 };
   const mine = state.data.votes[bookId];
@@ -3790,7 +3827,12 @@ function renderRows() {
   const allowed = Array.isArray(visible) ? new Set(visible) : null;
   CATEGORIES.forEach(cat => {
     if (allowed && !allowed.has(cat.id)) return;
-    root.appendChild(buildRow(cat));
+    // #91 — drop books without a shipped question bank for non-admins.
+    // Whole-row suppression when nothing in the row is available, so
+    // a kid never sees an empty "Grade 2" carousel.
+    const books = cat.books.filter((b) => bookHasQuiz(b.id));
+    if (!books.length) return;
+    root.appendChild(buildRow({ ...cat, books }));
   });
 
   // Section divider before browse-by-topic. Polish v3 (Phase 3): calmer
@@ -3808,9 +3850,10 @@ function renderRows() {
     </div>`;
   root.appendChild(divider);
 
-  // Genre rows (each book appears in every matching genre)
+  // Genre rows (each book appears in every matching genre).
+  // #91 — same available-quiz filter as grade rows.
   GENRES.forEach(g => {
-    const books = genreBooks(g.id);
+    const books = genreBooks(g.id).filter((b) => bookHasQuiz(b.id));
     if (!books.length) return;
     root.appendChild(buildRow({ ...g, books }, true /* isRecent treatment — no progress meter */));
   });
@@ -6583,6 +6626,149 @@ document.getElementById("menuAdmin").addEventListener("click", (e) => {
   openAdmin();
 });
 
+// #94 — Retell rubric history (admin only). Opens a list of the
+// admin's own past retell attempts. Each row shows the rubric scores,
+// outcome key, XP breakdown, and expandable transcript so you can
+// validate the grader's verdict against what the kid actually said.
+document.getElementById("menuRetellLog")?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  document.getElementById("userMenu").classList.remove("open");
+  openRetellLog();
+});
+document.getElementById("retellLogClose")?.addEventListener("click", () => {
+  document.getElementById("retellLogOverlay").classList.remove("open");
+  document.body.style.overflow = "";
+});
+// Backdrop click closes (matches admin overlay UX). Only the overlay
+// itself triggers — clicks on the card inside don't bubble through.
+document.getElementById("retellLogOverlay")?.addEventListener("click", (e) => {
+  if (e.target.id === "retellLogOverlay") {
+    document.getElementById("retellLogOverlay").classList.remove("open");
+    document.body.style.overflow = "";
+  }
+});
+
+async function openRetellLog() {
+  const overlay = document.getElementById("retellLogOverlay");
+  const body = document.getElementById("retellLogBody");
+  overlay.classList.add("open");
+  document.body.style.overflow = "hidden";
+  body.innerHTML = `<div class="lb-empty">Loading…</div>`;
+  try {
+    const res = await fetch("/api/admin?action=retell-log", { credentials: "same-origin" });
+    if (res.status === 403) {
+      body.innerHTML = `<div class="lb-empty">Admin only.</div>`;
+      return;
+    }
+    if (!res.ok) {
+      body.innerHTML = `<div class="lb-empty">Couldn't load history.</div>`;
+      return;
+    }
+    const data = await res.json();
+    if (!data.hasRedis) {
+      body.innerHTML = `<div class="lb-empty">
+        <div style="font-size:36px;margin-bottom:10px">🗄️</div>
+        <div style="color:var(--ink);font-weight:600;margin-bottom:6px">Storage not configured</div>
+        <div>Upstash Redis must be set up to record retell attempts.</div>
+      </div>`;
+      return;
+    }
+    renderRetellLog(data.entries || []);
+  } catch {
+    body.innerHTML = `<div class="lb-empty">Couldn't load history.</div>`;
+  }
+}
+
+function renderRetellLog(entries) {
+  const body = document.getElementById("retellLogBody");
+  if (!entries.length) {
+    body.innerHTML = `<div class="lb-empty">
+      <div style="font-size:36px;margin-bottom:10px">🎙️</div>
+      <div style="color:var(--ink);font-weight:600;margin-bottom:6px">No retells recorded yet.</div>
+      <div>Finish a quiz + retell session to populate this list.</div>
+    </div>`;
+    return;
+  }
+
+  // Score-axis helper. Returns one row per axis with color-coded
+  // bullet so 0s leap out vs 2s.
+  const axisLine = (label, val) => {
+    const v = Number.isInteger(val) ? val : null;
+    const dot = v === 2 ? "🟢" : v === 1 ? "🟡" : v === 0 ? "🔴" : "⚪";
+    return `<div>${dot} ${label}: <b>${v ?? "?"}</b> / 2</div>`;
+  };
+
+  body.innerHTML = entries.map((entry, idx) => {
+    const r = entry.rubric || {};
+    const xp = entry.xpBreakdown || {};
+    const sum =
+      (r.retell_quality || 0) + (r.character_recall || 0) +
+      (r.event_recall || 0) + (r.stayed_on_topic || 0);
+    const passLabel = r.overall_pass === true
+      ? `<span style="color:var(--good);font-weight:700">PASS</span>`
+      : r.overall_pass === false
+      ? `<span style="color:var(--bad);font-weight:700">FAIL</span>`
+      : `<span style="color:var(--warm);font-weight:700">HELD</span>`;
+    const date = new Date(entry.ts || 0);
+    const dateStr = date.toLocaleString();
+    const transcript = Array.isArray(entry.transcript) ? entry.transcript : [];
+    const transcriptHtml = transcript.length
+      ? transcript.map((t) => {
+          const role = t.role === "student" || t.role === "kid"
+            ? "👦 Kid"
+            : t.role === "tutor"
+            ? "🧑‍🏫 Tutor"
+            : escapeHtml(String(t.role || "?"));
+          const cls = (t.role === "student" || t.role === "kid")
+            ? "color:#bae6fd"
+            : "color:#e9d5ff";
+          return `<div style="margin:8px 0;${cls}">
+            <div style="font-weight:600;font-size:12px;opacity:0.8">${role}</div>
+            <div style="white-space:pre-wrap">${escapeHtml(String(t.text || ""))}</div>
+          </div>`;
+        }).join("")
+      : `<div style="color:var(--muted)">No transcript captured.</div>`;
+
+    return `
+    <details class="lb-me-card" style="display:block;margin-bottom:10px" ${idx === 0 ? "open" : ""}>
+      <summary style="cursor:pointer;list-style:none;padding:0;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline">
+        <div>
+          <div style="font-weight:700">${escapeHtml(entry.bookTitle || entry.bookId || "(unknown)")}</div>
+          <div style="font-size:12px;color:var(--muted)">${escapeHtml(dateStr)} · grade ${escapeHtml(String(entry.workingGrade || "?"))}${entry.earlyPass ? " · early-pass" : ""}${entry.held ? " · held" : ""}</div>
+        </div>
+        <div style="font-size:13px">
+          ${passLabel} · <b>${sum}</b>/8 · ${escapeHtml(String(xp.outcomeKey || "?"))} · <b>${xp.xp ?? "?"}</b> XP
+        </div>
+      </summary>
+      <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line);display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div>
+          <div style="font-weight:700;color:#a78bfa;margin-bottom:6px">Rubric</div>
+          ${axisLine("retell_quality", r.retell_quality)}
+          ${axisLine("character_recall", r.character_recall)}
+          ${axisLine("event_recall", r.event_recall)}
+          ${axisLine("stayed_on_topic", r.stayed_on_topic)}
+          <div style="margin-top:6px">total: <b>${sum}</b> / 8</div>
+          <div>pass threshold ≥ 5/8 · clear-pass ≥ 6/8</div>
+          ${r.feedback ? `<div style="margin-top:8px;font-size:12px;color:var(--muted)">"${escapeHtml(String(r.feedback))}"</div>` : ""}
+        </div>
+        <div>
+          <div style="font-weight:700;color:#a78bfa;margin-bottom:6px">XP breakdown</div>
+          <div>quiz outcome: <b>${escapeHtml(String(entry.quizOutcome || "?"))}</b></div>
+          <div>retell outcome: <b>${escapeHtml(String(entry.retellOutcome || "?"))}</b></div>
+          <div>outcome key: <b>${escapeHtml(String(xp.outcomeKey || "?"))}</b></div>
+          <div>ratio: <b>${xp.ratio ?? "?"}×</b></div>
+          <div style="margin-top:6px">read ${Number(xp.readingMin || 0).toFixed(1)}m + quiz ${xp.quizMin ?? "?"}m + retell ${xp.retellMin ?? "?"}m</div>
+          <div>= ${Number(xp.totalMin || 0).toFixed(1)}m → <b>${xp.xp ?? "?"} XP</b></div>
+        </div>
+      </div>
+      <div style="margin-top:14px;padding-top:10px;border-top:1px solid var(--line)">
+        <div style="font-weight:700;color:#a78bfa;margin-bottom:6px">Transcript</div>
+        ${transcriptHtml}
+      </div>
+    </details>`;
+  }).join("");
+}
+
 // Replay intro tour — for kids who skipped it, admins doing QA, or
 // anyone who just wants to see it again. Re-runs the same flow that
 // the first-run logic does. finishOnboarding() at the end re-marks
@@ -8817,11 +9003,55 @@ async function _retellUploadTurn(blob) {
       atMs: Date.now(),
       message: String(err?.message || err),
     };
+    // Stash the audio so the kid can re-upload it via "Try again"
+    // without re-recording. Their voice is already captured — only
+    // the server round-trip broke.
+    retell.lastFailedBlob = blob;
     console.error("[retell] turn upload failed", retell.lastTurnError);
-    retell.statusEl.textContent = wasTimeout
-      ? "The reading buddy is taking too long — tap × to close and try again later."
-      : "Hmm, that didn't work. Tap × to close and try again later.";
+    const msgLine = wasTimeout
+      ? "The reading buddy took too long to answer."
+      : "Hmm, that didn't work.";
+    // Show inline "Try again" button. Re-uploads the same audio
+    // blob; success continues the session normally with NO penalty
+    // (this attempt isn't counted as a failure — the turn just
+    // didn't reach the server). On second failure, give the kid an
+    // escape hatch to close cleanly.
+    retell.statusEl.innerHTML =
+      `<div style="margin-bottom:10px">${msgLine}</div>` +
+      `<button id="retellRetryBtn" type="button" style="` +
+        `background:linear-gradient(135deg,#34d399,#10b981);color:#052e1c;` +
+        `border:none;border-radius:12px;padding:10px 18px;font-weight:800;` +
+        `font-size:14px;cursor:pointer;font-family:inherit;margin-right:8px">` +
+        `🔄 Try again` +
+      `</button>` +
+      `<button id="retellGiveUpBtn" type="button" style="` +
+        `background:var(--panel);color:var(--ink);border:1px solid var(--line);` +
+        `border-radius:12px;padding:10px 18px;font-weight:600;font-size:13px;` +
+        `cursor:pointer;font-family:inherit">` +
+        `Skip retell` +
+      `</button>`;
     _retellSetState("idle");
+    // Wire up the buttons. Retry re-uploads the same blob; Skip
+    // calls the tech-fault close path which finalizes with retell
+    // = fail (kid keeps quiz XP, loses retell bonus).
+    const retryEl = document.getElementById("retellRetryBtn");
+    const giveUpEl = document.getElementById("retellGiveUpBtn");
+    if (retryEl) {
+      retryEl.addEventListener("click", async () => {
+        if (!retell.lastFailedBlob) return;
+        retryEl.disabled = true;
+        giveUpEl && (giveUpEl.disabled = true);
+        retell.statusEl.textContent = "Trying again…";
+        _retellSetState("thinking");
+        const blobToResend = retell.lastFailedBlob;
+        retell.lastFailedBlob = null;
+        retell.lastTurnError = null;
+        await _retellUploadTurn(blobToResend);
+      });
+    }
+    if (giveUpEl) {
+      giveUpEl.addEventListener("click", () => closeRetell());
+    }
     return;
   }
   clearTimeout(timeoutId);
@@ -8987,6 +9217,8 @@ function _retellShowResult(data) {
     }
     if (me.isAdmin) {
       document.getElementById("menuAdmin").style.display = "block";
+      const retellLogBtn = document.getElementById("menuRetellLog");
+      if (retellLogBtn) retellLogBtn.style.display = "block";
     }
     startApp({
       email: me.email,
@@ -9021,6 +9253,13 @@ function _retellShowResult(data) {
       // seeing the old broken questions from their localStorage
       // even though the server has fresh ones.
       quizSchemaVersion: Number(me.quizSchemaVersion) || null,
+      // List of bookIds with a shipped question bank under
+      // docs/book-questions/. Non-admins only see these in the
+      // catalog (avoids opening a book whose quiz would 503). Admins
+      // see everything regardless.
+      availableQuizBookIds: Array.isArray(me.availableQuizBookIds)
+        ? me.availableQuizBookIds
+        : null,
     });
 
     // First-run onboarding: voice picker → spotlight tour. Only shows

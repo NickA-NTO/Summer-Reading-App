@@ -137,6 +137,15 @@ function getStaticQuestionBank(bookId) {
   return BOOK_QUESTION_BANKS.get(String(bookId).toLowerCase()) || null;
 }
 
+// Exported so api/auth/me.js can surface the list of books with
+// shipped question banks to the client. Non-admin catalog renders
+// filter out books not present here (so a kid never opens a book
+// modal whose "Take quiz" button would 503 with no_quiz_questions).
+// Admins always see the full catalog regardless of bank state.
+export function getAvailableQuestionBookIds() {
+  return Array.from(BOOK_QUESTION_BANKS.keys()).sort();
+}
+
 // Canonical book metadata for quiz generation. The .md summary under
 // docs/book-summaries/ is the source of truth for plot content; this
 // map is just the metadata index — title, author, grade band,

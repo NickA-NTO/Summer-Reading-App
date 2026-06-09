@@ -17,7 +17,7 @@ import { normalizeGrade, stallAlarmDays, estimatedMinutes } from "../../lib/xp.j
 import { resolveVisibleTracks, TRACK_ORDER, trackForBook } from "../../lib/tracks.js";
 import { getBook } from "../../lib/books.js";
 import { ACHIEVEMENTS } from "../../lib/achievements.js";
-import { QUIZ_SCHEMA_VERSION } from "../quiz.js";
+import { QUIZ_SCHEMA_VERSION, getAvailableQuestionBookIds } from "../quiz.js";
 
 // Load the user's profile row from Redis (returns null on miss or error).
 async function loadProfile(email) {
@@ -259,6 +259,12 @@ export default async function handler(req, res) {
       // seeing the old (buggy) questions baked into localStorage even
       // though the server has fresh, corrected ones ready to ship.
       quizSchemaVersion: QUIZ_SCHEMA_VERSION,
+      // List of bookIds that have a shipped question bank under
+      // docs/book-questions/*.json. Non-admin catalog renders filter
+      // out books not in this set so a kid never opens a modal whose
+      // "Take quiz" button would 503 with no_quiz_questions. Admins
+      // see everything regardless (so they can author/test).
+      availableQuizBookIds: getAvailableQuestionBookIds(),
       // Onboarding state (#17) — client uses these to decide whether to
       // show the first-run voice picker + spotlight tour. tourCompleted=true
       // suppresses it forever (admin can reset via the admin endpoint).

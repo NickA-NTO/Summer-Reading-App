@@ -53,6 +53,31 @@ node scripts/qc-quiz.js --book e07 --llm
 Exit code 0 = pass. Non-zero = fail with per-question issues
 printed. Don't commit a bank that doesn't pass.
 
+## build-missing-banks.js — batch driver
+
+Generates banks for EVERY book that has a summary but no JSON yet.
+For each missing bookId: runs `author-quiz.js`, then `qc-quiz.js --llm`.
+Stops on the first QC failure so you can inspect before more credits
+are spent.
+
+```bash
+# All missing books (cost: ~$0.30 each — read the cost line it prints)
+ANTHROPIC_API_KEY=sk-ant-... node scripts/build-missing-banks.js
+
+# Specific books only
+ANTHROPIC_API_KEY=sk-ant-... node scripts/build-missing-banks.js --only a01,a02,a03
+
+# Skip the QC second-opinion (deterministic checks still run in
+# author-quiz output validation; useful if you're iterating fast)
+ANTHROPIC_API_KEY=sk-ant-... node scripts/build-missing-banks.js --skip-qc
+```
+
+After the script finishes you STILL have to:
+1. Open each new `docs/book-questions/<id>.json`
+2. Read every question yourself
+3. Bump the `version` field if you re-author
+4. `git add docs/book-questions/ && git commit && git push`
+
 ## Recommended workflow per book
 
 ```bash
