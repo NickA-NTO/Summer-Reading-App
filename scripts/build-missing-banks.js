@@ -81,53 +81,77 @@ const results = { passed: [], qcFailed: [], authorFailed: [] };
 // problem is structural and a human needs to look.
 const MAX_RETRIES = Number.isFinite(Number(args.retries)) ? Number(args.retries) : 2;
 
-// Run author-quiz, optionally with --fix-issues feedback from a
-// prior QC failure. Streams output to console so the user sees it
-// live. Returns { ok: boolean }.
-function runAuthor(bookId, fixIssues) {
-  const argv = ["scripts/author-quiz.js", "--book", bookId, "--overwrite"];
-  if (fixIssues) argv.push("--fix-issues", fixIssues);
-  const r = spawnSync("node", argv, { stdio: "inherit", env: process.env });
+// Run author-quiz for an INITIAL bank. The regenerate loop uses the
+// per-question regen-question.js script — see runRegenQuestion below.
+function runAuthor(bookId) {
+  const r = spawnSync(
+    "node",
+    ["scripts/author-quiz.js", "--book", bookId, "--overwrite"],
+    { stdio: "inherit", env: process.env }
+  );
   return { ok: r.status === 0 };
 }
 
-// Run qc-quiz with --llm. Capture stdout so we can both display it
-// AND parse out the issue lines for the regenerate-on-fail loop. We
-// stream the captured output to console at the end so the user sees
-// the same QC report they'd see from a manual run.
+// Run regen-question.js for ONE failing question. Targeted fix —
+// preserves the 11 passing questions, only replaces this one.
+// Returns { ok: boolean }.
+function runRegenQuestion(bookId, qIndex, issuesText) {
+  const r = spawnSync(
+    "node",
+    [
+      "scripts/regen-question.js",
+      "--book", bookId,
+      "--index", String(qIndex),
+      "--issues", issuesText,
+    ],
+    { stdio: "inherit", env: process.env }
+  );
+  return { ok: r.status === 0 };
+}
+
+// Run qc-quiz with --llm + --min-passing 12. Tolerant mode: when at
+// least 12 questions pass all checks, qc-quiz trims the file to keep
+// only the passing ones and exits 0. Only when fewer than 12 pass do
+// we fall back to the per-question regen loop. This is the "ask for
+// 15, ship the best 12+" pipeline.
+//
+// Captures stdout so we can both display it AND parse out
+// per-question issues for the surgical regenerate loop on failure.
+// Returns { ok, perQuestionIssues: { [qIndex]: ["issue1", ...] } }.
+//
+// qIndex is 0-based to match how regen-question.js consumes it. The
+// QC agent prints "Q1:" as the first question, which is index 0.
 function runQc(bookId) {
   const r = spawnSync(
     "node",
-    ["scripts/qc-quiz.js", "--book", bookId, "--llm"],
+    ["scripts/qc-quiz.js", "--book", bookId, "--llm", "--min-passing", "12"],
     { stdio: ["ignore", "pipe", "pipe"], env: process.env, encoding: "utf-8" }
   );
   const combined = (r.stdout || "") + (r.stderr || "");
   process.stdout.write(combined);
-  // Parse the failure lines. The QC agent prints failed questions as
-  // `  ✗ Q{n}: {text}` followed by `      → {issue}` lines. We collect
-  // both so the author retry sees the full context.
-  const issues = [];
-  let currentBlock = null;
+
+  const perQuestionIssues = {};
+  let currentIdx = null;
   for (const line of combined.split(/\r?\n/)) {
-    const qMatch = line.match(/^\s*✗\s+(Q\d+:\s*.+)/);
+    const qMatch = line.match(/^\s*✗\s+Q(\d+):\s*(.+)/);
     if (qMatch) {
-      currentBlock = `- ${qMatch[1].trim()}`;
-      issues.push(currentBlock);
+      currentIdx = Number(qMatch[1]) - 1; // 1-based in output → 0-based here
+      if (!perQuestionIssues[currentIdx]) perQuestionIssues[currentIdx] = [];
       continue;
     }
     const issueMatch = line.match(/^\s*→\s+(.+)/);
-    if (issueMatch && currentBlock !== null) {
-      issues.push(`    • ${issueMatch[1].trim()}`);
+    if (issueMatch && currentIdx !== null) {
+      perQuestionIssues[currentIdx].push(issueMatch[1].trim());
     }
   }
-  return { ok: r.status === 0, issues: issues.join("\n") };
+  return { ok: r.status === 0, perQuestionIssues };
 }
 
 for (const bookId of targets) {
   console.log(`\n=== ${bookId} ===`);
 
-  // Initial author pass — no prior issues to fix.
-  let author = runAuthor(bookId, null);
+  // Initial author pass — generates the full 12-question bank.
+  const author = runAuthor(bookId);
   if (!author.ok) {
     results.authorFailed.push(bookId);
     console.error(`[build-missing-banks] author-quiz failed for ${bookId}.`);
@@ -142,21 +166,38 @@ for (const bookId of targets) {
     continue;
   }
 
-  // QC + regenerate loop. On each failure, feed the issues back to
-  // author-quiz via --fix-issues and re-run QC. Cap at MAX_RETRIES.
+  // QC + SURGICAL regenerate loop. On QC failure, we re-generate only
+  // the FAILED questions (preserving the passing ones). The previous
+  // whole-bank --fix-issues pass burnt passing questions on every
+  // retry; per-question fixes converge much faster because each retry
+  // touches strictly less code.
   let attempt = 0;
   let qc = runQc(bookId);
   while (!qc.ok && attempt < MAX_RETRIES) {
     attempt++;
+    const failedIndices = Object.keys(qc.perQuestionIssues)
+      .map(Number)
+      .sort((a, b) => a - b);
     console.log(
       `[build-missing-banks] ${bookId} failed QC (attempt ${attempt}/${MAX_RETRIES + 1}). ` +
-        `Regenerating with feedback…`
+        `Regenerating ${failedIndices.length} question(s): Q${failedIndices.map((i) => i + 1).join(", Q")}`
     );
-    const fixed = runAuthor(bookId, qc.issues);
-    if (!fixed.ok) {
-      console.error(`[build-missing-banks] regenerate-pass author call failed for ${bookId}.`);
-      break;
+
+    // Regenerate each failed question one-by-one so each call sees
+    // the LATEST state of the bank (including questions just fixed
+    // earlier in this loop). Keeps the "don't duplicate other
+    // questions" check honest across the batch.
+    let allFixed = true;
+    for (const qIdx of failedIndices) {
+      const issuesText = qc.perQuestionIssues[qIdx].join("; ");
+      const r = runRegenQuestion(bookId, qIdx, issuesText);
+      if (!r.ok) {
+        console.error(`[build-missing-banks] regen failed for ${bookId} Q${qIdx + 1}.`);
+        allFixed = false;
+        break;
+      }
     }
+    if (!allFixed) break;
     qc = runQc(bookId);
   }
 

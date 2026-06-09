@@ -23,6 +23,18 @@ if (!args.book) {
 }
 const bookId = String(args.book).toLowerCase();
 const runLlm = !!args.llm;
+// --min-passing N: tolerant mode. When set, qc-quiz exits 0 if at
+// least N questions pass ALL checks (deterministic + LLM if --llm).
+// On success, the JSON is rewritten to keep ONLY the passing
+// questions (capped at MAX_KEEP) so the deployed bank doesn't
+// include flagged content. Without this flag, qc-quiz behaves as
+// before: ANY failure = exit 1, file untouched. Used by the
+// build-missing-banks driver to avoid the "regen breaks a passing
+// question" cycle — generate 15, keep the best 12+.
+const minPassing = args["min-passing"] != null
+  ? Number(args["min-passing"])
+  : null;
+const MAX_KEEP = 15;
 
 const ROOT = process.cwd();
 const SUMMARIES_DIR = path.join(ROOT, "docs", "book-summaries");
@@ -208,18 +220,31 @@ function checkQuestion(q, idx, summary) {
   // (4) SELF-REFERENTIAL DISTRACTORS — distractors must not use the
   // question's subject noun as their main noun.
   //
-  // We exclude proper nouns (the protagonist's name and other named
-  // entities that appear capitalized in the question or summary).
-  // "Who carries Ping?" with distractor "He gives Ping to another
-  // family" overlaps on "Ping" but that's the story's subject, not a
-  // self-referential failure. The genuine self-ref pattern is shared
-  // COMMON nouns: "What do some fish have?" / "A little fish."
+  // We exclude proper nouns from BOTH sides of the comparison:
+  //   • Protagonist names from the stem + summary (Ping, Vashti, Max)
+  //   • Proper-noun-as-distractor (the distractor IS a name, like
+  //     "Teddy" or "Mr. Rabbit" as an answer to "What's the bear's
+  //     name?"). When a distractor is itself a proper noun, any
+  //     overlap with the stem's common noun ("teddy bear" → "Teddy")
+  //     isn't a logical fish-has-a-fish failure — it's the distractor
+  //     proposing an alternative NAME.
   const stemProperNouns = extractProperNounsFromText(qText);
   const properNouns = new Set([...stemProperNouns, ...SUMMARY_PROPER_NOUNS]);
   const qNouns = new Set(qWords.filter((w) => !properNouns.has(w)));
   for (let i = 0; i < q.options.length; i++) {
     if (i === q.answer) continue;
-    const optNouns = contentWords(q.options[i]).filter((w) => !properNouns.has(w));
+    const distractorText = String(q.options[i]);
+    // Extract proper nouns FROM THE DISTRACTOR ITSELF. A distractor
+    // like "Teddy" or "Mr. Rabbit" has every word capitalized — those
+    // ARE the proper-noun answers. Use a looser rule than
+    // extractProperNounsFromText (which skips sentence-initial caps):
+    // any capitalized word in the distractor is a name candidate.
+    const distractorProperNouns = new Set(
+      (distractorText.match(/\b[A-Z][a-zA-Z]+\b/g) || []).map((w) => w.toLowerCase())
+    );
+    const optNouns = contentWords(distractorText).filter(
+      (w) => !properNouns.has(w) && !distractorProperNouns.has(w)
+    );
     const overlap = optNouns.find((w) => qNouns.has(w));
     if (overlap) {
       issues.push(
@@ -309,14 +334,48 @@ for (const p of perQuestion) {
   }
 }
 
-if (totalIssues > 0) {
+// Schema issues (missing fields, count < 6, etc.) are fatal even in
+// --min-passing tolerant mode. They mean the file isn't valid at all,
+// not just that some questions failed quality checks.
+if (schemaIssues.length > 0) {
+  console.log(`\n[qc-quiz] FAILED — ${schemaIssues.length} schema issue(s). File is structurally invalid.`);
+  process.exit(1);
+}
+
+if (totalIssues > 0 && minPassing == null) {
+  // Strict mode (default): any failure = exit 1, leave file untouched.
   console.log(`\n[qc-quiz] FAILED — ${totalIssues} issue(s) found. Fix the JSON and re-run.`);
   process.exit(1);
 }
 
-console.log(`\n[qc-quiz] all deterministic checks passed.`);
+if (totalIssues > 0 && minPassing != null) {
+  // Tolerant mode: check that enough questions pass deterministic
+  // checks before spending the LLM call. If we're already below
+  // minPassing on the cheap deterministic checks, bail early.
+  if (cleanCount < minPassing) {
+    console.log(
+      `\n[qc-quiz] FAILED — only ${cleanCount}/${perQuestion.length} pass ` +
+        `deterministic checks, need ${minPassing}.`
+    );
+    process.exit(1);
+  }
+  console.log(
+    `\n[qc-quiz] ${cleanCount}/${perQuestion.length} pass deterministic checks ` +
+      `(min ${minPassing} required). Proceeding to LLM review.`
+  );
+}
+
+if (totalIssues === 0) {
+  console.log(`\n[qc-quiz] all deterministic checks passed.`);
+}
 
 if (!runLlm) {
+  // No LLM pass requested. If we're in tolerant mode and have enough
+  // passing questions, trim + write here. Otherwise just exit clean
+  // (strict mode + no issues = success).
+  if (minPassing != null && totalIssues > 0) {
+    trimAndWriteBank(perQuestion, /* llmReviews */ null);
+  }
   console.log(`[qc-quiz] (skip --llm for second-opinion review — pass --llm to enable)`);
   process.exit(0);
 }
@@ -364,32 +423,75 @@ ${bank.questions
   .join("\n\n")}`;
 
 console.log(`\n[qc-quiz] running LLM review pass (~30s)…`);
-const r = await client.messages.create({
-  model: "claude-opus-4-5",
-  max_tokens: 2000,
-  messages: [{ role: "user", content: REVIEW_PROMPT }],
-});
-const txt = r.content.filter((b) => b.type === "text").map((b) => b.text).join("");
-const json = txt.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "").trim();
-let reviewed;
-try { reviewed = JSON.parse(json); } catch (e) {
-  console.error("[qc-quiz] LLM returned non-JSON:", txt);
-  process.exit(1);
-}
-const flagged = (reviewed.reviews || []).filter((r) => r.verdict === 0);
-console.log(
-  `\nLLM REVIEW: ${(reviewed.reviews || []).length - flagged.length}/${(reviewed.reviews || []).length} questions accepted`
-);
-for (const r of reviewed.reviews || []) {
-  if (r.verdict === 0) {
-    console.log(`  ✗ Q${r.idx + 1}: ${r.issue}`);
+// IMPORTANT — IIFE wrapper instead of bare top-level await + process.exit.
+// The Anthropic SDK's fetch agent keeps a libuv handle in CLOSING state
+// after the API call returns; calling process.exit() at that point hits
+// a UV_HANDLE_CLOSING assertion on Windows and the process aborts with
+// exit code 127 (not 0 or 1). That confused the build driver: a clean
+// trim+PASSED gave 127 → driver thought QC failed → kept regenerating
+// questions that were already passing. Setting process.exitCode and
+// returning lets Node drain the event loop naturally before exit.
+await (async () => {
+  const r = await client.messages.create({
+    model: "claude-opus-4-5",
+    max_tokens: 2000,
+    messages: [{ role: "user", content: REVIEW_PROMPT }],
+  });
+  const txt = r.content.filter((b) => b.type === "text").map((b) => b.text).join("");
+  const json = txt.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "").trim();
+  let reviewed;
+  try { reviewed = JSON.parse(json); } catch (e) {
+    console.error("[qc-quiz] LLM returned non-JSON:", txt);
+    process.exitCode = 1;
+    return;
   }
-}
-if (flagged.length > 0) {
-  console.log(`\n[qc-quiz] LLM REVIEW FAILED — ${flagged.length} question(s) flagged.`);
-  process.exit(1);
-}
-console.log(`\n[qc-quiz] ALL CHECKS PASSED. Bank is ready to commit.`);
+  const flagged = (reviewed.reviews || []).filter((r) => r.verdict === 0);
+  console.log(
+    `\nLLM REVIEW: ${(reviewed.reviews || []).length - flagged.length}/${(reviewed.reviews || []).length} questions accepted`
+  );
+  for (const r of reviewed.reviews || []) {
+    if (r.verdict === 0) {
+      console.log(`  ✗ Q${r.idx + 1}: ${r.issue}`);
+    }
+  }
+  if (flagged.length > 0 && minPassing == null) {
+    // Strict mode — any LLM flag = exit 1.
+    console.log(`\n[qc-quiz] LLM REVIEW FAILED — ${flagged.length} question(s) flagged.`);
+    process.exitCode = 1;
+    return;
+  }
+
+  if (minPassing != null) {
+    // Tolerant mode — count combined (deterministic + LLM) passing
+    // questions. If at least minPassing pass both, trim + succeed.
+    const llmAccepted = new Set(
+      (reviewed.reviews || [])
+        .filter((rr) => rr.verdict === 1)
+        .map((rr) => rr.idx)
+    );
+    const combinedPassing = perQuestion.filter(
+      (p) => p.issues.length === 0 && llmAccepted.has(p.idx)
+    );
+    if (combinedPassing.length < minPassing) {
+      console.log(
+        `\n[qc-quiz] FAILED — ${combinedPassing.length}/${perQuestion.length} pass ` +
+          `BOTH deterministic + LLM, need ${minPassing}.`
+      );
+      process.exitCode = 1;
+      return;
+    }
+    trimAndWriteBank(perQuestion, reviewed);
+    console.log(
+      `\n[qc-quiz] PASSED — kept ${combinedPassing.length} clean questions ` +
+        `(of ${perQuestion.length}; dropped ${perQuestion.length - combinedPassing.length}).`
+    );
+    process.exitCode = 0;
+    return;
+  }
+
+  console.log(`\n[qc-quiz] ALL CHECKS PASSED. Bank is ready to commit.`);
+  process.exitCode = 0;
+})();
 
 function parseArgs(argv) {
   const out = {};
@@ -408,4 +510,33 @@ function parseArgs(argv) {
 function truncate(s, n) {
   s = String(s || "");
   return s.length > n ? s.slice(0, n - 1) + "…" : s;
+}
+
+// --min-passing helper: rewrite the bank file keeping only questions
+// that passed BOTH deterministic AND LLM checks. Cap at MAX_KEEP.
+// Original question ORDER is preserved (so the bank doesn't shuffle
+// unnecessarily). When llmReviews is null, deterministic-only mode.
+function trimAndWriteBank(perQ, llmReviews) {
+  const llmAccepted = llmReviews
+    ? new Set(
+        (llmReviews.reviews || [])
+          .filter((rr) => rr.verdict === 1)
+          .map((rr) => rr.idx)
+      )
+    : null;
+  const passingIndices = perQ
+    .filter((p) => p.issues.length === 0 && (llmAccepted === null || llmAccepted.has(p.idx)))
+    .map((p) => p.idx);
+  const trimmed = passingIndices
+    .slice(0, MAX_KEEP)
+    .map((idx) => bank.questions[idx]);
+  bank.questions = trimmed;
+  // Bump the version field automatically so the client-side bank
+  // cache busts when a kid loads a re-trimmed bank from disk.
+  bank.version = (Number(bank.version) || 1) + 1;
+  fs.writeFileSync(jsonFile, JSON.stringify(bank, null, 2) + "\n", "utf-8");
+  console.log(
+    `[qc-quiz] trimmed bank: kept ${trimmed.length} of ${perQ.length} questions, ` +
+      `wrote ${jsonFile} (version ${bank.version})`
+  );
 }

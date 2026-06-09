@@ -264,11 +264,6 @@ export const QUIZ_BOOKS = {
     author: "James Marshall",
     grade: "K",
   },
-  k05: {
-    title: "Mother Goose's Nursery Rhymes",
-    author: "Iona Opie (ed.)",
-    grade: "K",
-  },
   k06: {
     title: "The Gruffalo",
     author: "Julia Donaldson",

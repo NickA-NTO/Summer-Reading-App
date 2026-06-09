@@ -766,22 +766,6 @@
       "blurb": "A nosy little girl wanders into a bear family's house and tries every chair, every bowl, and every bed. The bears come home with quite a surprise."
     },
     {
-      "id": "k05",
-      "title": "Mother Goose's Nursery Rhymes",
-      "author": "Iona Opie (ed.)",
-      "isbn": "9780192721808",
-      "amazonUrl": "https://www.amazon.com/dp/0192721801",
-      "age": "Ages 2–6",
-      "grade": "K",
-      "wordCount": 2000,
-      "quizStyle": "comprehension",
-      "series": null,
-      "genres": [
-        "classics"
-      ],
-      "blurb": "A classic collection of rhymes and verses — from Humpty Dumpty to Jack and Jill — perfect for reading aloud, singing, and learning by heart."
-    },
-    {
       "id": "k06",
       "title": "The Gruffalo",
       "author": "Julia Donaldson",

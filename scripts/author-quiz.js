@@ -100,15 +100,61 @@ RULES (the QC checklist):
 
 6. OPTION PARALLELISM — All 4 options must share the same grammatical
    form: same determiner (all "A" / all "The" / all bare nouns / all
-   possessive), same number, same part-of-speech pattern.
+   possessive), same number, same part-of-speech pattern. ALL FOUR
+   OPTIONS MUST START WITH THE SAME WORD-TYPE.
      BAD:  ["A wagon", "A scooter", "A car", "His bike"]
-           (3-vs-1 determiner split telegraphs "His bike")
+           (3-vs-1 determiner split: 3 options start with "A", 1 with
+           "His". The kid spots the odd-one-out without reading.)
+     BAD:  ["The teacher", "The art class", "Vashti's mom", "Vashti"]
+           (3 options start with "The", 1 bare name.)
+     BAD:  ["In the river", "In the den", "On a leaf", "In the boat"]
+           (3 "In", 1 "On".)
      GOOD: ["A bike", "A car", "A scooter", "A wagon"]
      GOOD: ["Hops", "Sings", "Swims", "Flies"]
+     GOOD: ["The teacher", "The mother", "The art class", "The shopkeeper"]
+   Before you write the final options, look at the LEADING WORD of
+   each. If 3 of them are the same and 1 is different, REWRITE so
+   they all match.
 
-7. NO EXCLUSIONARY PHRASING — Avoid "besides", "except", "not", "never",
-   "doesn't", "isn't", "without". K-2 readers can't reliably parse
-   negation in question stems.
+7. NO EXCLUSIONARY OR NEGATIVE PHRASING — K-2 readers can't reliably
+   parse negation. THESE WORDS ARE BANNED in question stems:
+     "not"  "never"  "without"  "besides"  "except"  "other than"
+     "cannot"  "can't"  "don't"  "doesn't"  "didn't"  "isn't"
+     "aren't"  "wasn't"  "weren't"  "won't"  "shouldn't"  "couldn't"
+     "wouldn't"  "does not"  "do not"  "did not"  "is not"  "was not"
+     "were not"  "NOT" (uppercase)
+   If you find yourself writing one of these, rewrite the question
+   positively.
+     BAD:  "Which animal is NOT one who comes to watch?"
+     GOOD: "Which animal comes to watch?"
+     BAD:  "Why can't Trixie tell her daddy?"
+     GOOD: "Why does Trixie struggle to tell her daddy?"
+
+7a. NEVER REPEAT THE QUESTION'S MAIN VERB IN THE ANSWER OR
+    DISTRACTORS. If the stem says "shown", the options must not
+    contain "show", "shown", "shows". Same for "tells/tell/told",
+    "frame/framed", "happens/happened", etc.
+     BAD:  Q: "Where are Vashti's paintings shown?"
+           Options include "shown at the art show" — telegraphs.
+     GOOD: Q: "Where do people see Vashti's paintings?"
+           A: "At the school art show"
+     BAD:  Q: "Who tells a story to cheer up the other?"
+           Distractor: "Toad tells Frog" — telegraphs "tells".
+     GOOD: Q: "Who cheers up the other by sharing a story?"
+           A: "Frog cheers up Toad" (no "tells" anywhere)
+
+7b. NUMERIC ANSWERS — When the question is "how many X", the options
+    must be JUST NUMBERS, not "N X". Repeating the noun in every
+    option telegraphs the unit and pulls the kid's eye to the
+    numeric difference.
+     BAD:  Q: "How many steps are on Owl's staircase?"
+           Options: ["Ten steps", "Fifteen steps", "Twenty steps",
+                     "Thirty steps"]
+           (Every option repeats "steps" from the stem — answer is
+           clear from a glance.)
+     GOOD: Q: "How many steps are on Owl's staircase?"
+           Options: ["Ten", "Fifteen", "Twenty", "Thirty"]
+     SAME RULE for "How many days/cookies/animals/buttons/etc."
 
 8. CLOSED-LIST DISTRACTORS WHERE POSSIBLE — Prefer distractors drawn
    from OTHER content in the same summary (other named characters, other
@@ -127,6 +173,23 @@ RULES (the QC checklist):
      GOOD: Q: "Who drinks pink ink?" with The Yink / The Yop / The Zans /
            The Nook (all from the book)
 
+PRE-EMIT SELF-CHECK — Before you output the JSON, walk through each
+question and answer YES to every line:
+  □ Stem under 18 words, every option under 8 words?
+  □ Does the stem contain any banned negation word? (not / never /
+    cannot / can't / NOT / doesn't / does not / etc.) → REWRITE if yes.
+  □ Do all 4 options start with the same part-of-speech (all "A" or
+    all "The" or all bare numbers or all bare verbs)? → REWRITE if no.
+  □ Does the question's main verb (or its variants: shown/show/shows,
+    tells/told/tell) appear in any option? → REWRITE the question.
+  □ For "how many X" questions: are the options JUST numbers
+    (no repeated "X")? → strip the noun from options.
+  □ Are at least 2 of the 4 options drawn from OTHER content in the
+    summary, not generic real-world distractors?
+  □ Is the correct answer ACTUALLY in the summary (verbatim or as a
+    direct paraphrase)?
+If any answer is "no", fix it before moving on.
+
 OUTPUT FORMAT (strict):
 
 Return ONLY a JSON object matching exactly this schema. No commentary,
@@ -141,17 +204,18 @@ no markdown fences, no leading or trailing text. Just the JSON.
       "options": ["<opt1>", "<opt2>", "<opt3>", "<opt4>"],
       "answer": 0
     },
-    ... 11 more questions, 12 total
+    ... 14 more questions, 15 total
   ]
 }
 
 Constraints:
-- Exactly 12 questions.
+- Exactly 15 questions. (Downstream QC keeps the best 12+, so a few
+  flagged questions get dropped instead of triggering a full rewrite.)
 - Each "options" array has exactly 4 strings.
 - "answer" is 0, 1, 2, or 3 indexing into "options".
-- Cover DIFFERENT content from the summary across the 12 questions
-  (different characters, events, objects, facts) — don't ask the same
-  thing 4 different ways.
+- Cover DIFFERENT content from the summary across the 15 questions
+  (different characters, events, objects, facts) — don't ask the
+  same thing 4 different ways. Aim for breadth across the book.
 - Vary which index is the correct answer across questions (don't put
   all correct answers at index 0).
 `;
@@ -215,13 +279,16 @@ try {
 }
 
 // Cheap sanity check before writing — proper validation is qc-quiz.js.
+// Accept 12-15 questions: we ask for 15 but Opus occasionally returns
+// 12-14 when content is thin. Anything under 12 won't survive QC's
+// --min-passing 12 gate downstream, so we still pass it through.
 if (
   !parsed ||
   parsed.bookId !== bookId ||
   !Array.isArray(parsed.questions) ||
-  parsed.questions.length !== 12
+  parsed.questions.length < 12
 ) {
-  console.error("[author-quiz] output failed sanity check (bookId mismatch, missing questions, or count != 12):");
+  console.error("[author-quiz] output failed sanity check (bookId mismatch, missing questions, or count < 12):");
   console.error(JSON.stringify(parsed, null, 2));
   process.exit(1);
 }

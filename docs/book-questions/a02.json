@@ -1,0 +1,126 @@
+{
+  "bookId": "a02",
+  "version": 1,
+  "questions": [
+    {
+      "q": "Who knocks on Owl's door in the first story?",
+      "options": [
+        "Winter",
+        "The Moon",
+        "A friend",
+        "A bird"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does Winter turn the pea soup into?",
+      "options": [
+        "Hard green ice",
+        "Hot green water",
+        "Cold green snow",
+        "Warm green mush"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What are the two strange bumps that Owl sees in his bed?",
+      "options": [
+        "His own two feet",
+        "His fluffy pillows",
+        "His round rocks",
+        "His stuffed toys"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Where does Owl sleep after his bed crashes down?",
+      "options": [
+        "In his chair",
+        "On the floor",
+        "On the stairs",
+        "In the kitchen"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "How does Owl make tear-water tea?",
+      "options": [
+        "By crying into a kettle",
+        "By boiling rainwater",
+        "By melting snow",
+        "By adding salt"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does Owl say his tear-water tea tastes like?",
+      "options": [
+        "A little bit salty",
+        "A little bit sweet",
+        "A little bit cold",
+        "A little bit warm"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "How many steps are on Owl's staircase?",
+      "options": [
+        "Twenty",
+        "Ten",
+        "Fifteen",
+        "Thirty"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Where does Owl finally sit down to rest on the stairs?",
+      "options": [
+        "The tenth step",
+        "The first step",
+        "The last step",
+        "The fifth step"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Where is Owl sitting when he first sees the moon?",
+      "options": [
+        "On a large rock",
+        "On a sandy beach",
+        "On a grassy hill",
+        "On a wooden bench"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What covers the moon and makes Owl feel sad?",
+      "options": [
+        "A cloud",
+        "A bird",
+        "A tree",
+        "A shadow"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What does Owl serve Winter to eat?",
+      "options": [
+        "Buttered toast",
+        "Warm cookies",
+        "Fresh bread",
+        "Apple slices"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What shines through Owl's window at the very end of the book?",
+      "options": [
+        "The moon",
+        "The sun",
+        "A star",
+        "A lamp"
+      ],
+      "answer": 0
+    }
+  ]
+}
