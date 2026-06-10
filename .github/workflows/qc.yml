@@ -1,0 +1,35 @@
+name: Quiz bank QC
+
+# #30 — automated quiz-bank quality gate. Runs the deterministic QC
+# checks (parallelism, telegraphing, self-reference, source grounding,
+# exclusionary phrasing, length, schema) over every docs/book-questions
+# bank on each push + PR that touches the banks or the QC scripts. This
+# is the automated replacement for the human "eyeball every quiz" gate
+# (#84) — no bank reaches main without passing.
+#
+# Deterministic only: no ANTHROPIC_API_KEY needed, runs in seconds. The
+# LLM second-opinion pass remains a local authoring step.
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - "docs/book-questions/**"
+      - "scripts/qc-quiz.js"
+      - "scripts/qc-all.js"
+  pull_request:
+    paths:
+      - "docs/book-questions/**"
+      - "scripts/qc-quiz.js"
+      - "scripts/qc-all.js"
+
+jobs:
+  qc:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Run deterministic QC over all question banks
+        run: node scripts/qc-all.js
