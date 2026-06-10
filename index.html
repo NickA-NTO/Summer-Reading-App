@@ -6851,7 +6851,7 @@ async function refreshMyRank() {
 
 const adminState = { users: [], filter: "", reports: [], heldXp: [] };
 
-document.getElementById("menuAdmin").addEventListener("click", (e) => {
+document.getElementById("menuAdmin")?.addEventListener("click", (e) => {
   e.stopPropagation();
   document.getElementById("userMenu").classList.remove("open");
   openAdmin();
@@ -9483,6 +9483,10 @@ function _retellShowResult(data) {
       state.session.currentlyReading = me.currentlyReading || null;
       try { renderStats(); } catch {}
       try { renderRows(); } catch {}
+      // Also re-render the hero so the "Continue reading" billboard
+      // drops the just-finished book instead of lingering until a
+      // page reload (QC: post-retell hero staleness).
+      try { renderHero(); } catch {}
       // refreshMyRank pulls XP + rank from /api/leaderboard and
       // updates the stat pill at the top. renderStats only renders
       // books/comments/streak — XP lives in a separate fetch and
