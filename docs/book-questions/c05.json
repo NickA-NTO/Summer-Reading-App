@@ -1,9 +1,9 @@
 {
   "bookId": "c05",
-  "version": 3,
+  "version": 4,
   "questions": [
     {
-      "q": "Who saves Wilbur from being killed when he is born?",
+      "q": "Who saves Wilbur's life when he is born?",
       "options": [
         "Fern",
         "Charlotte",
@@ -13,7 +13,7 @@
       "answer": 0
     },
     {
-      "q": "Why does Mr. Arable want to kill Wilbur at the start of the story?",
+      "q": "Why does Mr. Arable not want to keep Wilbur at the start of the story?",
       "options": [
         "Wilbur is too loud",
         "Wilbur is the runt of the litter",
@@ -53,7 +53,7 @@
       "answer": 0
     },
     {
-      "q": "Which animal tells Wilbur the bad news that he will be killed?",
+      "q": "Which animal tells Wilbur the bad news about what will happen to him?",
       "options": [
         "The goose",
         "The sheep",

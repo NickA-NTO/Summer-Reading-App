@@ -1568,11 +1568,21 @@ export default async function handler(req, res) {
     const signed = staticBank.questions.map((q) => ({ ...q }));
     // #16 — non-admins get per-request answerTokens bound to THEIR
     // email + today (so tokens can't be shared across accounts or
-    // replayed on a later day). Admins get the full pool (answer
-    // included) for the answer-reveal debug view; they don't submit
-    // for grading.
+    // replayed on a later day). Admins ALSO get the raw `answer` so the
+    // client can render the green "✓ correct" reveal — but they STILL
+    // need an answerToken, because admins submit and grade like everyone
+    // else. Without a token the client posts answerToken:"" and every
+    // answer grades wrong (0/5). So sign tokens for admins too; the only
+    // admin-extra is that we keep the `answer` field alongside.
     const clientQuestions = isAdmin(session.email)
-      ? signed
+      ? await Promise.all(
+          signed.map(async (q) => ({
+            ...q,
+            answerToken: Number.isInteger(q.answer)
+              ? await signQuizAnswer(bookId, q.q, q.answer, { email: session.email })
+              : (q.answerToken || ""),
+          }))
+        )
       : await stripAndSignForClient(bookId, signed, session.email);
     res.statusCode = 200;
     res.setHeader("Cache-Control", "no-store");
