@@ -478,7 +478,10 @@ export default async function handler(req, res) {
           }));
         }
         seen.add(dedupKey);
-        isCorrect = await verifyQuizAnswer(bookId, qText, chosen, token);
+        // #16 — verify against the email-bound, daily-expiring token.
+        isCorrect = await verifyQuizAnswer(bookId, qText, chosen, token, {
+          email: session.email,
+        });
         qPreview = qText.slice(0, 60);
       } else {
         // Legacy cache-pool path.
