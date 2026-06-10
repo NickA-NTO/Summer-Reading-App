@@ -1,6 +1,6 @@
 {
   "bookId": "k06",
-  "version": 2,
+  "version": 3,
   "questions": [
     {
       "q": "Where does this story take place?",
@@ -15,32 +15,32 @@
     {
       "q": "Which animal does the mouse meet first?",
       "options": [
-        "The fox",
         "The owl",
+        "The fox",
         "The snake",
         "The gruffalo"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "Where does the fox want to take the mouse?",
       "options": [
-        "To his underground house",
-        "To his treetop house",
         "To his logpile house",
+        "To his treetop house",
+        "To his underground house",
         "To his cave house"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "Where does the owl live?",
       "options": [
-        "In a treetop house",
+        "In a cave house",
         "In an underground house",
         "In a logpile house",
-        "In a cave house"
+        "In a treetop house"
       ],
-      "answer": 0
+      "answer": 3
     },
     {
       "q": "Where does the snake live?",
@@ -55,32 +55,32 @@
     {
       "q": "What color are the Gruffalo's eyes?",
       "options": [
-        "Orange",
         "Purple",
+        "Orange",
         "Black",
         "Green"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "What color is the Gruffalo's tongue?",
       "options": [
-        "Black",
-        "Orange",
         "Purple",
+        "Orange",
+        "Black",
         "Red"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "What color are the prickles on the Gruffalo's back?",
       "options": [
-        "Purple",
+        "Green",
         "Orange",
         "Black",
-        "Green"
+        "Purple"
       ],
-      "answer": 0
+      "answer": 3
     },
     {
       "q": "What does the Gruffalo say his favorite food is?",
@@ -95,32 +95,32 @@
     {
       "q": "What does the mouse claim to be when he meets the real Gruffalo?",
       "options": [
-        "The scariest creature in the wood",
         "The fastest runner in the wood",
+        "The scariest creature in the wood",
         "The smartest animal in the wood",
         "The smallest creature in the wood"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "What does the Gruffalo do at the very end of the story?",
       "options": [
-        "Runs away",
-        "Eats lunch",
         "Falls asleep",
+        "Eats lunch",
+        "Runs away",
         "Climbs a tree"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "What does the mouse eat at the end of the story?",
       "options": [
-        "A nut",
+        "A leaf",
         "A berry",
         "A seed",
-        "A leaf"
+        "A nut"
       ],
-      "answer": 0
+      "answer": 3
     }
   ]
 }

@@ -1,6 +1,6 @@
 {
   "bookId": "b02",
-  "version": 2,
+  "version": 3,
   "questions": [
     {
       "q": "What is the activity Pa and the child go out to do called?",
@@ -15,32 +15,32 @@
     {
       "q": "What time of day do Pa and the child go out?",
       "options": [
-        "Late at night",
         "Early morning",
+        "Late at night",
         "Right after lunch",
         "Just before dinner"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "What is the first rule of owling?",
       "options": [
-        "Be quiet",
-        "Be fast",
         "Be loud",
+        "Be fast",
+        "Be quiet",
         "Be silly"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "What season is it when they go owling?",
       "options": [
-        "Winter",
+        "Fall",
         "Summer",
         "Spring",
-        "Fall"
+        "Winter"
       ],
-      "answer": 0
+      "answer": 3
     },
     {
       "q": "What shape is the child's shadow?",
@@ -55,32 +55,32 @@
     {
       "q": "What sound do their feet make on the snow?",
       "options": [
-        "Crunch",
         "Splash",
+        "Crunch",
         "Thump",
         "Squeak"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "What does the child have to do every now and then to keep up with Pa?",
       "options": [
-        "Run",
-        "Skip",
         "Crawl",
+        "Skip",
+        "Run",
         "Jump"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "Does the owl answer Pa's first call?",
       "options": [
-        "No",
+        "Twice",
         "Yes",
         "Maybe",
-        "Twice"
+        "No"
       ],
-      "answer": 0
+      "answer": 3
     },
     {
       "q": "What do the child and Pa leave behind them in the snow?",
@@ -95,32 +95,32 @@
     {
       "q": "What color are the eyes of the owl Pa and the child see?",
       "options": [
-        "Yellow",
         "Brown",
+        "Yellow",
         "Green",
         "Blue"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "About how long do the owl and the people look at each other?",
       "options": [
-        "One minute",
-        "One hour",
         "One second",
+        "One hour",
+        "One minute",
         "One morning"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "What does the owl do at the end of the meeting?",
       "options": [
-        "Flies silently away",
+        "Hops to the ground",
         "Falls asleep",
         "Calls out loudly",
-        "Hops to the ground"
+        "Flies silently away"
       ],
-      "answer": 0
+      "answer": 3
     },
     {
       "q": "What do you need most when you go owling, according to Pa?",

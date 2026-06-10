@@ -1,6 +1,6 @@
 {
   "bookId": "e07",
-  "version": 2,
+  "version": 3,
   "questions": [
     {
       "q": "What does the fat fish wear?",
@@ -15,32 +15,32 @@
     {
       "q": "How many humps does Mr. Gump's Wump have?",
       "options": [
-        "Seven",
         "One",
+        "Seven",
         "Three",
         "Five"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "What is on the Nook's hook?",
       "options": [
-        "A cookbook",
-        "A teapot",
         "A small fish",
+        "A teapot",
+        "A cookbook",
         "A yellow hat"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "What does the Zans open?",
       "options": [
-        "Cans",
+        "Boxes",
         "Doors",
         "Books",
-        "Boxes"
+        "Cans"
       ],
-      "answer": 0
+      "answer": 3
     },
     {
       "q": "What color socks does the person wear while boxing the Gox?",
@@ -55,32 +55,32 @@
     {
       "q": "What does the Yink like to drink?",
       "options": [
-        "Pink ink",
         "Orange juice",
+        "Pink ink",
         "Lemonade",
         "Hot cocoa"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "Where does the Yop hop?",
       "options": [
-        "From finger top to finger top",
-        "From tree to tree",
         "From hill to hill",
+        "From tree to tree",
+        "From finger top to finger top",
         "From bed to bed"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "How many hairs does each Zed have on its head?",
       "options": [
-        "One",
+        "Five",
         "Two",
         "Three",
-        "Five"
+        "One"
       ],
-      "answer": 0
+      "answer": 3
     },
     {
       "q": "Why do the Zeds need a haircut every day?",
@@ -95,32 +95,32 @@
     {
       "q": "Who cut the telephone wire when someone tried to call Joe?",
       "options": [
-        "A mouse",
         "A cat",
+        "A mouse",
         "A bird",
         "A dog"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "What does Ish use to wish for fish?",
       "options": [
-        "A dish",
-        "A hat",
         "A book",
+        "A hat",
+        "A dish",
         "A bell"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "Where was Clark found?",
       "options": [
-        "In the park in the dark",
+        "In the boat by the moat",
         "In the yard by the car",
         "In the den with a hen",
-        "In the boat by the moat"
+        "In the park in the dark"
       ],
-      "answer": 0
+      "answer": 3
     }
   ]
 }

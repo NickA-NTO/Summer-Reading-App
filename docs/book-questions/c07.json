@@ -1,6 +1,6 @@
 {
   "bookId": "c07",
-  "version": 2,
+  "version": 3,
   "questions": [
     {
       "q": "Where does Opal first find the stray dog she decides to keep?",
@@ -15,32 +15,32 @@
     {
       "q": "Why does Opal claim the dog is hers when the manager gets upset?",
       "options": [
-        "To stop him from going to the pound",
         "To stop him from running away",
+        "To stop him from going to the pound",
         "To stop him from eating more food",
         "To stop him from scaring customers"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "How many things does Opal ask her father to tell her about her mother?",
       "options": [
         "Five",
-        "Ten",
         "Seven",
+        "Ten",
         "Three"
       ],
-      "answer": 1
+      "answer": 2
     },
     {
       "q": "What kind of job does Opal's father have in Naomi, Florida?",
       "options": [
-        "Preacher",
+        "Shopkeeper",
         "Teacher",
         "Librarian",
-        "Shopkeeper"
+        "Preacher"
       ],
-      "answer": 0
+      "answer": 3
     },
     {
       "q": "What book did Miss Franny use to chase a bear out of the library?",
@@ -55,32 +55,32 @@
     {
       "q": "Why does Gloria hang bottles on her tree?",
       "options": [
-        "To catch the ghosts of her past mistakes",
         "To catch rainwater for her garden",
+        "To catch the ghosts of her past mistakes",
         "To scare away birds from her plants",
         "To make music when the wind blows"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "What instrument does Otis play for the animals at the pet shop?",
       "options": [
-        "A guitar",
-        "A piano",
         "A flute",
+        "A piano",
+        "A guitar",
         "A drum"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "What is Winn-Dixie most afraid of?",
       "options": [
-        "Thunderstorms",
+        "Loud music",
         "Strangers",
         "Other dogs",
-        "Loud music"
+        "Thunderstorms"
       ],
-      "answer": 0
+      "answer": 3
     },
     {
       "q": "Where is Winn-Dixie finally found after he goes missing during the storm?",
@@ -95,32 +95,32 @@
     {
       "q": "What habit does five-year-old Sweetie Pie Thomas have?",
       "options": [
-        "Sucking her knuckle",
         "Chewing her hair",
+        "Sucking her knuckle",
         "Biting her nails",
         "Tapping her foot"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "Where do Opal and her father live in Naomi, Florida?",
       "options": [
-        "A trailer park",
-        "A church house",
         "A small apartment",
+        "A church house",
+        "A trailer park",
         "A big farmhouse"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "What activity does Opal do with Gloria Dump to help her nearly blind friend?",
       "options": [
-        "Reads aloud to her",
+        "Walks her around town",
         "Cooks meals for her",
         "Cleans her house",
-        "Walks her around town"
+        "Reads aloud to her"
       ],
-      "answer": 0
+      "answer": 3
     }
   ]
 }

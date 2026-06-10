@@ -1,6 +1,6 @@
 {
   "bookId": "c04",
-  "version": 2,
+  "version": 3,
   "questions": [
     {
       "q": "What do the four Alden children find in the woods to use as their home?",
@@ -15,32 +15,32 @@
     {
       "q": "Why do the children run away instead of going to their grandfather?",
       "options": [
-        "They think he will be cruel to them",
         "They want to find their parents",
+        "They think he will be cruel to them",
         "They hope to travel by train",
         "They need to find their lost dog"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "Who is the oldest of the four Alden children?",
       "options": [
         "Benny",
         "Violet",
-        "Jessie",
-        "Henry"
+        "Henry",
+        "Jessie"
       ],
-      "answer": 3
+      "answer": 2
     },
     {
       "q": "Where do the children get water when they live in the boxcar?",
       "options": [
-        "A nearby stream",
+        "A garden hose",
         "A village well",
         "A rain barrel",
-        "A garden hose"
+        "A nearby stream"
       ],
-      "answer": 0
+      "answer": 3
     },
     {
       "q": "How do the children first help the stray dog they find?",
@@ -56,11 +56,11 @@
       "q": "What kind of fruit do the children pick to eat while living in the woods?",
       "options": [
         "Apples",
-        "Strawberries",
         "Blueberries",
+        "Strawberries",
         "Cherries"
       ],
-      "answer": 2
+      "answer": 1
     },
     {
       "q": "Who hires Henry for odd jobs in the village of Silver City?",
@@ -117,20 +117,20 @@
       "options": [
         "Four",
         "Five",
-        "Six",
-        "Seven"
+        "Seven",
+        "Six"
       ],
-      "answer": 2
+      "answer": 3
     },
     {
       "q": "What happens to the boxcar at the end of the story?",
       "options": [
-        "It is left to rot in the woods",
-        "It is sold to a farmer",
         "It becomes a playhouse in Grandfather's garden",
+        "It is sold to a farmer",
+        "It is left to rot in the woods",
         "It is taken apart for firewood"
       ],
-      "answer": 2
+      "answer": 0
     },
     {
       "q": "Who finally brings the children and their grandfather together?",

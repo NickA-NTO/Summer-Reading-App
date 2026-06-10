@@ -1,16 +1,16 @@
 {
   "bookId": "a10",
-  "version": 2,
+  "version": 3,
   "questions": [
     {
       "q": "Where do Trixie and her daddy go on their errand?",
       "options": [
-        "the school",
-        "the park",
         "the laundromat",
+        "the park",
+        "the school",
         "the block"
       ],
-      "answer": 2
+      "answer": 0
     },
     {
       "q": "What is the name of Trixie's stuffed rabbit?",
@@ -37,70 +37,70 @@
       "options": [
         "toys",
         "books",
-        "coins",
-        "shoes"
+        "shoes",
+        "coins"
       ],
-      "answer": 2
+      "answer": 3
     },
     {
       "q": "What babble words does Trixie shout at her daddy?",
       "options": [
-        "Mumble fumble grumble",
-        "Wiggle giggle tiggle",
         "Aggle flaggle klabble",
+        "Wiggle giggle tiggle",
+        "Mumble fumble grumble",
         "Bibble bobble bubble"
       ],
-      "answer": 2
+      "answer": 0
     },
     {
       "q": "What does Trixie do when she goes boneless on the pavement?",
       "options": [
-        "She flops down",
         "She runs away",
+        "She flops down",
         "She falls asleep",
         "She hides"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "Who carries Trixie home after her tantrum?",
       "options": [
         "Mommy",
-        "Daddy",
         "Knuffle Bunny",
+        "Daddy",
         "A friend"
       ],
-      "answer": 1
+      "answer": 2
     },
     {
       "q": "Who notices right away that Knuffle Bunny is missing?",
       "options": [
         "Daddy",
         "Trixie",
-        "Mommy",
-        "Knuffle Bunny"
+        "Knuffle Bunny",
+        "Mommy"
       ],
-      "answer": 2
+      "answer": 3
     },
     {
       "q": "Where does Daddy find Knuffle Bunny?",
       "options": [
-        "in the park",
-        "in the stroller",
         "in a washing machine",
+        "in the stroller",
+        "in the park",
         "in the school"
       ],
-      "answer": 2
+      "answer": 0
     },
     {
       "q": "What are the first real words Trixie ever says?",
       "options": [
         "Hello Daddy",
-        "I love you",
         "Knuffle Bunny",
+        "I love you",
         "Where is it"
       ],
-      "answer": 2
+      "answer": 1
     },
     {
       "q": "What does Trixie bring with her on the errand?",
@@ -116,11 +116,11 @@
       "q": "What place do Trixie and Daddy walk through after going down the block?",
       "options": [
         "The school",
-        "The park",
+        "The library",
         "The store",
-        "The library"
+        "The park"
       ],
-      "answer": 1
+      "answer": 3
     }
   ]
 }

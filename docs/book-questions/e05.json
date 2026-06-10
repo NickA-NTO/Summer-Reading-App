@@ -1,6 +1,6 @@
 {
   "bookId": "e05",
-  "version": 2,
+  "version": 3,
   "questions": [
     {
       "q": "What is Piggie's ice cream held in?",
@@ -15,32 +15,32 @@
     {
       "q": "What happens to the ice cream while Gerald is thinking?",
       "options": [
-        "It melts in the sun",
         "It falls on the ground",
+        "It melts in the sun",
         "It gets bigger",
         "It changes color"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "What is the weather like in the book?",
       "options": [
-        "Sunny",
-        "Rainy",
         "Snowy",
+        "Rainy",
+        "Sunny",
         "Cloudy"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "Where is Piggie during most of the book?",
       "options": [
-        "Not there",
+        "Playing in a park",
         "Standing next to Gerald",
         "Sitting on a bench",
-        "Playing in a park"
+        "Not there"
       ],
-      "answer": 0
+      "answer": 3
     },
     {
       "q": "What is left of Gerald's ice cream when he finally decides to share?",
@@ -55,32 +55,32 @@
     {
       "q": "How does Gerald feel when he sees his empty cone?",
       "options": [
-        "He feels he has blown it",
         "He feels very happy",
+        "He feels he has blown it",
         "He feels sleepy",
         "He feels hungry"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "What does Piggie bring when she arrives at the end?",
       "options": [
-        "Her own ice-cream cone",
-        "Her own chocolate bar",
         "Her own cupcake",
+        "Her own chocolate bar",
+        "Her own ice-cream cone",
         "Her own cookie"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "What does Piggie offer to do for Gerald?",
       "options": [
-        "Share her ice cream",
+        "Go get more treats",
         "Buy him a new cone",
         "Clean up the puddle",
-        "Go get more treats"
+        "Share her ice cream"
       ],
-      "answer": 0
+      "answer": 3
     },
     {
       "q": "Why is Gerald's ice cream all gone by the time he decides?",
@@ -95,32 +95,32 @@
     {
       "q": "What does Gerald imagine Piggie would feel if he saved her some?",
       "options": [
-        "Happy",
         "Angry",
+        "Happy",
         "Scared",
         "Bored"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "What book series are Gerald and Piggie part of?",
       "options": [
-        "Elephant and Piggie",
-        "Frog and Toad",
         "Cat and Dog",
+        "Frog and Toad",
+        "Elephant and Piggie",
         "Mouse and Bear"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "What is a big idea in this book about good friends?",
       "options": [
-        "They share with each other",
+        "They stay far apart",
         "They always race",
         "They never talk",
-        "They stay far apart"
+        "They share with each other"
       ],
-      "answer": 0
+      "answer": 3
     }
   ]
 }

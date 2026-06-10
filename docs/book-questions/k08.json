@@ -1,6 +1,6 @@
 {
   "bookId": "k08",
-  "version": 2,
+  "version": 3,
   "questions": [
     {
       "q": "What food does Sam-I-am want the grumpy creature to try?",
@@ -15,32 +15,32 @@
     {
       "q": "How does the grumpy creature feel about the food at first?",
       "options": [
-        "He does not like it",
         "He loves it right away",
+        "He does not like it",
         "He wants to share it",
         "He thinks it looks yummy"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "What color is Sam-I-am's tall hat?",
       "options": [
-        "Red",
-        "Blue",
         "Green",
+        "Blue",
+        "Red",
         "Yellow"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "What words are written on Sam-I-am's tall red hat?",
       "options": [
-        "I am Sam",
+        "Eat with me",
         "Try it please",
         "Eggs and ham",
-        "Eat with me"
+        "I am Sam"
       ],
-      "answer": 0
+      "answer": 3
     },
     {
       "q": "Which animal goes with the words 'in a box'?",
@@ -55,32 +55,32 @@
     {
       "q": "Which animal appears with the boat?",
       "options": [
-        "A goat",
         "A fox",
+        "A goat",
         "A mouse",
         "A cat"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "What happens when everyone gets on the boat?",
       "options": [
-        "It tips over",
-        "It floats away",
         "It goes very fast",
+        "It floats away",
+        "It tips over",
         "It makes a loud sound"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "Where does everyone end up after the boat tips over?",
       "options": [
-        "In the water",
+        "In the grass",
         "In the mud",
         "In the sand",
-        "In the grass"
+        "In the water"
       ],
-      "answer": 0
+      "answer": 3
     },
     {
       "q": "Why does the grumpy creature finally agree to try the food?",
@@ -95,32 +95,32 @@
     {
       "q": "How does the grumpy creature feel after he tastes the food?",
       "options": [
-        "He likes it",
         "He hates it more",
+        "He likes it",
         "He feels sick",
         "He feels sleepy"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "What does the grumpy creature say to Sam-I-am at the end?",
       "options": [
-        "Thank you",
-        "Go away",
         "I am sorry",
+        "Go away",
+        "Thank you",
         "See you later"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "What is the big idea of this book?",
       "options": [
-        "Try it before you say no",
+        "Never go on a boat",
         "Always say no to friends",
         "Stay away from new foods",
-        "Never go on a boat"
+        "Try it before you say no"
       ],
-      "answer": 0
+      "answer": 3
     },
     {
       "q": "Where does Sam-I-am first ask the grumpy creature to eat?",
