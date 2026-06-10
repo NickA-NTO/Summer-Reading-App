@@ -432,8 +432,15 @@ export default async function handler(req, res) {
         message: "Need exactly 5 answers.",
       }));
     }
+    // A token must be a NON-EMPTY string. An empty answerToken ("") still
+    // passes `typeof === "string"`, so without the length guard the HMAC
+    // path would run with a blank token and verifyQuizAnswer would fail
+    // every answer → a silent 0/5. Requiring length>0 means a blank-token
+    // submission instead falls to the legacy cache path (or a clean 409),
+    // never a misleading all-wrong score.
     const useTokenGrading = answers.every(
-      (a) => typeof a?.qText === "string" && typeof a?.answerToken === "string"
+      (a) => typeof a?.qText === "string" && a.qText.length > 0 &&
+             typeof a?.answerToken === "string" && a.answerToken.length > 0
     );
     let pool = null;
     if (!useTokenGrading) {

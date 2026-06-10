@@ -1720,7 +1720,8 @@
     margin: 2px 0 4px;
   }
   .blurb-speaker-row .tour-speak {
-    padding: 4px 8px; font-size: 13px; line-height: 1;
+    padding: 8px 14px; font-size: 18px; line-height: 1;
+    border-radius: 10px;
   }
   /* Polish v3.2: running vote totals below the action row. Calm muted
      row of two counters — no percentage, no editorialising. */
@@ -3383,6 +3384,14 @@ function cancelSpeech() {
     _ttsAbortController = null;
   }
   _ttsSeq++;
+  // Invalidate any in-flight multi-part quiz narration. speakQuizQuestion
+  // plays question → intro → options as three separate clips, checking
+  // _quizNarrationToken between each. Pausing the CURRENT clip (above)
+  // resolves its speak() promise, so without bumping the token here the
+  // loop would wake up, see its token unchanged, and play the NEXT part
+  // over whatever question is now on screen — the overlap bug. Bumping it
+  // makes the loop bail at its next checkpoint.
+  _quizNarrationToken++;
 }
 // Module-scoped AbortController so cancelSpeech can kill the in-flight
 // fetch initiated by the current speak() call. Reset on every new
@@ -5213,36 +5222,35 @@ async function speakWithFeedback(button, text, opts = {}) {
   };
   button.disabled = true;
   button.textContent = "🔊 Loading…";
-  // Hard timeout: if speak() never returns, restore the button after 8s
-  // (covers worst-case Polly cold synth + network hiccup).
-  const fallbackTimer = setTimeout(restore, 8000);
+  // speak() resolves only when playback ENDS (it returns its donePromise),
+  // so we can't use its resolution to flip Loading→Playing — that would
+  // leave the label on "Loading…" for the whole clip and only show
+  // "Playing…" for a blink after the audio already finished (the stuck-
+  // on-loading bug). Instead, drive the label off _ttsAudibleSinceLastReset,
+  // which speak() sets true the instant real audio starts (same signal the
+  // quiz "Hear it" button uses). The finally block guarantees the button
+  // always restores once playback finishes, is cancelled, or fails.
+  resetTtsAudibleFlag();
+  let flipped = false;
+  // Safety net for a hung FETCH (no audio ever starts): restore after 10s.
+  // Cleared the moment real audio begins — from then on, speak()'s own
+  // end-of-playback resolution drives the restore via finally.
+  let safety = setTimeout(restore, 10_000);
+  const labelPoll = setInterval(() => {
+    if (restored) { clearInterval(labelPoll); return; }
+    if (_ttsAudibleSinceLastReset && !flipped) {
+      flipped = true;
+      button.textContent = "🔊 Playing…";
+      clearTimeout(safety);
+    }
+  }, 200);
   try {
+    // NEVER rejects (see speak() docstring) — resolves on end/cancel/fail.
     await speak(text, opts);
-    button.textContent = "🔊 Playing…";
-    // Restore shortly after playback completes — currentTtsAudio is
-    // either an HTMLAudioElement or null. Poll briefly for ended state.
-    const start = Date.now();
-    const poll = () => {
-      const a = currentTtsAudio;
-      const synthSpeaking = !!(window.speechSynthesis && speechSynthesis.speaking);
-      if ((!a || a.ended || a.paused) && !synthSpeaking) {
-        clearTimeout(fallbackTimer);
-        restore();
-        return;
-      }
-      if (Date.now() - start > 30_000) {
-        clearTimeout(fallbackTimer);
-        restore();
-        return;
-      }
-      setTimeout(poll, 300);
-    };
-    poll();
-  } catch (err) {
-    clearTimeout(fallbackTimer);
-    console.warn("[speak] failed:", err);
-    button.textContent = "🔊 No sound — check volume";
-    setTimeout(restore, 2500);
+  } finally {
+    clearTimeout(safety);
+    clearInterval(labelPoll);
+    restore();
   }
 }
 
@@ -6599,7 +6607,9 @@ async function finishQuiz() {
     const adminDebug = serverResp?.adminDebug;
     if (Array.isArray(adminDebug) && adminDebug.length > 0) {
       bodyText = adminDebug.map((d, i) =>
-        `${i+1}. poolIdx=${d.poolIdx} chosen=${d.chosen} expected=${d.expected} ${d.isCorrect ? "✓" : "✗"}\n   ${escapeHtml(d.q || "")}`
+        `${i+1}. chosen=${d.chosen}${d.expected != null ? ` expected=${d.expected}` : ""} ` +
+        `${d.isCorrect ? "✓ correct" : "✗ wrong"} [${d.gradedVia || "?"}]` +
+        `\n   ${escapeHtml(d.q || "")}`
       ).join("\n");
     } else if (serverResp) {
       bodyText = "serverResp had no adminDebug array. Full response:\n" +
