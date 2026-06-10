@@ -648,6 +648,39 @@ async function finalizeAndGrade(res, tutorSession, book) {
     }
   }
 
+  // #15 — minimum-engagement gate. If the kid reached finalize with
+  // ZERO real spoken turns (called action=grade right after start, or
+  // their mic genuinely never produced a transcript) we do NOT
+  // auto-award base XP. Route to the held-XP human queue: a genuine
+  // tech-fault gets approved, a deliberate skip gets denied. earlyPass
+  // always implies a graded spoken turn, so it's exempt. Setting
+  // overall_pass = null reuses the existing held path downstream.
+  const studentTurnCount = (tutorSession.transcript || []).filter(
+    (t) => t.role === "student" && String(t.text || "").trim()
+  ).length;
+  if (!tutorSession.earlyPass && studentTurnCount === 0 && grade.overall_pass !== null) {
+    grade.overall_pass = null;
+    grade.feedback = "Let's make sure your retell saved — we'll check it and sort out your XP.";
+    grade._heldReason = "retell_no_engagement";
+    trackEvent("tutor_held_no_engagement", { bookId: tutorSession.bookId });
+  }
+
+  // #2 — borderline FAIL → human review instead of a silent zero. A
+  // confident fail whose rubric total sits just under the pass bar
+  // (5-6 / 12) is exactly where a real reader who speaks simply (ESL,
+  // young, shy) gets wrongly denied. Route those to the held-XP queue
+  // so an admin can confirm. Clear fails (< 5) stay an auto-fail; clear
+  // passes (≥ 7) never reach this branch.
+  if (grade.overall_pass === false) {
+    const t = totalRubricScore(grade);
+    if (t >= 5 && t <= 6) {
+      grade.overall_pass = null;
+      grade.feedback = "Thanks for telling me about the book! We'll take a quick look and sort your XP.";
+      grade._heldReason = "retell_borderline";
+      trackEvent("tutor_held_borderline", { bookId: tutorSession.bookId, rubricTotal: t });
+    }
+  }
+
   tutorSession.graded = true;
   tutorSession.gradeResult = grade;
 
@@ -742,7 +775,11 @@ async function finalizeAndGrade(res, tutorSession, book) {
         bookTitle: book.title || tutorSession.bookId,
         grade: tutorSession.workingGrade,
         points: xpCalc.xp,
-        reason: "tutor_review",
+        // #2/#15 — distinguish WHY this was held so the admin queue
+        // shows the right context: grader infra fault (tutor_review),
+        // no spoken turns (retell_no_engagement), or a borderline
+        // 5-6/12 fail flagged for a human second look (retell_borderline).
+        reason: grade._heldReason || "tutor_review",
         tutorRubric: grade,
         tutorTranscript: tutorSession.transcript,
         tutorAudioUrls: tutorSession.audioUrls,
@@ -750,7 +787,7 @@ async function finalizeAndGrade(res, tutorSession, book) {
       });
       response.held = true;
       response.heldInfo = {
-        reason: "tutor_review",
+        reason: grade._heldReason || "tutor_review",
         cooldownUntil: flagResult.cooldownUntil,
         flagCount: flagResult.flagCount,
         heldId: heldResult.id || null,
@@ -852,12 +889,19 @@ async function finalizeAndGrade(res, tutorSession, book) {
   }
 
   // Caliper event emission for retell (TimeBack sync — 1e). Fires for
-  // every finalized retell session: pass, marginal, fail, and held.
-  // TimeBack receives the rubric total + per-axis breakdown +
-  // quality tier so it can apply its own XP rules. Fire-and-forget
-  // matches the quiz path in api/activity.js. Errors swallowed so
-  // they never break the student-facing response.
-  try {
+  // a DECIDED retell: clear pass, marginal, or clean fail. Fire-and-
+  // forget matches the quiz path in api/activity.js. Errors swallowed
+  // so they never break the student-facing response.
+  //
+  // #2 — do NOT emit when the grade is HELD. A held retell (grader
+  // fault, no-engagement, or borderline) has NOT been decided — a
+  // human will approve or deny it. Emitting now would post a 0/fail
+  // GradeEvent to the official TimeBack record before review, with no
+  // correction path. The Caliper event for an approved held entry is
+  // emitted at approval time instead (admin held-XP resolve).
+  // TODO(followup): wire resolveHeldXp to emit the retell GradeEvent
+  // on approval so approved held XP reaches TimeBack.
+  if (!response.held) try {
     const rubricTotal =
       (Number(grade.retell_quality)   || 0) +
       (Number(grade.character_recall) || 0) +
