@@ -65,6 +65,22 @@ export default async function handler(req, res) {
     }));
   }
 
+  // #20 — rate-limit the authenticated path. The default GET runs
+  // loadProfile + evaluateAchievementsForUser + several Redis reads on
+  // every call; without a cap a client loop hammers Redis unbounded.
+  // Generous (120/min) so normal page loads + post-quiz refreshes never
+  // hit it; fails open on a Redis blip. Applies to GET and POST alike;
+  // the POST self-data branch additionally enforces its own tight
+  // selfData bucket below.
+  {
+    const { checkRateLimit, send429, LIMITS } = await import("../../lib/rate-limit.js");
+    const rl = await checkRateLimit({
+      email: session.email, bucket: "me",
+      max: LIMITS.me.max, windowSec: LIMITS.me.windowSec,
+    });
+    if (!rl.ok) return send429(res, rl);
+  }
+
   // #59 — COPPA/GDPR self-service: export + erasure live on the same
   // endpoint to stay under the Vercel Hobby 12-function cap. Folded
   // here because /api/auth/me is the natural "self" surface, already

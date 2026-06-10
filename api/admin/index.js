@@ -746,11 +746,26 @@ export default async function handler(req, res) {
   }
 
   // ==================== caliper-drain-retry ======================
-  // Both POST (admin button) and GET (Vercel cron every 15 min) work.
-  // Vercel cron jobs are GET-only by default, so we accept either verb
-  // here — the action is idempotent so verb-strictness adds nothing.
+  // Both POST (admin button) and GET (Vercel cron) work. Vercel cron
+  // jobs are GET-only by default, so we accept either verb — the
+  // action is idempotent.
+  //
+  // #13 — Cron cadence: Vercel Hobby caps cron jobs at once/day, so
+  // vercel.json schedules this daily. That is NOT the primary drain
+  // mechanism — sendCaliperEnvelopeAsync drains opportunistically on
+  // every successful live event (lib/timeback.js), so the queue
+  // self-heals the moment TimeBack comes back. This daily cron is a
+  // backstop for the case where NO new events arrive to trigger a
+  // drain. Emit telemetry so a stuck queue is visible.
   if (action === "caliper-drain-retry") {
     const result = await drainCaliperRetryQueue({ max: 100 });
+    trackEvent("caliper_drain", {
+      drained: result.drained, succeeded: result.succeeded,
+      stillFailing: result.stillFailing, triggeredBy: isCronCall ? "cron" : "admin",
+    });
+    if (result.stillFailing > 0) {
+      await trackError("caliper_drain_still_failing", { stillFailing: result.stillFailing });
+    }
     return json(res, 200, { ...result, triggeredBy: isCronCall ? "cron" : "admin" });
   }
 

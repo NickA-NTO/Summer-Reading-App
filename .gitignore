@@ -3,11 +3,20 @@ node_modules
 .env*
 .DS_Store
 *.log
-# Local API key files — never commit these
+# Local API key files — never commit these.
+# Pattern-matched AND named explicitly (belt + braces) so a rename
+# can't accidentally un-ignore a live key. NOTE: this repo lives under
+# a OneDrive-synced path — gitignore protects the REPO, not the local
+# disk. Keep the plaintext key files OUT of cloud-synced folders, or
+# move them to an OS keychain / Vercel env, for real at-rest security.
 *Key.txt
 *key.txt
 *secret*.txt
 *.pem
+Clade PAYG Key.txt
+OpenAI key.txt
+*.key
+keys/
 # TimeBack roster snapshots (PII — pasted into admin UI then deleted)
 timeback-grade-sync-*.json
 caliper-sample-event*.json

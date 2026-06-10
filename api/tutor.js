@@ -28,7 +28,7 @@
 // session passes, so XP / leaderboard / Caliper events / held-XP queue
 // all behave identically downstream.
 
-import { verifySession, parseCookies, isAdmin } from "../lib/session.js";
+import { verifySession, parseCookies, isAdmin, displayName } from "../lib/session.js";
 import {
   redis,
   recordRead,
@@ -726,7 +726,8 @@ async function finalizeAndGrade(res, tutorSession, book) {
       const flagResult = await applyFraudFlag(email);
       const heldResult = await addHeldXpEntry({
         email,
-        name: tutorSession.email.split("@")[0],
+        // #35 — redacted display name; full email kept in `email`.
+        name: displayName(tutorSession.name || tutorSession.email),
         bookId: tutorSession.bookId,
         bookTitle: book.title || tutorSession.bookId,
         grade: tutorSession.workingGrade,
@@ -753,7 +754,9 @@ async function finalizeAndGrade(res, tutorSession, book) {
     // leaderboard/dedupe/Caliper pipeline as the legacy quiz path.
     const result = await recordRead({
       email,
-      name: tutorSession.email.split("@")[0],
+      // #35 — redacted display name (this becomes the leaderboard
+      // label, which is peer-facing).
+      name: displayName(tutorSession.name || tutorSession.email),
       grade: tutorSession.workingGrade,
       bookId: tutorSession.bookId,
       points: xpCalc.xp,
@@ -854,7 +857,7 @@ async function finalizeAndGrade(res, tutorSession, book) {
     const envelope = buildRetellEventEnvelope({
       email,
       studentId: null, // populated once TimeBack id mapping ships
-      studentName: tutorSession.email.split("@")[0],
+      studentName: displayName(tutorSession.name || tutorSession.email),
       bookId: tutorSession.bookId,
       bookTitle: book.title || tutorSession.bookId,
       attemptNum: 1, // retell is one-shot per session

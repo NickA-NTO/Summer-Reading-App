@@ -2845,7 +2845,9 @@ const CLIENT_WCPM = {
 // values (3 / 2) were stale and showed ~2 fewer XP than the kid
 // actually earned. Drift audit item closed.
 const CLIENT_QUIZ_TIME_FULL_MIN = 5;
-const CLIENT_QUIZ_TIME_EMERGENT_MIN = 3;
+// #29 — unified: all tiers draw 5 questions/attempt, so the quiz-time
+// credit is 5 min for everyone. Mirror of lib/xp.js QUIZ_TIME_*.
+const CLIENT_QUIZ_TIME_EMERGENT_MIN = 5;
 // Retell time + both-clean ratio (#9). Client mirrors lib/xp.js so the
 // pill in the book modal shows the FULL XP a kid can earn if they ace
 // both the quiz and the retell. Anything less than both-clean lands

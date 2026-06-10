@@ -808,7 +808,11 @@ export default async function handler(req, res) {
       const flagResult = await applyFraudFlag(session.email);
       const heldResult = await addHeldXpEntry({
         email: session.email,
-        name: session.name || session.email.split("@")[0],
+        // #35 — store the redacted display name, not the raw email
+        // local-part. The full email is kept in the `email` field for
+        // admin identification; the name field shouldn't duplicate raw
+        // PII. Consistent with the quiz_submit comment path above.
+        name: displayName(session.name || session.email),
         bookId,
         bookTitle: book.title || bookId,
         grade,
