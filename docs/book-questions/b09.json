@@ -1,6 +1,6 @@
 {
   "bookId": "b09",
-  "version": 2,
+  "version": 3,
   "questions": [
     {
       "q": "Who is the cousin that comes to stay with Joe, Beth, and Frannie?",
@@ -15,32 +15,32 @@
     {
       "q": "What sound do the trees in the Enchanted Wood make?",
       "options": [
-        "Wisha-wisha-wisha",
         "Swoosh-swoosh-swoosh",
+        "Wisha-wisha-wisha",
         "Hush-hush-hush",
         "Whee-whee-whee"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "Why does the Saucepan Man often mishear what people say?",
       "options": [
-        "He is deaf",
-        "He is sleepy",
         "He is forgetful",
+        "He is sleepy",
+        "He is deaf",
         "He is angry"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "What does Dame Washalot pour down the trunk of the tree?",
       "options": [
-        "Dirty water",
+        "Honey",
         "Hot soup",
         "Apple juice",
-        "Honey"
+        "Dirty water"
       ],
-      "answer": 0
+      "answer": 3
     },
     {
       "q": "What do you sit on to go down Moon-Face's slippery-slip slide?",
@@ -55,32 +55,32 @@
     {
       "q": "What special treats does Silky make for the children?",
       "options": [
-        "Pop Biscuits and Google Buns",
         "Chocolate Cakes and Fudge",
+        "Pop Biscuits and Google Buns",
         "Honey Rolls and Jam Tarts",
         "Sugar Cookies and Brownies"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "What is special about the Land of Topsy-Turvy?",
       "options": [
-        "Everything is upside down",
-        "Everything is made of candy",
         "Everyone gets presents",
+        "Everything is made of candy",
+        "Everything is upside down",
         "Everyone is always sleeping"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "What are houses made of in the Land of Goodies?",
       "options": [
-        "Cake and biscuits",
+        "Clouds and rainbows",
         "Bricks and stones",
         "Flowers and leaves",
-        "Clouds and rainbows"
+        "Cake and biscuits"
       ],
-      "answer": 0
+      "answer": 3
     },
     {
       "q": "Who gets captured and taken to the Land of Tempers?",
@@ -95,32 +95,32 @@
     {
       "q": "What leads up through the hole in the cloud at the top of the tree?",
       "options": [
-        "A ladder",
         "A rope",
+        "A ladder",
         "A staircase",
         "A bridge"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "What happens if you stay in a land at the top of the tree too long?",
       "options": [
-        "You get stuck there",
-        "You turn invisible",
         "You fall asleep forever",
+        "You turn invisible",
+        "You get stuck there",
         "You shrink very small"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "What does the Angry Pixie throw out of his window at people who bother him?",
       "options": [
-        "Water from a kettle",
+        "Rotten apples",
         "Rocks and pebbles",
         "Old shoes",
-        "Rotten apples"
+        "Water from a kettle"
       ],
-      "answer": 0
+      "answer": 3
     }
   ]
 }

@@ -45,6 +45,8 @@ import {
   resolveDataRequest,
   exportUserData,
   deleteUserData,
+  recordAdminAction,
+  listAdminAudit,
 } from "../../lib/store.js";
 import { sanitizeTrackOverrides, TRACK_ORDER } from "../../lib/tracks.js";
 import { getStats as getObsStats } from "../../lib/observability.js";
@@ -147,6 +149,26 @@ export default async function handler(req, res) {
       send429(res, rl);
       return;
     }
+  }
+
+  // #19 — audit helper. Records who (authedEmail) did what to whom on
+  // every admin MUTATION. Best-effort + fire-and-forget-ish (awaited
+  // but never throws into the handler). Cron calls have authedEmail
+  // null → attributed to "cron".
+  const audit = (actionName, target, meta) =>
+    recordAdminAction({
+      actor: authedEmail || "cron",
+      action: actionName,
+      target,
+      meta,
+    }).catch(() => {});
+
+  // ========================= audit-log ===========================
+  // #19 — read the admin audit trail (admin-only, read endpoint).
+  if (action === "audit-log" && req.method === "GET") {
+    const limit = Math.min(500, Math.max(1, Number(url.searchParams.get("limit")) || 200));
+    const { entries, hasRedis, error } = await listAdminAudit({ limit });
+    return json(res, 200, { hasRedis, error: error || null, count: entries.length, entries });
   }
 
   // ============================ users ============================
@@ -421,6 +443,7 @@ export default async function handler(req, res) {
       const email = String(body.email || "").toLowerCase();
       if (!email) return json(res, 400, { error: "email_required" });
       const result = await resetFraudFlags(email);
+      if (result.ok) await audit("reset-fraud-flags", email, null);
       return json(
         res,
         result.ok ? 200 : 500,
@@ -443,6 +466,11 @@ export default async function handler(req, res) {
         { error: result.reason || "resolve_failed" }
       );
     }
+    await audit("held-xp-" + a, result.entry?.email || id, {
+      heldId: id,
+      points: result.entry?.points ?? null,
+      bookId: result.entry?.bookId ?? null,
+    });
     return json(res, 200, { ok: true, action: a, entry: result.entry });
   }
 
@@ -471,6 +499,7 @@ export default async function handler(req, res) {
     if (!result.ok) {
       return json(res, 500, { error: result.reason || "save_failed" });
     }
+    await audit("set-grade", email, { grade });
     return json(res, 200, { ok: true, email, grade });
   }
 
@@ -492,6 +521,7 @@ export default async function handler(req, res) {
     if (!result.ok) {
       return json(res, 500, { error: result.reason || "save_failed" });
     }
+    await audit("set-bypass-holds", email, { value });
     return json(res, 200, { ok: true, email, value });
   }
 
@@ -604,6 +634,7 @@ export default async function handler(req, res) {
     if (!result.ok) {
       return json(res, 500, { error: result.reason || "save_failed" });
     }
+    await audit("set-age-grade", email, { ageGrade });
     return json(res, 200, { ok: true, email, ageGrade });
   }
 
@@ -648,6 +679,7 @@ export default async function handler(req, res) {
     if (!result.ok) {
       return json(res, 500, { error: result.reason || "save_failed" });
     }
+    await audit("set-track-overrides", email, { overrides: cleaned });
     return json(res, 200, {
       ok: true,
       email,
@@ -746,11 +778,26 @@ export default async function handler(req, res) {
   }
 
   // ==================== caliper-drain-retry ======================
-  // Both POST (admin button) and GET (Vercel cron every 15 min) work.
-  // Vercel cron jobs are GET-only by default, so we accept either verb
-  // here — the action is idempotent so verb-strictness adds nothing.
+  // Both POST (admin button) and GET (Vercel cron) work. Vercel cron
+  // jobs are GET-only by default, so we accept either verb — the
+  // action is idempotent.
+  //
+  // #13 — Cron cadence: Vercel Hobby caps cron jobs at once/day, so
+  // vercel.json schedules this daily. That is NOT the primary drain
+  // mechanism — sendCaliperEnvelopeAsync drains opportunistically on
+  // every successful live event (lib/timeback.js), so the queue
+  // self-heals the moment TimeBack comes back. This daily cron is a
+  // backstop for the case where NO new events arrive to trigger a
+  // drain. Emit telemetry so a stuck queue is visible.
   if (action === "caliper-drain-retry") {
     const result = await drainCaliperRetryQueue({ max: 100 });
+    trackEvent("caliper_drain", {
+      drained: result.drained, succeeded: result.succeeded,
+      stillFailing: result.stillFailing, triggeredBy: isCronCall ? "cron" : "admin",
+    });
+    if (result.stillFailing > 0) {
+      await trackError("caliper_drain_still_failing", { stillFailing: result.stillFailing });
+    }
     return json(res, 200, { ...result, triggeredBy: isCronCall ? "cron" : "admin" });
   }
 
@@ -787,6 +834,11 @@ export default async function handler(req, res) {
     if (!resolved.ok) {
       return json(res, 500, { error: resolved.reason || "resolve_failed" });
     }
+    // #19 — audit the resolution of a PII export/deletion request
+    // (the single most sensitive admin action surface).
+    await audit("data-request-" + decision, target.email, {
+      requestId: id, type: target.type,
+    });
     // On denial we're done — the user can resubmit if they want.
     if (decision === "denied") {
       return json(res, 200, { ok: true, id, decision, action: null });

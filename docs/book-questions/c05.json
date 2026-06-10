@@ -1,6 +1,6 @@
 {
   "bookId": "c05",
-  "version": 2,
+  "version": 3,
   "questions": [
     {
       "q": "Who saves Wilbur from being killed when he is born?",
@@ -15,32 +15,32 @@
     {
       "q": "Why does Mr. Arable want to kill Wilbur at the start of the story?",
       "options": [
-        "Wilbur is the runt of the litter",
         "Wilbur is too loud",
+        "Wilbur is the runt of the litter",
         "Wilbur is sick",
         "Wilbur bit someone"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "What does Fern use to feed baby Wilbur?",
       "options": [
-        "A bottle",
-        "A bucket",
         "A bowl",
+        "A bucket",
+        "A bottle",
         "A spoon"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "Where does Wilbur go to live after he gets too big for the Arable home?",
       "options": [
-        "Homer Zuckerman's farm",
+        "The apple orchard",
         "The county fair",
         "Templeton's den",
-        "The apple orchard"
+        "Homer Zuckerman's farm"
       ],
-      "answer": 0
+      "answer": 3
     },
     {
       "q": "What kind of animal is Charlotte?",
@@ -55,32 +55,32 @@
     {
       "q": "Which animal tells Wilbur the bad news that he will be killed?",
       "options": [
-        "The sheep",
         "The goose",
+        "The sheep",
         "The gander",
         "The rat"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "What is the first word Charlotte weaves into her web?",
       "options": [
-        "SOME PIG",
-        "TERRIFIC",
         "RADIANT",
+        "TERRIFIC",
+        "SOME PIG",
         "HUMBLE"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "Who is Templeton?",
       "options": [
-        "A rat",
+        "A lamb",
         "A pig",
         "A spider",
-        "A lamb"
+        "A rat"
       ],
-      "answer": 0
+      "answer": 3
     },
     {
       "q": "Where does Templeton find scraps of paper with words for Charlotte?",
@@ -95,32 +95,32 @@
     {
       "q": "What is the last word Charlotte weaves into her web?",
       "options": [
-        "HUMBLE",
         "RADIANT",
+        "HUMBLE",
         "TERRIFIC",
         "SOME PIG"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "What is the name of the big pig who wins the blue ribbon at the fair?",
       "options": [
-        "Uncle",
-        "Wilbur",
         "Templeton",
+        "Wilbur",
+        "Uncle",
         "Homer"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "What does Charlotte leave behind at the fairgrounds?",
       "options": [
-        "Her egg sac",
+        "Her baby spiders",
         "Her old web",
         "Her silk thread",
-        "Her baby spiders"
+        "Her egg sac"
       ],
-      "answer": 0
+      "answer": 3
     },
     {
       "q": "Who carries the egg sac back to the barn?",
@@ -135,12 +135,12 @@
     {
       "q": "What do most of the baby spiders do when they hatch in the spring?",
       "options": [
-        "Float away on the wind",
         "Stay in the barn",
+        "Float away on the wind",
         "Hide under the trough",
         "Crawl to the orchard"
       ],
-      "answer": 0
+      "answer": 1
     }
   ]
 }

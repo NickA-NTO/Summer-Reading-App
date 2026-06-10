@@ -1,6 +1,6 @@
 {
   "bookId": "a11",
-  "version": 2,
+  "version": 3,
   "questions": [
     {
       "q": "Where does the mother duck make her nest?",
@@ -15,32 +15,32 @@
     {
       "q": "Which egg takes the longest to hatch?",
       "options": [
-        "The biggest one",
         "The smallest one",
+        "The biggest one",
         "The spotted one",
         "The brown one"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "What color is the last duckling when he hatches?",
       "options": [
-        "Grey",
-        "Yellow",
         "White",
+        "Yellow",
+        "Grey",
         "Brown"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "What does the mother duck teach her babies to do at the farmyard?",
       "options": [
-        "Bow their heads",
+        "Run very fast",
         "Flap their wings",
         "Hide in grass",
-        "Run very fast"
+        "Bow their heads"
       ],
-      "answer": 0
+      "answer": 3
     },
     {
       "q": "Who kicks the ugly duckling at the farmyard?",
@@ -55,32 +55,32 @@
     {
       "q": "Why does the duckling believe everyone is mean to him?",
       "options": [
-        "Because he is ugly",
         "Because he is small",
+        "Because he is ugly",
         "Because he is loud",
         "Because he is fast"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "What animals scare the wild birds on the moor?",
       "options": [
-        "Dogs",
-        "Cats",
         "Foxes",
+        "Cats",
+        "Dogs",
         "Horses"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "Who lives in the little cottage with the old woman?",
       "options": [
-        "A cat and a hen",
+        "A duck and a mouse",
         "A dog and a rooster",
         "A pig and a goose",
-        "A duck and a mouse"
+        "A cat and a hen"
       ],
-      "answer": 0
+      "answer": 3
     },
     {
       "q": "What does the hen ask the duckling if he can do?",
@@ -95,32 +95,32 @@
     {
       "q": "What happens to the duckling in the cold winter?",
       "options": [
-        "He becomes frozen in ice",
         "He flies away south",
+        "He becomes frozen in ice",
         "He hides in a barn",
         "He finds a warm home"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "Who saves the duckling when he is stuck in the ice?",
       "options": [
-        "A peasant",
-        "A hunter",
         "A child",
+        "A hunter",
+        "A peasant",
         "A farmer"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "What does the duckling splash into at the peasant's house?",
       "options": [
-        "Milk",
+        "Honey",
         "Soup",
         "Water",
-        "Honey"
+        "Milk"
       ],
-      "answer": 0
+      "answer": 3
     },
     {
       "q": "What does the duckling learn he really is when he looks in the water?",
@@ -135,12 +135,12 @@
     {
       "q": "What do the children in the garden say about the new swan?",
       "options": [
-        "He is the most beautiful",
         "He is the biggest one",
+        "He is the most beautiful",
         "He is the fastest swimmer",
         "He is the loudest singer"
       ],
-      "answer": 0
+      "answer": 1
     }
   ]
 }

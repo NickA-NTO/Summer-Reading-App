@@ -28,7 +28,7 @@
 // session passes, so XP / leaderboard / Caliper events / held-XP queue
 // all behave identically downstream.
 
-import { verifySession, parseCookies, isAdmin } from "../lib/session.js";
+import { verifySession, parseCookies, isAdmin, displayName } from "../lib/session.js";
 import {
   redis,
   recordRead,
@@ -612,9 +612,19 @@ async function finalizeAndGrade(res, tutorSession, book) {
     }
   }
 
-  // Second-chance rule (#85): if the kid got a follow-up, the final
-  // score MUST exceed the preliminary AND clear the pass bar. A kid
-  // who restated the same low score twice doesn't earn the bonus.
+  // Second-chance rule (#85, revised per #24): if the kid got a
+  // follow-up, the final score must CLEAR THE PASS BAR. We no longer
+  // also require it to strictly EXCEED the preliminary — a kid who
+  // gave a correct, pass-level answer and then calmly restated the
+  // same correct content on the follow-up was being failed for "not
+  // improving," even though they were right both times. Being right
+  // is the bar, not beating your own previous turn.
+  //
+  // Anti-gaming note: this doesn't open a hole. The follow-up only
+  // fires when the preliminary was BELOW clear-pass (a clear pass
+  // earlyPasses and never reaches here). To pass at finalize the kid
+  // must now reach TUTOR_PASS_SCORE on the full transcript — so a kid
+  // who stayed below the bar both turns still fails.
   // Skipped when:
   //   - earlyPass: clear pass on turn 1, no follow-up was offered
   //   - no preliminaryGrade: grader fell back (preview call failed)
@@ -626,7 +636,7 @@ async function finalizeAndGrade(res, tutorSession, book) {
   ) {
     const prelimTotal = totalRubricScore(tutorSession.preliminaryGrade);
     const finalTotal = totalRubricScore(grade);
-    if (finalTotal <= prelimTotal || finalTotal < TUTOR_PASS_SCORE) {
+    if (finalTotal < TUTOR_PASS_SCORE) {
       grade.overall_pass = false;
       grade.feedback =
         "Thanks for telling me about the book! Next time, try sharing a bit more about what happened and who's in it.";
@@ -635,6 +645,39 @@ async function finalizeAndGrade(res, tutorSession, book) {
         prelimTotal,
         finalTotal,
       });
+    }
+  }
+
+  // #15 — minimum-engagement gate. If the kid reached finalize with
+  // ZERO real spoken turns (called action=grade right after start, or
+  // their mic genuinely never produced a transcript) we do NOT
+  // auto-award base XP. Route to the held-XP human queue: a genuine
+  // tech-fault gets approved, a deliberate skip gets denied. earlyPass
+  // always implies a graded spoken turn, so it's exempt. Setting
+  // overall_pass = null reuses the existing held path downstream.
+  const studentTurnCount = (tutorSession.transcript || []).filter(
+    (t) => t.role === "student" && String(t.text || "").trim()
+  ).length;
+  if (!tutorSession.earlyPass && studentTurnCount === 0 && grade.overall_pass !== null) {
+    grade.overall_pass = null;
+    grade.feedback = "Let's make sure your retell saved — we'll check it and sort out your XP.";
+    grade._heldReason = "retell_no_engagement";
+    trackEvent("tutor_held_no_engagement", { bookId: tutorSession.bookId });
+  }
+
+  // #2 — borderline FAIL → human review instead of a silent zero. A
+  // confident fail whose rubric total sits just under the pass bar
+  // (5-6 / 12) is exactly where a real reader who speaks simply (ESL,
+  // young, shy) gets wrongly denied. Route those to the held-XP queue
+  // so an admin can confirm. Clear fails (< 5) stay an auto-fail; clear
+  // passes (≥ 7) never reach this branch.
+  if (grade.overall_pass === false) {
+    const t = totalRubricScore(grade);
+    if (t >= 5 && t <= 6) {
+      grade.overall_pass = null;
+      grade.feedback = "Thanks for telling me about the book! We'll take a quick look and sort your XP.";
+      grade._heldReason = "retell_borderline";
+      trackEvent("tutor_held_borderline", { bookId: tutorSession.bookId, rubricTotal: t });
     }
   }
 
@@ -726,12 +769,17 @@ async function finalizeAndGrade(res, tutorSession, book) {
       const flagResult = await applyFraudFlag(email);
       const heldResult = await addHeldXpEntry({
         email,
-        name: tutorSession.email.split("@")[0],
+        // #35 — redacted display name; full email kept in `email`.
+        name: displayName(tutorSession.name || tutorSession.email),
         bookId: tutorSession.bookId,
         bookTitle: book.title || tutorSession.bookId,
         grade: tutorSession.workingGrade,
         points: xpCalc.xp,
-        reason: "tutor_review",
+        // #2/#15 — distinguish WHY this was held so the admin queue
+        // shows the right context: grader infra fault (tutor_review),
+        // no spoken turns (retell_no_engagement), or a borderline
+        // 5-6/12 fail flagged for a human second look (retell_borderline).
+        reason: grade._heldReason || "tutor_review",
         tutorRubric: grade,
         tutorTranscript: tutorSession.transcript,
         tutorAudioUrls: tutorSession.audioUrls,
@@ -739,7 +787,7 @@ async function finalizeAndGrade(res, tutorSession, book) {
       });
       response.held = true;
       response.heldInfo = {
-        reason: "tutor_review",
+        reason: grade._heldReason || "tutor_review",
         cooldownUntil: flagResult.cooldownUntil,
         flagCount: flagResult.flagCount,
         heldId: heldResult.id || null,
@@ -753,7 +801,9 @@ async function finalizeAndGrade(res, tutorSession, book) {
     // leaderboard/dedupe/Caliper pipeline as the legacy quiz path.
     const result = await recordRead({
       email,
-      name: tutorSession.email.split("@")[0],
+      // #35 — redacted display name (this becomes the leaderboard
+      // label, which is peer-facing).
+      name: displayName(tutorSession.name || tutorSession.email),
       grade: tutorSession.workingGrade,
       bookId: tutorSession.bookId,
       points: xpCalc.xp,
@@ -839,12 +889,19 @@ async function finalizeAndGrade(res, tutorSession, book) {
   }
 
   // Caliper event emission for retell (TimeBack sync — 1e). Fires for
-  // every finalized retell session: pass, marginal, fail, and held.
-  // TimeBack receives the rubric total + per-axis breakdown +
-  // quality tier so it can apply its own XP rules. Fire-and-forget
-  // matches the quiz path in api/activity.js. Errors swallowed so
-  // they never break the student-facing response.
-  try {
+  // a DECIDED retell: clear pass, marginal, or clean fail. Fire-and-
+  // forget matches the quiz path in api/activity.js. Errors swallowed
+  // so they never break the student-facing response.
+  //
+  // #2 — do NOT emit when the grade is HELD. A held retell (grader
+  // fault, no-engagement, or borderline) has NOT been decided — a
+  // human will approve or deny it. Emitting now would post a 0/fail
+  // GradeEvent to the official TimeBack record before review, with no
+  // correction path. The Caliper event for an approved held entry is
+  // emitted at approval time instead (admin held-XP resolve).
+  // TODO(followup): wire resolveHeldXp to emit the retell GradeEvent
+  // on approval so approved held XP reaches TimeBack.
+  if (!response.held) try {
     const rubricTotal =
       (Number(grade.retell_quality)   || 0) +
       (Number(grade.character_recall) || 0) +
@@ -854,7 +911,7 @@ async function finalizeAndGrade(res, tutorSession, book) {
     const envelope = buildRetellEventEnvelope({
       email,
       studentId: null, // populated once TimeBack id mapping ships
-      studentName: tutorSession.email.split("@")[0],
+      studentName: displayName(tutorSession.name || tutorSession.email),
       bookId: tutorSession.bookId,
       bookTitle: book.title || tutorSession.bookId,
       attemptNum: 1, // retell is one-shot per session

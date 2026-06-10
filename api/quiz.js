@@ -598,7 +598,11 @@ const QCSchema = z.object({
 //
 // Previous versions retired in commit history; see git log for
 // per-version rationale.
-const SCHEMA_VERSION = 22;
+// v23 (#16): answer tokens are now per-request, bound to the
+// student's email + a daily bucket. Bumping invalidates any client
+// localStorage holding old unbound tokens so kids refetch and get
+// bound ones.
+const SCHEMA_VERSION = 23;
 // Exported alias so api/activity.js can build the same cache key when it
 // validates a quiz_submit. Kept as a renamed export so the local const can
 // be reassigned independently if we ever split client / server schemas.
@@ -616,6 +620,26 @@ export const QUIZ_SCHEMA_VERSION = SCHEMA_VERSION;
  */
 function stripAnswerKey(q) {
   return { q: q.q, options: q.options, answerToken: q.answerToken };
+}
+
+/**
+ * #16 — strip the answer key AND sign a fresh per-request answerToken
+ * bound to the REQUESTING student (email) + the current day. Replaces
+ * the old scheme where one token was baked into the shared cache and
+ * reused by every kid forever. Now each kid gets their own daily-
+ * expiring tokens, so a token can't be shared across accounts or
+ * replayed on a later day. Async (HMAC), so callers await it.
+ */
+async function stripAndSignForClient(bookId, questions, email) {
+  return Promise.all(
+    questions.map(async (q) => ({
+      q: q.q,
+      options: q.options,
+      answerToken: Number.isInteger(q.answer)
+        ? await signQuizAnswer(bookId, q.q, q.answer, { email })
+        : (q.answerToken || ""),
+    }))
+  );
 }
 
 /**
@@ -1541,10 +1565,15 @@ export default async function handler(req, res) {
   const staticBank = getStaticQuestionBank(bookId);
   if (staticBank) {
     recordQuizOpen(session.email, bookId).catch(() => {});
-    // HMAC-sign each question's correct index so /api/activity can
-    // grade by recomputing the token (no Redis pool lookup needed).
     const signed = staticBank.questions.map((q) => ({ ...q }));
-    await attachAnswerTokens(bookId, signed);
+    // #16 — non-admins get per-request answerTokens bound to THEIR
+    // email + today (so tokens can't be shared across accounts or
+    // replayed on a later day). Admins get the full pool (answer
+    // included) for the answer-reveal debug view; they don't submit
+    // for grading.
+    const clientQuestions = isAdmin(session.email)
+      ? signed
+      : await stripAndSignForClient(bookId, signed, session.email);
     res.statusCode = 200;
     res.setHeader("Cache-Control", "no-store");
     return res.end(
@@ -1557,9 +1586,7 @@ export default async function handler(req, res) {
         cached: true,
         source: "static",
         bankVersion: staticBank.version,
-        questions: isAdmin(session.email)
-          ? signed
-          : signed.map(stripAnswerKey),
+        questions: clientQuestions,
         adminMode: isAdmin(session.email),
       })
     );

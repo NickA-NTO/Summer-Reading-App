@@ -1,6 +1,6 @@
 {
   "bookId": "k01",
-  "version": 2,
+  "version": 3,
   "questions": [
     {
       "q": "On what day does the caterpillar come out of the egg?",
@@ -15,12 +15,12 @@
     {
       "q": "How many apples does the caterpillar eat on Monday?",
       "options": [
-        "One",
         "Two",
+        "One",
         "Three",
         "Four"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "What fruit does the caterpillar eat on Tuesday?",
@@ -36,31 +36,31 @@
       "q": "How many plums does the caterpillar eat on Wednesday?",
       "options": [
         "Two",
-        "Three",
+        "Five",
         "Four",
-        "Five"
+        "Three"
       ],
-      "answer": 1
+      "answer": 3
     },
     {
       "q": "What fruit does the caterpillar eat on Thursday?",
       "options": [
-        "Oranges",
-        "Plums",
         "Strawberries",
+        "Plums",
+        "Oranges",
         "Pears"
       ],
-      "answer": 2
+      "answer": 0
     },
     {
       "q": "How many oranges does the caterpillar eat on Friday?",
       "options": [
         "Three",
-        "Four",
         "Five",
+        "Four",
         "Six"
       ],
-      "answer": 2
+      "answer": 1
     },
     {
       "q": "On which day does the caterpillar eat chocolate cake and ice cream?",
@@ -75,12 +75,12 @@
     {
       "q": "How does the caterpillar feel that night after eating so much on Saturday?",
       "options": [
-        "He has a stomachache",
+        "He feels very sleepy",
         "He feels very hungry",
         "He feels much better",
-        "He feels very sleepy"
+        "He has a stomachache"
       ],
-      "answer": 0
+      "answer": 3
     },
     {
       "q": "What does the caterpillar eat to feel better after his stomachache?",
@@ -95,12 +95,12 @@
     {
       "q": "What does the caterpillar look like after all that eating?",
       "options": [
-        "Big and fat",
         "Small and hungry",
+        "Big and fat",
         "Tired and sleepy",
         "Tiny and sad"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "What does the caterpillar build around himself?",
@@ -116,11 +116,11 @@
       "q": "How long does the caterpillar stay inside his cocoon?",
       "options": [
         "One week",
-        "More than two weeks",
+        "One month",
         "Three days",
-        "One month"
+        "More than two weeks"
       ],
-      "answer": 1
+      "answer": 3
     },
     {
       "q": "What does the caterpillar turn into when he comes out of the cocoon?",
@@ -136,11 +136,11 @@
       "q": "What special thing do the pages of this book have?",
       "options": [
         "Shiny stickers",
-        "Pop-up pictures",
         "Little holes",
+        "Pop-up pictures",
         "Fuzzy textures"
       ],
-      "answer": 2
+      "answer": 1
     }
   ]
 }

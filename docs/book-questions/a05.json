@@ -1,6 +1,6 @@
 {
   "bookId": "a05",
-  "version": 1,
+  "version": 2,
   "questions": [
     {
       "q": "Why does Henry want a dog?",
@@ -37,90 +37,90 @@
       "options": [
         "Three",
         "Five",
-        "Seven",
-        "Nine"
+        "Nine",
+        "Seven"
       ],
-      "answer": 2
+      "answer": 3
     },
     {
       "q": "How much does Mudge weigh when he is fully grown?",
       "options": [
-        "80 pounds",
+        "180 pounds",
         "120 pounds",
         "150 pounds",
-        "180 pounds"
+        "80 pounds"
       ],
-      "answer": 3
+      "answer": 0
     },
     {
       "q": "How tall is Mudge when he is fully grown?",
       "options": [
         "About one foot tall",
-        "About two feet tall",
         "About three feet tall",
+        "About two feet tall",
         "About four feet tall"
       ],
-      "answer": 2
+      "answer": 1
     },
     {
       "q": "What do Henry and Mudge do together every day?",
       "options": [
         "Play fetch",
-        "Walk to school",
         "Go swimming",
+        "Walk to school",
         "Visit the park"
       ],
-      "answer": 1
+      "answer": 2
     },
     {
       "q": "What does Henry worry about while he is at school?",
       "options": [
         "That Mudge will run away forever",
-        "That Mudge will not be home",
+        "That Mudge will forget him",
         "That Mudge will get too big",
-        "That Mudge will forget him"
+        "That Mudge will not be home"
       ],
-      "answer": 1
+      "answer": 3
     },
     {
       "q": "What happens to Mudge in the second half of the book?",
       "options": [
-        "He learns a new trick",
-        "He gets a new collar",
         "He gets lost",
+        "He gets a new collar",
+        "He learns a new trick",
         "He meets another dog"
       ],
-      "answer": 2
+      "answer": 0
     },
     {
       "q": "How does Mudge feel when he is lost?",
       "options": [
         "Excited",
-        "Angry",
         "Sad",
+        "Angry",
         "Sleepy"
       ],
-      "answer": 2
+      "answer": 1
     },
     {
       "q": "What does Henry promise Mudge at the end of the book?",
       "options": [
         "To give him more treats",
-        "To never leave him again",
         "To get him a new collar",
+        "To never leave him again",
         "To take him to the park"
       ],
-      "answer": 1
+      "answer": 2
     },
     {
       "q": "Who says yes when Henry asks for a dog?",
       "options": [
         "His teacher",
         "His grandparents",
-        "His parents",
-        "His neighbor"
+        "His neighbor",
+        "His parents"
       ],
-      "answer": 2
+      "answer": 3
     }
   ]
 }

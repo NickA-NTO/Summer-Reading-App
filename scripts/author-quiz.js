@@ -187,6 +187,20 @@ RULES (the QC checklist):
      GOOD: Q: "Who drinks pink ink?" with The Yink / The Yop / The Zans /
            The Nook (all from the book)
 
+10. COMPREHENSION OVER TRIVIA — Test whether the kid UNDERSTOOD the
+    story, not whether they memorized an incidental number or label. At
+    most ONE or TWO of the questions may ask a pure-recall numeric/label
+    detail; the rest should probe WHY something happened, WHAT a
+    character did, HOW a problem was solved, or the ORDER of events.
+     BAD (incidental trivia a skimmer retains, an understander forgets):
+       "How much does Mudge weigh?" / "How many collars does he have?"
+       / "How tall is the cousin?"
+     GOOD (requires having followed the story):
+       "Why does Henry want a dog?" / "What does Mudge do when Henry
+       gets lost?" / "How do Henry and Mudge find their way home?"
+    A child who genuinely understood the book should score well; a
+    child who only skimmed for facts should not.
+
 PRE-EMIT SELF-CHECK — Before you output the JSON, walk through each
 question and answer YES to every line:
   □ Stem under 18 words, every option under 8 words?

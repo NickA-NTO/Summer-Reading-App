@@ -1,6 +1,6 @@
 {
   "bookId": "k03",
-  "version": 2,
+  "version": 3,
   "questions": [
     {
       "q": "Who leads the family on their adventure?",
@@ -15,32 +15,32 @@
     {
       "q": "What do they say about the weather in their chant?",
       "options": [
-        "What a beautiful day",
         "What a rainy day",
+        "What a beautiful day",
         "What a windy day",
         "What a cloudy day"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "What is the first thing they have to go through?",
       "options": [
-        "Long wavy grass",
-        "Thick oozy mud",
         "A deep cold river",
+        "Thick oozy mud",
+        "Long wavy grass",
         "A big dark forest"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "What sound does the grass make?",
       "options": [
-        "Swishy swashy",
+        "Stumble trip",
         "Splash splosh",
         "Squelch squerch",
-        "Stumble trip"
+        "Swishy swashy"
       ],
-      "answer": 0
+      "answer": 3
     },
     {
       "q": "What sound does the river make?",
@@ -55,32 +55,32 @@
     {
       "q": "What sound does the mud make?",
       "options": [
-        "Squelch squerch",
         "Splash splosh",
+        "Squelch squerch",
         "Stumble trip",
         "Swishy swashy"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "What sound does the forest make?",
       "options": [
-        "Stumble trip",
-        "Hoooo wooooo",
         "Squelch squerch",
+        "Hoooo wooooo",
+        "Stumble trip",
         "Tiptoe"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "What sound does the snowstorm make?",
       "options": [
-        "Hoooo wooooo",
+        "Stumble trip",
         "Swishy swashy",
         "Splash splosh",
-        "Stumble trip"
+        "Hoooo wooooo"
       ],
-      "answer": 0
+      "answer": 3
     },
     {
       "q": "What is the last place the family goes through before they find what they are looking for?",
@@ -95,32 +95,32 @@
     {
       "q": "What do they say about being afraid in their chant?",
       "options": [
-        "We're not scared",
         "We're very scared",
+        "We're not scared",
         "We're a little scared",
         "We're so scared"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "What does the family do when they see the bear?",
       "options": [
-        "They turn and run home",
-        "They wave hello",
         "They sit down",
+        "They wave hello",
+        "They turn and run home",
         "They take a nap"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "Where does the family hide at the end of the story?",
       "options": [
-        "Under the covers in bed",
+        "Behind the front door",
         "Under the kitchen table",
         "Inside a closet",
-        "Behind the front door"
+        "Under the covers in bed"
       ],
-      "answer": 0
+      "answer": 3
     },
     {
       "q": "How does the bear look in the very last picture of the book?",

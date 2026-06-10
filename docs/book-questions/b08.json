@@ -1,6 +1,6 @@
 {
   "bookId": "b08",
-  "version": 2,
+  "version": 3,
   "questions": [
     {
       "q": "What kind of animal is Stellaluna?",
@@ -15,32 +15,32 @@
     {
       "q": "Where does Stellaluna end up after she falls from her mother?",
       "options": [
-        "In a bird's nest",
         "In a dark cave",
+        "In a bird's nest",
         "In a deep river",
         "In a hollow log"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "How many baby birds live in the nest where Stellaluna lands?",
       "options": [
         "Two",
-        "Three",
         "Four",
+        "Three",
         "Five"
       ],
-      "answer": 1
+      "answer": 2
     },
     {
       "q": "What does Mother Bird make Stellaluna eat?",
       "options": [
         "Soft fruit",
-        "Bugs and worms",
+        "Leaves and flowers",
         "Seeds and nuts",
-        "Leaves and flowers"
+        "Bugs and worms"
       ],
-      "answer": 1
+      "answer": 3
     },
     {
       "q": "When does Mother Bird tell Stellaluna to sleep?",
@@ -55,32 +55,32 @@
     {
       "q": "What does Mother Bird tell Stellaluna NOT to do?",
       "options": [
-        "Hang by her feet",
         "Eat soft fruit",
+        "Hang by her feet",
         "Fly with the birds",
         "Sleep in the nest"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "Why do the baby birds hurry back to the nest when night falls?",
       "options": [
-        "They cannot see in the dark",
-        "They are hungry for dinner",
         "They hear Mother Bird calling",
+        "They are hungry for dinner",
+        "They cannot see in the dark",
         "They are scared of bats"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "How is Stellaluna hanging when the other bats find her?",
       "options": [
-        "By her thumbs",
+        "By her tail",
         "By her feet",
         "By her wings",
-        "By her tail"
+        "By her thumbs"
       ],
-      "answer": 0
+      "answer": 3
     },
     {
       "q": "Who finds Stellaluna alone on the branch at night?",
@@ -95,42 +95,42 @@
     {
       "q": "Who is Stellaluna reunited with at the end of the story?",
       "options": [
-        "Her Mother Bat",
         "Her father",
+        "Her Mother Bat",
         "The owl",
         "A new family"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "What food does Stellaluna finally taste when she meets the other bats?",
       "options": [
-        "Soft fruit",
-        "Crunchy bugs",
         "Small seeds",
+        "Crunchy bugs",
+        "Soft fruit",
         "Green leaves"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "Where does this story take place?",
       "options": [
-        "In a jungle in Africa",
+        "In a backyard garden",
         "In a barn on a farm",
         "In a city park",
-        "In a backyard garden"
+        "In a jungle in Africa"
       ],
-      "answer": 0
+      "answer": 3
     },
     {
       "q": "What happens when Pip, Flitter, and Flap try hanging upside down?",
       "options": [
-        "They love it",
         "They don't like it",
+        "They love it",
         "They fall asleep",
         "They fly away"
       ],
-      "answer": 1
+      "answer": 0
     }
   ]
 }

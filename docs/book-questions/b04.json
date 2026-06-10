@@ -1,6 +1,6 @@
 {
   "bookId": "b04",
-  "version": 2,
+  "version": 3,
   "questions": [
     {
       "q": "What is Pandora's job at the lighthouse?",
@@ -15,32 +15,32 @@
     {
       "q": "How does Pandora feel at the start of the book?",
       "options": [
-        "Lonely",
         "Angry",
+        "Lonely",
         "Excited",
         "Scared"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "What kind of animal is Seabold?",
       "options": [
-        "A dog",
-        "A cat",
         "A mouse",
+        "A cat",
+        "A dog",
         "A seal"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "What does the storm do to Seabold's boat?",
       "options": [
-        "Wrecks it",
+        "Steals it",
         "Sinks it",
         "Hides it",
-        "Steals it"
+        "Wrecks it"
       ],
-      "answer": 0
+      "answer": 3
     },
     {
       "q": "What does Seabold fix after he feels better?",
@@ -55,32 +55,32 @@
     {
       "q": "What do Pandora and Seabold spot floating on the waves?",
       "options": [
-        "A wooden crate",
         "A small boat",
+        "A wooden crate",
         "A broken lamp",
         "A fallen tree"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "Who sails out to investigate the crate?",
       "options": [
-        "Seabold",
-        "Pandora",
         "Lila",
+        "Pandora",
+        "Seabold",
         "Whistler"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "How many mice are inside the crate?",
       "options": [
-        "Three",
+        "Five",
         "Two",
         "Four",
-        "Five"
+        "Three"
       ],
-      "answer": 0
+      "answer": 3
     },
     {
       "q": "What are the names of the three mice?",
@@ -95,32 +95,32 @@
     {
       "q": "Which mouse is sick when they are rescued?",
       "options": [
-        "Tiny",
         "Lila",
+        "Tiny",
         "Whistler",
         "Seabold"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "What season is it when the mice are rescued?",
       "options": [
-        "Spring",
-        "Summer",
         "Winter",
+        "Summer",
+        "Spring",
         "Fall"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "What happens to the animals by the end of the book?",
       "options": [
-        "They become a family",
+        "They fix the lighthouse",
         "They sail away alone",
         "They leave the island",
-        "They fix the lighthouse"
+        "They become a family"
       ],
-      "answer": 0
+      "answer": 3
     }
   ]
 }

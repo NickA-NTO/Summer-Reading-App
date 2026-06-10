@@ -6,6 +6,9 @@
   "engines": {
     "node": ">=20"
   },
+  "scripts": {
+    "qc": "node scripts/qc-all.js"
+  },
   "dependencies": {
     "@ai-sdk/anthropic": "^1.2.0",
     "@anthropic-ai/sdk": "^0.102.0",

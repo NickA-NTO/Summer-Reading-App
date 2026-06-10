@@ -1,16 +1,16 @@
 {
   "bookId": "a09",
-  "version": 2,
+  "version": 3,
   "questions": [
     {
       "q": "What color are the overalls that the teddy bear wears?",
       "options": [
-        "Blue",
-        "Red",
         "Green",
+        "Red",
+        "Blue",
         "Brown"
       ],
-      "answer": 2
+      "answer": 0
     },
     {
       "q": "What is missing from the teddy bear's shoulder strap?",
@@ -26,31 +26,31 @@
       "q": "Where does the teddy bear live at the start of the story?",
       "options": [
         "A bedroom",
-        "A toy department",
         "A library",
+        "A toy department",
         "A playroom"
       ],
-      "answer": 1
+      "answer": 2
     },
     {
       "q": "What is the little girl's name?",
       "options": [
-        "Lisa",
+        "Sara",
         "Anna",
         "Emma",
-        "Sara"
+        "Lisa"
       ],
-      "answer": 0
+      "answer": 3
     },
     {
       "q": "Why does the mother say no to buying the teddy bear?",
       "options": [
-        "He is too big",
         "He is missing a button",
+        "He is too big",
         "He costs too much",
         "He is too old"
       ],
-      "answer": 1
+      "answer": 0
     },
     {
       "q": "Where does the escalator take the teddy bear?",
@@ -66,31 +66,31 @@
       "q": "What round thing on a bed does Corduroy think is his?",
       "options": [
         "A lamp knob",
-        "A mattress button",
         "A drawer handle",
+        "A mattress button",
         "A clock hand"
       ],
-      "answer": 1
+      "answer": 2
     },
     {
       "q": "What does the teddy bear knock over when he falls?",
       "options": [
         "A chair",
-        "A lamp",
+        "A clock",
         "A pillow",
-        "A clock"
+        "A lamp"
       ],
-      "answer": 1
+      "answer": 3
     },
     {
       "q": "Who hears the crash and finds Corduroy on the floor?",
       "options": [
-        "A store owner",
-        "A salesperson",
         "A night watchman",
+        "A salesperson",
+        "A store owner",
         "A customer"
       ],
-      "answer": 2
+      "answer": 0
     },
     {
       "q": "Where does the night watchman take the teddy bear?",
@@ -105,32 +105,32 @@
     {
       "q": "Where did the girl get the money to buy the teddy bear?",
       "options": [
-        "Her piggy bank",
-        "Her mother",
         "Her father",
+        "Her mother",
+        "Her piggy bank",
         "Her grandmother"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "What does the girl do at home to fix the teddy bear?",
       "options": [
         "She washes him",
-        "She sews on a button",
+        "She ties a ribbon",
         "She brushes his fur",
-        "She ties a ribbon"
+        "She sews on a button"
       ],
-      "answer": 1
+      "answer": 3
     },
     {
       "q": "What has the teddy bear always wanted?",
       "options": [
-        "A new home",
         "A friend",
+        "A new home",
         "A button",
         "A bed"
       ],
-      "answer": 1
+      "answer": 0
     }
   ]
 }

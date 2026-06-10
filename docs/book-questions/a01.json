@@ -1,6 +1,6 @@
 {
   "bookId": "a01",
-  "version": 2,
+  "version": 3,
   "questions": [
     {
       "q": "Where does Peter's family live?",
@@ -16,31 +16,31 @@
       "q": "What color is Peter's jacket?",
       "options": [
         "Red",
-        "Green",
         "Blue",
+        "Green",
         "Brown"
       ],
-      "answer": 2
+      "answer": 1
     },
     {
       "q": "What happened to Peter's father in the garden?",
       "options": [
         "He was chased away by a cat",
-        "He was put in a pie",
         "He was caught in a net",
+        "He was put in a pie",
         "He was trapped in a shed"
       ],
-      "answer": 1
+      "answer": 2
     },
     {
       "q": "What do Flopsy, Mopsy, and Cotton-tail go off to gather?",
       "options": [
         "Radishes",
         "Parsley",
-        "Blackberries",
-        "Lettuces"
+        "Lettuces",
+        "Blackberries"
       ],
-      "answer": 2
+      "answer": 3
     },
     {
       "q": "What does Mrs. Rabbit buy at the baker's?",
@@ -66,41 +66,41 @@
       "q": "Where does Peter get stuck because of his buttons?",
       "options": [
         "In a cucumber frame",
-        "In a gooseberry net",
         "In a wheelbarrow",
+        "In a gooseberry net",
         "In a watering can"
       ],
-      "answer": 1
+      "answer": 2
     },
     {
       "q": "What birds fly down and tell Peter to keep trying to escape?",
       "options": [
         "Blackbirds",
         "Robins",
-        "Sparrows",
-        "Crows"
+        "Crows",
+        "Sparrows"
       ],
-      "answer": 2
+      "answer": 3
     },
     {
       "q": "What does Peter hide in that has water inside?",
       "options": [
-        "A bucket",
         "A can",
+        "A bucket",
         "A sieve",
         "A pot"
       ],
-      "answer": 1
+      "answer": 0
     },
     {
       "q": "What does Peter climb on to see the gate?",
       "options": [
         "A watering can",
-        "A cucumber frame",
+        "A wheelbarrow",
         "A tool shed",
-        "A wheelbarrow"
+        "A cucumber frame"
       ],
-      "answer": 3
+      "answer": 1
     },
     {
       "q": "What does Mrs. Rabbit give Peter when he is sick in bed?",
@@ -116,11 +116,11 @@
       "q": "What do the three good sisters have for supper?",
       "options": [
         "Lettuces and radishes",
-        "Bread and milk and blackberries",
+        "French beans and carrots",
         "Currant buns and tea",
-        "French beans and carrots"
+        "Bread and milk and blackberries"
       ],
-      "answer": 1
+      "answer": 3
     }
   ]
 }

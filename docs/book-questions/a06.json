@@ -1,6 +1,6 @@
 {
   "bookId": "a06",
-  "version": 1,
+  "version": 2,
   "questions": [
     {
       "q": "What is the name of the girl in this story?",
@@ -25,22 +25,22 @@
     {
       "q": "What is in front of Vashti at the start of the story?",
       "options": [
-        "A blank sheet of paper",
-        "A colorful painting",
         "A box of crayons",
+        "A colorful painting",
+        "A blank sheet of paper",
         "A finished drawing"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "What does the teacher tell Vashti to do first?",
       "options": [
         "Draw a picture of a house",
         "Copy another student's work",
-        "Just make a mark",
-        "Paint a rainbow"
+        "Paint a rainbow",
+        "Just make a mark"
       ],
-      "answer": 2
+      "answer": 3
     },
     {
       "q": "What does Vashti make when she jabs the paper?",
@@ -65,22 +65,22 @@
     {
       "q": "Where does Vashti see her dot the next week?",
       "options": [
-        "In a gold frame",
-        "In her backpack",
         "In the trash can",
+        "In her backpack",
+        "In a gold frame",
         "In a closet"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "What does Vashti think when she sees her framed dot?",
       "options": [
         "She wants to stop painting",
-        "She can make a better one",
+        "She feels very sad",
         "She wants to take it home",
-        "She feels very sad"
+        "She can make a better one"
       ],
-      "answer": 1
+      "answer": 3
     },
     {
       "q": "What does Vashti paint after seeing her framed dot?",
@@ -95,32 +95,32 @@
     {
       "q": "Where are Vashti's dot paintings displayed?",
       "options": [
-        "At a school art show",
         "At a museum downtown",
+        "At a school art show",
         "At her grandmother's house",
         "At a shopping mall"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "Who comes up to Vashti at the art show?",
       "options": [
-        "A little boy",
-        "A little girl",
         "A tall man",
+        "A little girl",
+        "A little boy",
         "A friendly dog"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "What does the boy draw on the paper Vashti gives him?",
       "options": [
-        "A wobbly line",
+        "A small square",
         "A perfect circle",
         "A tiny dot",
-        "A small square"
+        "A wobbly line"
       ],
-      "answer": 0
+      "answer": 3
     }
   ]
 }

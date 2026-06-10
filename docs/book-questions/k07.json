@@ -1,6 +1,6 @@
 {
   "bookId": "k07",
-  "version": 2,
+  "version": 3,
   "questions": [
     {
       "q": "What does the mouse ask for right after getting the cookie?",
@@ -15,32 +15,32 @@
     {
       "q": "What does the mouse need to drink the milk?",
       "options": [
-        "A straw",
         "A spoon",
+        "A straw",
         "A cup",
         "A bowl"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "What does the mouse want to wipe his mouth?",
       "options": [
-        "A napkin",
-        "A towel",
         "A blanket",
+        "A towel",
+        "A napkin",
         "A pillow"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "What does the mouse want to check for in the mirror?",
       "options": [
-        "A milk moustache",
+        "A spot of jam",
         "A cookie crumb",
         "A hair clip",
-        "A spot of jam"
+        "A milk moustache"
       ],
-      "answer": 0
+      "answer": 3
     },
     {
       "q": "What does the mouse use to trim his hair?",
@@ -55,32 +55,32 @@
     {
       "q": "What does the mouse need to clean up his hair clippings?",
       "options": [
-        "A broom",
         "A mop",
+        "A broom",
         "A napkin",
         "A towel"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "What does the mouse want to do after he sweeps the floor?",
       "options": [
-        "Mop",
-        "Nap",
         "Draw",
+        "Nap",
+        "Mop",
         "Read"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "What two things does the mouse need for his nap?",
       "options": [
-        "A pillow and a blanket",
+        "A broom and a mop",
         "A cookie and milk",
         "A pen and paper",
-        "A broom and a mop"
+        "A pillow and a blanket"
       ],
-      "answer": 0
+      "answer": 3
     },
     {
       "q": "What does the mouse ask for before he falls asleep?",
@@ -95,32 +95,32 @@
     {
       "q": "What does the mouse ask for so he can draw a picture?",
       "options": [
-        "Crayons",
         "Scissors",
+        "Crayons",
         "A straw",
         "A mirror"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "Where does the mouse want to put his finished drawing?",
       "options": [
-        "On the refrigerator",
-        "On the mirror",
         "On the sofa",
+        "On the mirror",
+        "On the refrigerator",
         "On the floor"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "What color are the dungarees the mouse wears?",
       "options": [
-        "Blue",
+        "Yellow",
         "Red",
         "Green",
-        "Yellow"
+        "Blue"
       ],
-      "answer": 0
+      "answer": 3
     },
     {
       "q": "What does the mouse use to stick his picture on the fridge?",

@@ -1,6 +1,6 @@
 {
   "bookId": "b07",
-  "version": 2,
+  "version": 3,
   "questions": [
     {
       "q": "What does Boggis eat three times a day?",
@@ -16,31 +16,31 @@
       "q": "Which farmer is described as thin as a pencil?",
       "options": [
         "Boggis",
-        "Bunce",
         "Bean",
+        "Bunce",
         "Badger"
       ],
-      "answer": 2
+      "answer": 1
     },
     {
       "q": "What does Mr. Fox lose when the farmers shoot at him?",
       "options": [
-        "His tail",
-        "His ear",
         "His paw",
+        "His ear",
+        "His tail",
         "His tooth"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "How many small foxes are in Mr. Fox's family?",
       "options": [
         "Two",
         "Three",
-        "Four",
-        "Five"
+        "Five",
+        "Four"
       ],
-      "answer": 2
+      "answer": 3
     },
     {
       "q": "Which farmer owns chickens?",
@@ -55,12 +55,12 @@
     {
       "q": "What does Bean drink instead of eating food?",
       "options": [
-        "Strong cider",
         "Fresh milk",
+        "Strong cider",
         "Apple juice",
         "Hot tea"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "Who comes up with the plan to wait outside the fox hole with guns?",
@@ -75,12 +75,12 @@
     {
       "q": "What machines do the farmers use to dig up the hill?",
       "options": [
-        "Mechanical diggers",
+        "Drilling trucks",
         "Giant tractors",
         "Steam shovels",
-        "Drilling trucks"
+        "Mechanical diggers"
       ],
-      "answer": 0
+      "answer": 3
     },
     {
       "q": "Which animal joins the foxes underground after being dug out of his home?",
@@ -95,42 +95,42 @@
     {
       "q": "What kind of food does Bunce keep in his storehouse?",
       "options": [
-        "Smoked hams and ducks",
         "Boiled chickens and dumplings",
+        "Smoked hams and ducks",
         "Turkeys and apples",
         "Cider and carrots"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "Who prepares the great underground banquet for all the animals?",
       "options": [
-        "Mrs. Fox",
-        "Mr. Fox",
         "Badger",
+        "Mr. Fox",
+        "Mrs. Fox",
         "Mrs. Badger"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "What are the three farmers doing at the very end of the book?",
       "options": [
-        "Waiting by the fox hole",
+        "Calling for more help",
         "Chasing the foxes underground",
         "Going back to their farms",
-        "Calling for more help"
+        "Waiting by the fox hole"
       ],
-      "answer": 0
+      "answer": 3
     },
     {
       "q": "According to the rhyme, which farmer is described as short?",
       "options": [
-        "Boggis",
         "Bunce",
+        "Boggis",
         "Bean",
         "Badger"
       ],
-      "answer": 1
+      "answer": 0
     }
   ]
 }

@@ -1,46 +1,46 @@
 {
   "bookId": "c01",
-  "version": 2,
+  "version": 3,
   "questions": [
     {
       "q": "How old is Jack?",
       "options": [
-        "Seven",
         "Eight",
+        "Seven",
         "Nine",
         "Ten"
       ],
-      "answer": 1
+      "answer": 0
     },
     {
       "q": "What does Jack carry in his backpack?",
       "options": [
-        "A notebook and pencil",
         "A flashlight and snacks",
+        "A notebook and pencil",
         "A camera and map",
         "A compass and rope"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "What does Jack wish on to start the adventure?",
       "options": [
-        "A picture of a Pteranodon",
-        "A picture of a T-Rex",
         "A picture of a Triceratops",
+        "A picture of a T-Rex",
+        "A picture of a Pteranodon",
         "A picture of an Anatosaurus"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "What happens to the tree house when Jack makes his wish?",
       "options": [
-        "It spins",
+        "It glows",
         "It floats",
         "It shrinks",
-        "It glows"
+        "It spins"
       ],
-      "answer": 0
+      "answer": 3
     },
     {
       "q": "How far back in time do Jack and Annie travel?",
@@ -55,32 +55,32 @@
     {
       "q": "What does the Triceratops eat?",
       "options": [
-        "Flowers",
         "Fish",
+        "Flowers",
         "Bugs",
         "Grass"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "Where do the Anatosaurus babies live?",
       "options": [
-        "In a mud nest",
-        "In a cave",
         "In a river",
+        "In a cave",
+        "In a mud nest",
         "In tall grass"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "Which dinosaur is described as bigger than a truck?",
       "options": [
-        "The Tyrannosaurus Rex",
+        "The Anatosaurus",
         "The Pteranodon",
         "The Triceratops",
-        "The Anatosaurus"
+        "The Tyrannosaurus Rex"
       ],
-      "answer": 0
+      "answer": 3
     },
     {
       "q": "What letter is stamped on the medallion?",
@@ -95,32 +95,32 @@
     {
       "q": "What do Jack and Annie wish on to get back home?",
       "options": [
-        "A picture of Frog Creek",
         "A picture of the sun",
+        "A picture of Frog Creek",
         "A picture of the moon",
         "A picture of a star"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "How do the children climb up to the tree house?",
       "options": [
-        "A rope ladder",
-        "A wooden staircase",
         "A tall vine",
+        "A wooden staircase",
+        "A rope ladder",
         "A metal ladder"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "Who is the first to climb up to the tree house?",
       "options": [
-        "Annie",
+        "Their dad",
         "Jack",
         "Their mom",
-        "Their dad"
+        "Annie"
       ],
-      "answer": 0
+      "answer": 3
     }
   ]
 }

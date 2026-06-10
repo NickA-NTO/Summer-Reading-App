@@ -1,6 +1,6 @@
 {
   "bookId": "a03",
-  "version": 1,
+  "version": 2,
   "questions": [
     {
       "q": "What does Frog tear off to trick Toad into thinking it is May?",
@@ -15,82 +15,82 @@
     {
       "q": "Where does Toad finally find his missing button?",
       "options": [
-        "On the floor of his house",
         "In the meadow grass",
+        "On the floor of his house",
         "By the river bank",
         "Under his porch"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "Who delivers the letter that Frog writes to Toad?",
       "options": [
         "Sparrow",
         "Raccoon",
-        "Turtle",
-        "Snail"
+        "Snail",
+        "Turtle"
       ],
-      "answer": 3
+      "answer": 2
     },
     {
       "q": "What color is Toad's missing button?",
       "options": [
         "Black",
-        "White",
+        "Green",
         "Brown",
-        "Green"
+        "White"
       ],
-      "answer": 1
+      "answer": 3
     },
     {
       "q": "How many holes does Toad's missing button have?",
       "options": [
-        "Two",
-        "Three",
         "Four",
+        "Three",
+        "Two",
         "Five"
       ],
-      "answer": 2
+      "answer": 0
     },
     {
       "q": "What does Toad do with all the wrong buttons at the end of A Lost Button?",
       "options": [
         "Throws them in the river",
-        "Buries them in the yard",
         "Sews them on a jacket for Frog",
+        "Buries them in the yard",
         "Puts them in a box"
       ],
-      "answer": 2
+      "answer": 1
     },
     {
       "q": "Why is Toad sad at the start of The Letter?",
       "options": [
-        "His mailbox is always empty",
-        "His friend moved away",
         "He lost his favorite hat",
+        "His friend moved away",
+        "His mailbox is always empty",
         "He broke his favorite cup"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "What is Toad wearing when the animals laugh at him?",
       "options": [
         "A silly hat",
-        "A bathing suit",
+        "A long scarf",
         "A torn jacket",
-        "A long scarf"
+        "A bathing suit"
       ],
-      "answer": 1
+      "answer": 3
     },
     {
       "q": "How many days does the snail take to deliver the letter?",
       "options": [
-        "Two",
-        "Three",
         "Four",
+        "Three",
+        "Two",
         "Five"
       ],
-      "answer": 2
+      "answer": 0
     },
     {
       "q": "What does Toad pour over his head while trying to think of a story?",
@@ -106,21 +106,21 @@
       "q": "Which animal brings Toad a button with two holes?",
       "options": [
         "Frog",
-        "Sparrow",
         "Raccoon",
+        "Sparrow",
         "Turtle"
       ],
-      "answer": 1
+      "answer": 2
     },
     {
       "q": "In The Story, who ends up telling a story to make the other feel better?",
       "options": [
-        "Frog tells Toad a story",
+        "Snail tells Toad a story",
         "Toad tells Frog a story",
         "Sparrow tells Frog a story",
-        "Snail tells Toad a story"
+        "Frog tells Toad a story"
       ],
-      "answer": 0
+      "answer": 3
     }
   ]
 }

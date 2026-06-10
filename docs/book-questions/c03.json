@@ -1,16 +1,16 @@
 {
   "bookId": "c03",
-  "version": 2,
+  "version": 3,
   "questions": [
     {
       "q": "Who tells Junie B. that she has to ride the bus to school?",
       "options": [
-        "Her teacher",
         "Her mother",
+        "Her teacher",
         "Her principal",
         "Her friend Grace"
       ],
-      "answer": 1
+      "answer": 0
     },
     {
       "q": "Which boy is mean to Junie B. on the bus ride to school?",
@@ -25,32 +25,32 @@
     {
       "q": "What does Jim do to Junie B. on the bus?",
       "options": [
-        "He steps on her shoe",
-        "He takes her backpack",
         "He pours milk on her",
+        "He takes her backpack",
+        "He steps on her shoe",
         "He pushes her seat"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "What is the number of Junie B.'s kindergarten classroom?",
       "options": [
         "Room Seven",
         "Room Eight",
-        "Room Nine",
-        "Room Ten"
+        "Room Ten",
+        "Room Nine"
       ],
-      "answer": 2
+      "answer": 3
     },
     {
       "q": "Which girl tells Junie B. the scary rumour about the bus ride home?",
       "options": [
-        "Grace",
         "Lucille",
+        "Grace",
         "Mrs.",
         "Her mother"
       ],
-      "answer": 1
+      "answer": 0
     },
     {
       "q": "What do bigger kids supposedly do to smaller kids on the bus, according to the rumour?",
@@ -75,22 +75,22 @@
     {
       "q": "What happens to Junie B. after everyone leaves the school building?",
       "options": [
-        "She gets locked inside",
+        "She finds her mother",
         "She falls asleep outside",
         "She walks home alone",
-        "She finds her mother"
+        "She gets locked inside"
       ],
-      "answer": 0
+      "answer": 3
     },
     {
       "q": "Which room does Junie B. go to where she eats crackers and uses the phone?",
       "options": [
-        "The library",
-        "The cafeteria",
         "The nurse's office",
+        "The cafeteria",
+        "The library",
         "The principal's office"
       ],
-      "answer": 2
+      "answer": 0
     },
     {
       "q": "How does Junie B. finally get help when she is trapped in the school?",
@@ -106,21 +106,21 @@
       "q": "Which girl becomes Junie B.'s new friend by the end of the book?",
       "options": [
         "Lucille",
-        "Grace",
         "Mrs.",
+        "Grace",
         "Her mother"
       ],
-      "answer": 1
+      "answer": 2
     },
     {
       "q": "What does Grace tell Junie B. about the chocolate milk story?",
       "options": [
         "It happened to her once",
         "It only happens on Fridays",
-        "It is not true",
-        "It is very scary"
+        "It is very scary",
+        "It is not true"
       ],
-      "answer": 2
+      "answer": 3
     }
   ]
 }

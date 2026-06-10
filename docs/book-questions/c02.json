@@ -1,6 +1,6 @@
 {
   "bookId": "c02",
-  "version": 2,
+  "version": 3,
   "questions": [
     {
       "q": "What is the name of the bookshop where the signing was supposed to happen?",
@@ -15,32 +15,32 @@
     {
       "q": "How old are Dink, Josh, and Ruth Rose?",
       "options": [
-        "Nine",
         "Eight",
+        "Nine",
         "Ten",
         "Seven"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "What is the name of the famous mystery writer Dink invited to town?",
       "options": [
-        "Wallis Wallace",
-        "Mavis Green",
         "Olivia Parker",
+        "Mavis Green",
+        "Wallis Wallace",
         "Ruth Rose"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "Who owns the Book Nook bookshop?",
       "options": [
-        "Mr. Paskey",
+        "Dink Duncan",
         "Mr. Linkletter",
         "Josh Pinto",
-        "Dink Duncan"
+        "Mr. Paskey"
       ],
-      "answer": 0
+      "answer": 3
     },
     {
       "q": "What is the name of the place where the writer had a room booked?",
@@ -55,32 +55,32 @@
     {
       "q": "What room number was Wallis Wallace checked into at the hotel?",
       "options": [
-        "303",
         "302",
+        "303",
         "305",
         "301"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "Who is the stiff receptionist at the hotel?",
       "options": [
-        "Mr. Linkletter",
-        "Mr. Paskey",
         "Josh Pinto",
+        "Mr. Paskey",
+        "Mr. Linkletter",
         "Dink Duncan"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "What did Josh secretly look at to find a clue at the hotel?",
       "options": [
-        "The register",
+        "The guest book",
         "The menu",
         "The newspaper",
-        "The guest book"
+        "The register"
       ],
-      "answer": 0
+      "answer": 3
     },
     {
       "q": "What letters on Mavis's scarf are really W's turned upside down?",
@@ -95,32 +95,32 @@
     {
       "q": "What is Wallis Wallace's favorite color?",
       "options": [
-        "Green",
         "Blue",
+        "Green",
         "Red",
         "Purple"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "Who turned out to be Wallis Wallace in disguise?",
       "options": [
-        "Mavis Green",
-        "Mr. Linkletter",
         "Olivia",
+        "Mr. Linkletter",
+        "Mavis Green",
         "Mr. Paskey"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "Who was the guest staying in Room 302 next to the writer's room?",
       "options": [
-        "Wallace's brother",
+        "Mr. Linkletter",
         "Wallace's sister",
         "Mr. Paskey",
-        "Mr. Linkletter"
+        "Wallace's brother"
       ],
-      "answer": 0
+      "answer": 3
     }
   ]
 }

@@ -1,36 +1,36 @@
 {
   "bookId": "a08",
-  "version": 1,
+  "version": 2,
   "questions": [
     {
       "q": "What kind of animal is Ping?",
       "options": [
-        "A fish",
         "A duck",
+        "A fish",
         "A cormorant",
         "A boy"
       ],
-      "answer": 1
+      "answer": 0
     },
     {
       "q": "What river does Ping live on?",
       "options": [
         "The Nile",
-        "The Amazon",
         "The Yangtze",
+        "The Amazon",
         "The Mississippi"
       ],
-      "answer": 2
+      "answer": 1
     },
     {
       "q": "What is special about Ping's home boat?",
       "options": [
         "It has red sails",
-        "It has two painted eyes",
         "It has a tall flag",
+        "It has two painted eyes",
         "It has golden oars"
       ],
-      "answer": 1
+      "answer": 2
     },
     {
       "q": "How many cousins does Ping have?",
@@ -45,22 +45,22 @@
     {
       "q": "What happens to the last duck up the bridge each evening?",
       "options": [
-        "It gets extra food",
         "It gets a spank",
+        "It gets extra food",
         "It stays outside",
         "It leads the line"
       ],
-      "answer": 1
+      "answer": 0
     },
     {
       "q": "What is Ping doing when he misses the call to come home?",
       "options": [
         "Sleeping in the grasses",
-        "Talking to cormorants",
         "Trying to catch a fish",
+        "Talking to cormorants",
         "Playing with the boy"
       ],
-      "answer": 2
+      "answer": 1
     },
     {
       "q": "What does the Master call out to bring the ducks home?",
@@ -76,51 +76,51 @@
       "q": "What do the fishing cormorants have around their necks?",
       "options": [
         "Colorful feathers",
-        "Shining metal rings",
+        "Small golden bells",
         "Bright red ribbons",
-        "Small golden bells"
+        "Shining metal rings"
       ],
-      "answer": 1
+      "answer": 3
     },
     {
       "q": "Who catches Ping with a basket?",
       "options": [
-        "The Master",
-        "Ping's father",
         "A little boy",
+        "Ping's father",
+        "The Master",
         "A fisherman"
       ],
-      "answer": 2
+      "answer": 0
     },
     {
       "q": "What does the boy's mother plan to cook Ping with?",
       "options": [
         "Noodles",
-        "Vegetables",
         "Rice",
+        "Vegetables",
         "Bread"
       ],
-      "answer": 2
+      "answer": 1
     },
     {
       "q": "Why does the little boy say Ping should not be eaten?",
       "options": [
         "He is too small",
-        "He is too beautiful",
         "He is too old",
+        "He is too beautiful",
         "He is too fast"
       ],
-      "answer": 1
+      "answer": 2
     },
     {
       "q": "How does Ping get back into the water?",
       "options": [
         "He jumps off the boat",
-        "The boy drops him in",
+        "He flies away",
         "The mother lets him go",
-        "He flies away"
+        "The boy drops him in"
       ],
-      "answer": 1
+      "answer": 3
     }
   ]
 }

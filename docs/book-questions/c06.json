@@ -1,6 +1,6 @@
 {
   "bookId": "c06",
-  "version": 2,
+  "version": 3,
   "questions": [
     {
       "q": "How tall is Stuart Little?",
@@ -15,32 +15,32 @@
     {
       "q": "What does Stuart look like even though he is born to a human family?",
       "options": [
-        "A mouse",
         "A bird",
+        "A mouse",
         "A frog",
         "A rabbit"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "What does Stuart rescue from the bathroom sink drain?",
       "options": [
-        "A wedding ring",
-        "A silver coin",
         "A gold button",
+        "A silver coin",
+        "A wedding ring",
         "A tiny key"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "Where does Stuart climb to fix the sticking keys?",
       "options": [
-        "Inside the piano",
+        "Inside the stove",
         "Inside the clock",
         "Inside the radio",
-        "Inside the stove"
+        "Inside the piano"
       ],
-      "answer": 0
+      "answer": 3
     },
     {
       "q": "What is the name of the family cat?",
@@ -55,32 +55,32 @@
     {
       "q": "How do the Littles find Margalo on their windowsill?",
       "options": [
-        "Half-frozen",
         "Half-asleep",
+        "Half-frozen",
         "Half-hidden",
         "Half-buried"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "What kind of animal is Margalo?",
       "options": [
-        "A bird",
-        "A mouse",
         "A cat",
+        "A mouse",
+        "A bird",
         "A squirrel"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "What is the name of the sailboat Stuart captains in Central Park?",
       "options": [
-        "The Wasp",
+        "The Sparrow",
         "The Hornet",
         "The Bumble",
-        "The Sparrow"
+        "The Wasp"
       ],
-      "answer": 0
+      "answer": 3
     },
     {
       "q": "What is Dr. Carey's job?",
@@ -95,32 +95,32 @@
     {
       "q": "What special vehicle does Dr. Carey lend Stuart for his journey?",
       "options": [
-        "A tiny gasoline-powered car",
         "A tiny wooden wagon",
+        "A tiny gasoline-powered car",
         "A tiny sailboat",
         "A tiny airplane"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "What job does Stuart take for one day while traveling?",
       "options": [
-        "Substitute teacher",
-        "Substitute mailman",
         "Substitute baker",
+        "Substitute mailman",
+        "Substitute teacher",
         "Substitute farmer"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "In which direction does Stuart travel at the end of the book?",
       "options": [
-        "North",
+        "West",
         "South",
         "East",
-        "West"
+        "North"
       ],
-      "answer": 0
+      "answer": 3
     }
   ]
 }
