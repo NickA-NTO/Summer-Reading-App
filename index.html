@@ -5544,15 +5544,28 @@ function startedRecentlyHoldMsForBookId(bookId) {
     book?.age,
     book?.categoryId ? GRADE_BY_CATEGORY[book.categoryId] : null,
   ];
+  let gradeFloorMs = Number(rules.default) > 0 ? Number(rules.default) : legacy;
   for (const c of candidates) {
     if (!c) continue;
     const key = String(c);
     if (key in rules && Number(rules[key]) > 0) {
-      return Number(rules[key]);
+      gradeFloorMs = Number(rules[key]);
+      break;
     }
   }
-  if (Number(rules.default) > 0) return Number(rules.default);
-  return legacy;
+  // #28 — mirror the server cap: a fast reader on a SHORT book
+  // shouldn't see the "slow down" warning when they legitimately
+  // finished. Hold only fires under half the expected reading time
+  // (2-min absolute floor), never exceeding the grade floor.
+  const wc = WORD_COUNTS[bookId] || 0;
+  if (wc > 0) {
+    const grade = String(state.session?.grade || "K").toUpperCase();
+    const wcpm = CLIENT_WCPM[grade] || CLIENT_WCPM.K;
+    const expectedReadMs = (wc / wcpm) * 60000;
+    const readBasedMs = Math.max(2 * 60000, expectedReadMs * 0.5);
+    return Math.min(gradeFloorMs, readBasedMs);
+  }
+  return gradeFloorMs;
 }
 
 document.getElementById("quizBtn").addEventListener("click", () => {

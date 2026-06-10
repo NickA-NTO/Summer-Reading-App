@@ -208,18 +208,25 @@ localStorage. `loadQuizProgress` invalidates if either is stale.
 Voice-only path that runs AFTER quiz pass. Whisper transcribes the
 kid's audio; GPT-4o grades against a 4-axis rubric
 (retell_quality, character_recall, event_recall, stayed_on_topic,
-each 0-2).
+**each 0-3, max 12 total**). The grader is grounded in the
+hand-authored book summary and uses a 3-bucket anti-guessing rule:
+pure genre tropes score 0, accurate-but-simple references to the
+book's actual content score 1 (partial credit so simple-spoken /
+ESL readers aren't failed), specific/rich detail scores 2-3.
 
-### Second-chance flow (#85)
+XP outcome tiers (lib/xp.js retellOutcomeFromRubric):
+≥10/12 = clear pass (p1), 7-9/12 = marginal (p2), <7/12 = fail (fF).
+
+### Second-chance flow (#85, revised #24)
 
 1. Kid answers initial open-ended question.
-2. **Preliminary grade** (gpt-4o-mini): if total ≥ 6/8 AND every
+2. **Preliminary grade** (gpt-4o-mini): if total ≥ 10/12 AND every
    axis non-zero → clear pass, finalize immediately, award bonus XP.
 3. Otherwise → tutor asks one targeted follow-up probing the
    weakest axis.
-4. After turn 2 → commit-mode grade. Pass = final ≥ 5/8 AND
-   improved over preliminary. Restating the same low answer twice
-   doesn't earn the bonus.
+4. After turn 2 → commit-mode grade. Pass = final ≥ 7/12. (No longer
+   requires beating the preliminary — being right is the bar, not
+   improving on yourself; #24.)
 5. `null` verdicts only fire on grader infrastructure faults →
    held-XP queue.
 

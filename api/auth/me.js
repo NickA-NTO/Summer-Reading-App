@@ -12,6 +12,7 @@ import {
   STARTED_RECENTLY_HOLD_MS,
   STARTED_RECENTLY_HOLD_MS_RULES,
   createDataRequest,
+  isBypassQuizHoldsActive,
 } from "../../lib/store.js";
 import { normalizeGrade, stallAlarmDays, estimatedMinutes } from "../../lib/xp.js";
 import { resolveVisibleTracks, TRACK_ORDER, trackForBook } from "../../lib/tracks.js";
@@ -285,12 +286,13 @@ export default async function handler(req, res) {
       // speed check. Reopen-pattern check still applies. Client uses
       // this to skip the "Slow down a sec" overlay. Granted via the
       // admin panel toggle; NOT the same as admin permission.
-      // Bypass holds true if EITHER the profile flag is set via the
-      // admin panel OR the email is in the hard-coded VIP list
-      // (Andy Montgomery for the COO demo). Hard-coded list bypasses
+      // Bypass holds true if EITHER the admin-set profile flag is
+      // active (set AND not expired — #27) OR the email is in the
+      // hard-coded VIP list (Andy Montgomery for the COO demo, which
+      // is permanent + reviewed in git). Hard-coded list bypasses the
       // first-login requirement — no need to seed the Redis profile.
       bypassQuizHolds:
-        !!profile?.bypassQuizHolds || isHardcodedBypassQuizHolds(session.email),
+        isBypassQuizHoldsActive(profile) || isHardcodedBypassQuizHolds(session.email),
       // Onboarding state (#17) — client uses these to decide whether to
       // show the first-run voice picker + spotlight tour. tourCompleted=true
       // suppresses it forever (admin can reset via the admin endpoint).

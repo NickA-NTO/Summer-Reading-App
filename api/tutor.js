@@ -612,9 +612,19 @@ async function finalizeAndGrade(res, tutorSession, book) {
     }
   }
 
-  // Second-chance rule (#85): if the kid got a follow-up, the final
-  // score MUST exceed the preliminary AND clear the pass bar. A kid
-  // who restated the same low score twice doesn't earn the bonus.
+  // Second-chance rule (#85, revised per #24): if the kid got a
+  // follow-up, the final score must CLEAR THE PASS BAR. We no longer
+  // also require it to strictly EXCEED the preliminary — a kid who
+  // gave a correct, pass-level answer and then calmly restated the
+  // same correct content on the follow-up was being failed for "not
+  // improving," even though they were right both times. Being right
+  // is the bar, not beating your own previous turn.
+  //
+  // Anti-gaming note: this doesn't open a hole. The follow-up only
+  // fires when the preliminary was BELOW clear-pass (a clear pass
+  // earlyPasses and never reaches here). To pass at finalize the kid
+  // must now reach TUTOR_PASS_SCORE on the full transcript — so a kid
+  // who stayed below the bar both turns still fails.
   // Skipped when:
   //   - earlyPass: clear pass on turn 1, no follow-up was offered
   //   - no preliminaryGrade: grader fell back (preview call failed)
@@ -626,7 +636,7 @@ async function finalizeAndGrade(res, tutorSession, book) {
   ) {
     const prelimTotal = totalRubricScore(tutorSession.preliminaryGrade);
     const finalTotal = totalRubricScore(grade);
-    if (finalTotal <= prelimTotal || finalTotal < TUTOR_PASS_SCORE) {
+    if (finalTotal < TUTOR_PASS_SCORE) {
       grade.overall_pass = false;
       grade.feedback =
         "Thanks for telling me about the book! Next time, try sharing a bit more about what happened and who's in it.";

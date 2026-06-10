@@ -39,6 +39,7 @@ import {
   STARTED_RECENTLY_HOLD_MS,
   startedRecentlyHoldMsForGrade,
   QUIZ_DAILY_ATTEMPT_LIMIT,
+  isBypassQuizHoldsActive,
 } from "../lib/store.js";
 import { getBook } from "../lib/books.js";
 import { pointsForBook, normalizeGrade, WCPM_BY_GRADE } from "../lib/xp.js";
@@ -709,11 +710,28 @@ export default async function handler(req, res) {
         };
         // Per-book threshold (#21 v2): PK/K → 15min, G1 → 30min, G2+ → 60min.
         // Falls back to the default if the book lookup didn't return one.
-        const holdMs = book
+        const gradeFloorMs = book
           ? startedRecentlyHoldMsForGrade(book.grade)
           : STARTED_RECENTLY_HOLD_MS;
+        // #28 — cap the floor by the book's expected reading time so a
+        // genuinely fast emergent reader on a SHORT book isn't held. A
+        // 200-word PK book takes ~7-13 min, so a flat 15-min floor
+        // punishes a kid who legitimately finished in 10. The hold now
+        // fires only if they finished in under HALF the expected
+        // reading time (the "couldn't plausibly have read it" zone),
+        // with a 2-min absolute floor to still catch instant
+        // click-through, and never exceeding the grade floor (so long
+        // books are unchanged).
+        let holdMs = gradeFloorMs;
+        if (book && book.wordCount > 0) {
+          const wcpm = WCPM_BY_GRADE[normalizeGrade(grade)] || WCPM_BY_GRADE.K;
+          const expectedReadMs = (book.wordCount / wcpm) * 60_000;
+          const readBasedMs = Math.max(2 * 60_000, expectedReadMs * 0.5);
+          holdMs = Math.min(gradeFloorMs, readBasedMs);
+        }
         recentStartDebug.holdMs = holdMs;
         recentStartDebug.holdMin = +(holdMs / 60000).toFixed(2);
+        recentStartDebug.gradeFloorMin = +(gradeFloorMs / 60000).toFixed(2);
         if (gap >= 0 && gap < holdMs) {
           recentStartStatus = "hold";
         }
@@ -750,7 +768,7 @@ export default async function handler(req, res) {
     // detector still applies (this is the "QA tester or fast reader,
     // not a free pass" use case). Debug objects are preserved so the
     // admin can still see WHAT the underlying gap was.
-    if (profile?.bypassQuizHolds || isHardcodedBypassQuizHolds(session.email)) {
+    if (isBypassQuizHoldsActive(profile) || isHardcodedBypassQuizHolds(session.email)) {
       if (recentStartDebug) recentStartDebug.bypassed = true;
       if (wcpmDebug) wcpmDebug.bypassed = true;
       recentStartStatus = "clean";
