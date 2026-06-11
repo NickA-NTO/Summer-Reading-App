@@ -6277,21 +6277,24 @@ function renderQuizQuestion() {
     btn.addEventListener("click", () => answerQuestion(optIdx));
     // Rollover TTS: on hover-capable devices, resting the mouse on an
     // option reads JUST that option aloud — kids hear the choices one at a
-    // time instead of memorizing one long clip. ttsOn is checked live (so
-    // toggling TTS mid-quiz works); a short dwell avoids a burst when the
-    // mouse sweeps across options; cancelSpeech() keeps clips from
-    // overlapping. The question still has its own "Hear it" button.
+    // time instead of memorizing one long clip. Deliberately NOT gated on
+    // the global ttsOn toggle: a hover-and-rest is an EXPLICIT request to
+    // hear it, exactly like clicking the "Hear it" button (which also uses
+    // force:true regardless of the toggle). The ttsOn toggle governs
+    // AUTOMATIC narration, not explicit triggers. A short dwell avoids a
+    // burst when the mouse sweeps across options; cancelSpeech() keeps clips
+    // from overlapping.
     if (quizCanHover()) {
       // Warm this option's audio on render so the first hover plays instantly
       // (a hover isn't a click, so we can't afford a cold synth at hover time).
-      if (ttsOn) prewarmTts(q.options[optIdx]);
+      prewarmTts(q.options[optIdx]);
       let dwell = null;
       btn.addEventListener("mouseenter", () => {
-        if (!ttsOn || btn.disabled) return;
+        if (btn.disabled) return;
         dwell = setTimeout(() => {
           cancelSpeech();
           speak(q.options[optIdx], { force: true });
-        }, 220);
+        }, 200);
       });
       btn.addEventListener("mouseleave", () => {
         if (dwell) { clearTimeout(dwell); dwell = null; }
