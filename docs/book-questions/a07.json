@@ -1,16 +1,16 @@
 {
   "bookId": "a07",
-  "version": 2,
+  "version": 3,
   "questions": [
     {
-      "q": "What is the name of the boy in this story?",
+      "q": "What does Max call the noisy celebration he starts in the story?",
       "options": [
-        "Max",
-        "Sam",
-        "Jack",
-        "Ben"
+        "A monster ball",
+        "A wild rumpus",
+        "A jungle parade",
+        "A big feast"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "What animal costume does Max wear?",

@@ -1,16 +1,16 @@
 {
   "bookId": "a04",
-  "version": 2,
+  "version": 3,
   "questions": [
     {
-      "q": "What is the name of the boy who solves mysteries in this story?",
+      "q": "How does Nate the Great describe himself?",
       "options": [
-        "Nate",
-        "Fang",
-        "Harry",
-        "Hex"
+        "A teacher who loves to read",
+        "A chef who makes breakfast",
+        "A detective who works alone",
+        "A painter who uses red"
       ],
-      "answer": 0
+      "answer": 2
     },
     {
       "q": "What food does Nate love to eat?",
@@ -43,14 +43,14 @@
       "answer": 3
     },
     {
-      "q": "What is the name of Annie's big yellow dog?",
+      "q": "What do Rosamond's cats look like?",
       "options": [
-        "Fang",
-        "Harry",
-        "Hex",
-        "Nate"
+        "White with blue eyes",
+        "Black with green eyes",
+        "Orange with yellow eyes",
+        "Gray with brown eyes"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "What color is Annie's bedroom?",
@@ -83,7 +83,7 @@
       "answer": 3
     },
     {
-      "q": "What word is part of all four cat names at Rosamond's house?",
+      "q": "What word is part of every cat name at Rosamond's house?",
       "options": [
         "Hex",
         "Big",

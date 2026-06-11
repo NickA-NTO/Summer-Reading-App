@@ -1,16 +1,16 @@
 {
   "bookId": "a06",
-  "version": 2,
+  "version": 3,
   "questions": [
     {
-      "q": "What is the name of the girl in this story?",
+      "q": "How does Vashti feel about drawing at the start of the story?",
       "options": [
-        "Vashti",
-        "Violet",
-        "Vera",
-        "Vanessa"
+        "She loves to draw",
+        "She is sure she can't draw",
+        "She thinks it is easy",
+        "She wants to draw all day"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "Where does the story begin?",
