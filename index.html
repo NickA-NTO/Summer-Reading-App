@@ -1254,6 +1254,12 @@
   }
   .opt-speak-btn:hover { border-color: var(--accent-2); background: rgba(37,99,235,.14); }
   .opt-speak-btn:active { transform: scale(0.94); }
+  /* Green while this option's clip is playing; reverts when it finishes. */
+  .opt-speak-btn.playing {
+    border-color: var(--good);
+    background: rgba(70,211,105,.20);
+    color: var(--good);
+  }
 
   .quiz-result {
     text-align: center; padding: 12px 0;
@@ -6295,8 +6301,18 @@ function renderQuizQuestion() {
   document.querySelectorAll("#qOpts .opt-speak-btn").forEach((sp) => {
     const optIdx = Number(sp.dataset.i);
     sp.addEventListener("click", () => {
+      // cancelSpeech() pauses any other clip — that clip's speak() promise
+      // resolves, clearing ITS green — so only the active one is ever green.
       cancelSpeech();
-      speak(q.options[optIdx], { force: true });
+      sp.classList.add("playing");
+      let cleared = false;
+      const clear = () => { if (cleared) return; cleared = true; sp.classList.remove("playing"); };
+      // speak() resolves on audio end, on cancel (a newer tap / advance), or
+      // on fallback. Safety timeout covers the rare no-end-event case.
+      const safety = setTimeout(clear, 15000);
+      Promise.resolve(speak(q.options[optIdx], { force: true }))
+        .catch(() => {})
+        .then(() => { clearTimeout(safety); clear(); });
     });
   });
   document.getElementById("qReport").addEventListener("click", () => openReportDialog(q));
