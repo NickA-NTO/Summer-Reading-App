@@ -50,7 +50,7 @@ import { sendCaliperEnvelopeAsync } from "../lib/timeback.js";
 // XP path for those is `kind:"quiz_submit"`, which the server validates
 // against the cached question pool. Closes Agent 3's "skip the quiz"
 // attack (`kind:"read"` with no attemptNum bypassed all fraud checks).
-import { QUIZ_BOOKS, QUIZ_SCHEMA_VERSION, getCachedQuizPool } from "./quiz.js";
+import { QUIZ_BOOKS, QUIZ_SCHEMA_VERSION, getCachedQuizPool, getStaticQuestionBank } from "./quiz.js";
 import { trackError, trackEvent } from "../lib/observability.js";
 import { classifyComment } from "../lib/moderation.js";
 import { holdComment } from "../lib/store.js";
@@ -432,19 +432,26 @@ export default async function handler(req, res) {
         message: "Need exactly 5 answers.",
       }));
     }
-    // A token must be a NON-EMPTY string. An empty answerToken ("") still
-    // passes `typeof === "string"`, so without the length guard the HMAC
-    // path would run with a blank token and verifyQuizAnswer would fail
-    // every answer → a silent 0/5. Requiring length>0 means a blank-token
-    // submission instead falls to the legacy cache path (or a clean 409),
-    // never a misleading all-wrong score.
-    const useTokenGrading = answers.every(
-      (a) => typeof a?.qText === "string" && a.qText.length > 0 &&
-             typeof a?.answerToken === "string" && a.answerToken.length > 0
+    // ---- Grade each answer -------------------------------------------
+    // Source-of-truth priority — designed so a correct answer can NEVER
+    // score 0/5 from a stale token / missing cache, and an ungradable
+    // answer is never silently counted "wrong":
+    //   1. STATIC BANK — the shipped answer key (a file in THIS deployment),
+    //      matched by question text. Authoritative, never expires, no token
+    //      / email / day / Redis dependency. Covers ~100% of real submits.
+    //   2. HMAC answerToken — self-contained fallback for a question that was
+    //      reworded in the bank AFTER the kid fetched it (text no longer
+    //      matches the bank), while its 2-day token window still holds.
+    //   3. Legacy cache pool by idx — only for ancient clients with no qText.
+    // A question matching NONE of these is genuinely ungradable: we refuse
+    // to guess "wrong" and return no_quiz_pool so the client reopens.
+    const staticBank = getStaticQuestionBank(bookId);
+    const hasQText = answers.every(
+      (a) => typeof a?.qText === "string" && a.qText.length > 0
     );
     let pool = null;
-    if (!useTokenGrading) {
-      // Legacy client — fall back to the cache-pool lookup.
+    if (!hasQText) {
+      // Truly legacy client (no qText at all) — fall back to the cache pool.
       pool = await getCachedQuizPool(bookId, grade, ageGrade);
       if (!pool || !Array.isArray(pool.questions) || pool.questions.length < 5) {
         res.statusCode = 409;
@@ -454,11 +461,13 @@ export default async function handler(req, res) {
         }));
       }
     }
-    // Grade each answer.
+
     let correctCount = 0;
     const correctFlags = [];
     const seen = new Set();
     const adminDebug = isAdminUser ? [] : null;
+    let ungradable = false;
+
     for (const a of answers) {
       const chosen = Number(a?.chosen);
       if (!Number.isInteger(chosen) || chosen < 0 || chosen > 3) {
@@ -468,14 +477,16 @@ export default async function handler(req, res) {
           message: "Each answer needs a chosen index between 0 and 3.",
         }));
       }
-      let isCorrect = false;
-      let qPreview = "";
+
+      let isCorrect = null; // null = not yet graded by any method
+      let gradedVia = null;
       let expectedDebug = null;
-      if (useTokenGrading) {
+      let qPreview = "";
+
+      if (hasQText) {
         const qText = String(a.qText || "");
-        const token = String(a.answerToken || "");
-        // Dedup on qText so a kid can't game it by re-submitting the
-        // same question's answer with multiple chosen values.
+        // Dedup on qText so a kid can't re-submit one question's answer
+        // with multiple chosen values.
         const dedupKey = qText.slice(0, 200);
         if (seen.has(dedupKey)) {
           res.statusCode = 400;
@@ -485,13 +496,29 @@ export default async function handler(req, res) {
           }));
         }
         seen.add(dedupKey);
-        // #16 — verify against the email-bound, daily-expiring token.
-        isCorrect = await verifyQuizAnswer(bookId, qText, chosen, token, {
-          email: session.email,
-        });
         qPreview = qText.slice(0, 60);
+
+        // 1) Static bank — authoritative answer key.
+        if (staticBank && Array.isArray(staticBank.questions)) {
+          const q = staticBank.questions.find((x) => x.q === qText);
+          if (q && Number.isInteger(q.answer)) {
+            isCorrect = chosen === Number(q.answer);
+            gradedVia = "static_bank";
+            expectedDebug = Number(q.answer);
+          }
+        }
+        // 2) HMAC token fallback (reworded question, token still in-window).
+        if (isCorrect === null) {
+          const token = String(a.answerToken || "");
+          if (token) {
+            isCorrect = await verifyQuizAnswer(bookId, qText, chosen, token, {
+              email: session.email,
+            });
+            gradedVia = "hmac";
+          }
+        }
       } else {
-        // Legacy cache-pool path.
+        // 3) Legacy cache-pool path (client sent no qText).
         const idx = Number(a?.idx);
         if (
           !Number.isInteger(idx) || idx < 0 || idx >= pool.questions.length ||
@@ -506,21 +533,46 @@ export default async function handler(req, res) {
         seen.add(idx);
         const expected = Number(pool.questions[idx].answer);
         isCorrect = chosen === expected;
+        gradedVia = "cache";
         qPreview = pool.questions[idx]?.q?.slice(0, 60) || "";
         expectedDebug = expected;
       }
+
+      // Ungradable by every method → do NOT fabricate a "wrong". Flag the
+      // whole submission so we return a reopen signal instead of a fake score.
+      if (isCorrect === null) {
+        ungradable = true;
+        if (adminDebug) {
+          adminDebug.push({ chosen, isCorrect: null, gradedVia: "ungradable", q: qPreview });
+        }
+        continue;
+      }
+
       correctFlags.push(isCorrect);
       if (isCorrect) correctCount++;
       if (adminDebug) {
         adminDebug.push({
           chosen,
           isCorrect,
-          gradedVia: useTokenGrading ? "hmac" : "cache",
+          gradedVia,
           ...(expectedDebug != null && { expected: expectedDebug }),
           q: qPreview,
         });
       }
     }
+
+    // If ANY question couldn't be graded by any method, refuse to return a
+    // (false) score. Tell the client to reopen — it wipes the stale resume
+    // and regenerates a clean attempt. This is the guarantee that a correct
+    // quiz never reads as 0/5 because of a grading-source gap.
+    if (ungradable) {
+      res.statusCode = 409;
+      return res.end(JSON.stringify({
+        error: "no_quiz_pool",
+        message: "Couldn't grade this quiz — please reopen it and try again.",
+      }));
+    }
+
     const passed = correctCount >= 4; // 4 of 5 to pass
     // #9 atomic session — quiz_submit no longer awards XP directly.
     // The kid MUST complete the follow-up retell for XP to release.
