@@ -1,16 +1,16 @@
 {
   "bookId": "k04",
-  "version": 4,
+  "version": 5,
   "questions": [
     {
-      "q": "What is the little girl's name in this story?",
+      "q": "What does Goldilocks do when she finds the cottage empty?",
       "options": [
-        "Goldilocks",
-        "Little Red Riding Hood",
-        "Snow White",
-        "Cinderella"
+        "She knocks and waits outside",
+        "She goes inside anyway",
+        "She turns around and goes home",
+        "She calls out for help"
       ],
-      "answer": 0
+      "answer": 1
     },
     {
       "q": "What errand does Goldilocks's mother send her to do?",
