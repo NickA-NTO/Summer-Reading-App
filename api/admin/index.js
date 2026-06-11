@@ -64,6 +64,7 @@ import {
   postCaliperEnvelope,
   getCaliperHealthSnapshot,
   drainCaliperRetryQueue,
+  getCaliperDebugCapture,
 } from "../../lib/timeback.js";
 
 const ALLOWED_GRADES = new Set([
@@ -775,6 +776,16 @@ export default async function handler(req, res) {
   if (action === "caliper-health" && req.method === "GET") {
     const health = await getCaliperHealthSnapshot();
     return json(res, 200, health);
+  }
+
+  // ====================== caliper-debug ==========================
+  // Temporary demo aid (remove post-demo): returns the last few BUILT
+  // Caliper envelopes + their send result, so an admin can inspect exactly
+  // what was emitted for a just-completed quiz/retell. 15-min TTL on the
+  // capture. Open GET /api/admin?action=caliper-debug right after a quiz.
+  if (action === "caliper-debug" && req.method === "GET") {
+    const capture = await getCaliperDebugCapture();
+    return json(res, 200, capture);
   }
 
   // ==================== caliper-drain-retry ======================

@@ -1,14 +1,14 @@
 {
   "bookId": "k04",
-  "version": 3,
+  "version": 4,
   "questions": [
     {
       "q": "What is the little girl's name in this story?",
       "options": [
         "Goldilocks",
-        "Mama Bear",
-        "Baby Bear",
-        "Papa Bear"
+        "Little Red Riding Hood",
+        "Snow White",
+        "Cinderella"
       ],
       "answer": 0
     },
