@@ -3406,14 +3406,12 @@ function cancelSpeech() {
     _ttsAbortController = null;
   }
   _ttsSeq++;
-  // Invalidate any in-flight multi-part quiz narration. speakQuizQuestion
-  // plays question → intro → options as three separate clips, checking
-  // _quizNarrationToken between each. Pausing the CURRENT clip (above)
-  // resolves its speak() promise, so without bumping the token here the
-  // loop would wake up, see its token unchanged, and play the NEXT part
-  // over whatever question is now on screen — the overlap bug. Bumping it
-  // makes the loop bail at its next checkpoint.
-  _quizNarrationToken++;
+  // DO NOT bump _quizNarrationToken here. speak() calls cancelSpeech() at
+  // its start, so bumping the narration token inside cancelSpeech would
+  // invalidate the narration loop's OWN token mid-sequence — exactly the
+  // documented "choices never spoken" bug (see speakQuizQuestion's note).
+  // The overlap-on-advance case is handled by bumping the token in
+  // renderQuizQuestion instead, which is never called from inside speak().
 }
 // Module-scoped AbortController so cancelSpeech can kill the in-flight
 // fetch initiated by the current speak() call. Reset on every new
@@ -6073,6 +6071,12 @@ async function speakQuizQuestion(q, opts = {}) {
   // us mid-way, the token check below bails out before the next part.
   try { await speak(parts.question, { force }); } catch {}
   if (_quizNarrationToken !== myToken) return;
+  // On hover-capable devices (the demo is Chrome desktop), each option is
+  // narrated on rollover (see renderQuizQuestion), so the question button
+  // reads ONLY the question — short and easy to follow, no "memorize the
+  // whole clip". On touch devices there's no hover, so the button keeps
+  // reading the choices aloud as a fallback.
+  if (quizCanHover()) return;
   await gap();
   if (_quizNarrationToken !== myToken) return;
   try { await speak(parts.intro, { force }); } catch {}
@@ -6080,6 +6084,13 @@ async function speakQuizQuestion(q, opts = {}) {
   await gap();
   if (_quizNarrationToken !== myToken) return;
   try { await speak(parts.options, { force }); } catch {}
+}
+
+// True when the device has a real hover pointer (desktop/laptop mouse).
+// Touch tablets report (hover: none) → we keep reading options on the
+// button there since rollover isn't reachable.
+function quizCanHover() {
+  return !!(window.matchMedia && window.matchMedia("(hover: hover)").matches);
 }
 
 function closeQuiz() {
@@ -6200,10 +6211,17 @@ function renderQuizQuestion() {
       }
     }, 250);
     try {
-      // speakQuizQuestion resolves when all three narration parts
-      // (question / intro / options) have finished playing or got
-      // cancelled by a newer call / visibility change.
-      await speakQuizQuestion(q, { force: true });
+      // speakQuizQuestion resolves when narration finishes, is cancelled,
+      // or fails. Race it against a hard 12s ceiling: the /api/tts fetch
+      // has no abort signal, so a cold/hung OpenAI synth could otherwise
+      // pin the button on "Still loading…" indefinitely (the bug the user
+      // hit on the first question). After 12s we fall through to the
+      // finally, which shows "Tap to retry" if no audio ever fired; the
+      // orphaned narration resolves harmlessly in the background.
+      await Promise.race([
+        speakQuizQuestion(q, { force: true }),
+        new Promise((r) => setTimeout(r, 12000)),
+      ]);
     } finally {
       clearInterval(labelTimer);
       // Restore button state once narration completes. Guard against a
@@ -6237,9 +6255,36 @@ function renderQuizQuestion() {
   // — deterministic, kid-controlled, no race. Still cancel any
   // leftover audio from the previous question so the new question
   // renders in silence.
+  // Bump the narration token FIRST: if the kid answered mid-narration,
+  // the previous question's speakQuizQuestion loop is still in flight —
+  // bumping here makes it bail at its next checkpoint instead of playing
+  // its next clip over THIS question (the overlap the user reported).
+  // Safe to bump here because renderQuizQuestion is never called from
+  // inside speak()/cancelSpeech() (unlike the buggy cancelSpeech bump).
+  _quizNarrationToken++;
   cancelSpeech();
   document.querySelectorAll("#qOpts .quiz-option").forEach((btn) => {
-    btn.addEventListener("click", () => answerQuestion(Number(btn.dataset.i)));
+    const optIdx = Number(btn.dataset.i);
+    btn.addEventListener("click", () => answerQuestion(optIdx));
+    // Rollover TTS: on hover-capable devices, resting the mouse on an
+    // option reads JUST that option aloud — kids hear the choices one at a
+    // time instead of memorizing one long clip. ttsOn is checked live (so
+    // toggling TTS mid-quiz works); a short dwell avoids a burst when the
+    // mouse sweeps across options; cancelSpeech() keeps clips from
+    // overlapping. The question still has its own "Hear it" button.
+    if (quizCanHover()) {
+      let dwell = null;
+      btn.addEventListener("mouseenter", () => {
+        if (!ttsOn || btn.disabled) return;
+        dwell = setTimeout(() => {
+          cancelSpeech();
+          speak(q.options[optIdx], { force: true });
+        }, 220);
+      });
+      btn.addEventListener("mouseleave", () => {
+        if (dwell) { clearTimeout(dwell); dwell = null; }
+      });
+    }
   });
   document.getElementById("qReport").addEventListener("click", () => openReportDialog(q));
 }
