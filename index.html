@@ -3583,9 +3583,19 @@ function _fetchTtsUrl(voice, text) {
   const key = `${voice}|${text}`;
   const existing = _ttsClientCache.get(key);
   if (existing) return existing;
+  // 10s hard timeout. A cold synth is normally 1-3s; if /api/tts hangs (cold
+  // serverless function + slow OpenAI, or a transient stall) the request would
+  // otherwise stay pending forever — and since the promise is CACHED, even a
+  // "Tap to retry" re-awaits the SAME stuck fetch (the bug behind "Q1 stuck
+  // again"). Aborting at 10s rejects → null → the cache entry is cleared
+  // below, so the next attempt does a genuinely fresh request (usually warm).
+  const signal =
+    (typeof AbortSignal !== "undefined" && AbortSignal.timeout)
+      ? AbortSignal.timeout(10000)
+      : undefined;
   const p = fetch(
     `/api/tts?voice=${encodeURIComponent(voice)}&text=${encodeURIComponent(text)}`,
-    { credentials: "same-origin" }
+    { credentials: "same-origin", signal }
   )
     .then((r) => (r.ok ? r.json() : null))
     .then((data) => (data && data.url ? data.url : null))
@@ -6070,29 +6080,12 @@ async function speakQuizQuestion(q, opts = {}) {
   const { force = false } = opts;
   if (!ttsOn && !force) return;
   const parts = buildQuizSpeakParts(q);
-  const myToken = ++_quizNarrationToken;
-  const gap = () => new Promise((r) => setTimeout(r, QUIZ_TTS_GAP_MS));
-  // Three-part narration with real wall-clock gaps between each:
-  //   1) question
-  //   2) "Here are your choices."
-  //   3) "Option A is X. Option B is Y. ..."
-  // If a newer speakQuizQuestion call (or cancelSpeech) supersedes
-  // us mid-way, the token check below bails out before the next part.
+  ++_quizNarrationToken; // invalidate any prior in-flight narration
+  // The "Hear it" button reads ONLY the question. Every answer option now has
+  // its own speaker button (all devices, see renderQuizQuestion), so we no
+  // longer narrate the choices here — that removes the old multi-part clip
+  // and its fragile token-sequencing entirely.
   try { await speak(parts.question, { force }); } catch {}
-  if (_quizNarrationToken !== myToken) return;
-  // On hover-capable devices (the demo is Chrome desktop), each option is
-  // narrated on rollover (see renderQuizQuestion), so the question button
-  // reads ONLY the question — short and easy to follow, no "memorize the
-  // whole clip". On touch devices there's no hover, so the button keeps
-  // reading the choices aloud as a fallback.
-  if (quizCanHover()) return;
-  await gap();
-  if (_quizNarrationToken !== myToken) return;
-  try { await speak(parts.intro, { force }); } catch {}
-  if (_quizNarrationToken !== myToken) return;
-  await gap();
-  if (_quizNarrationToken !== myToken) return;
-  try { await speak(parts.options, { force }); } catch {}
 }
 
 // True when the device has a real hover pointer (desktop/laptop mouse).
@@ -6161,6 +6154,9 @@ function renderQuizQuestion() {
           idx === q.correctShuffledIdx;
         return `
           <button class="quiz-option${isCorrect ? " admin-correct" : ""}" data-i="${idx}">
+            <span class="opt-speak" data-i="${idx}" role="button" tabindex="0"
+              aria-label="Hear this answer choice" title="Hear this answer"
+              style="flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;margin-right:8px;border-radius:8px;cursor:pointer;font-size:15px;background:rgba(255,255,255,0.07)">🔊</span>
             <span class="letter">${letters[idx]}</span>
             <span>${escapeHtml(opt)}</span>
             ${isCorrect ? `<span style="margin-left:auto;font-size:11px;font-weight:700;color:#34d399;letter-spacing:0.05em">✓ correct</span>` : ""}
@@ -6275,29 +6271,26 @@ function renderQuizQuestion() {
   document.querySelectorAll("#qOpts .quiz-option").forEach((btn) => {
     const optIdx = Number(btn.dataset.i);
     btn.addEventListener("click", () => answerQuestion(optIdx));
-    // Rollover TTS: on hover-capable devices, resting the mouse on an
-    // option reads JUST that option aloud — kids hear the choices one at a
-    // time instead of memorizing one long clip. Deliberately NOT gated on
-    // the global ttsOn toggle: a hover-and-rest is an EXPLICIT request to
-    // hear it, exactly like clicking the "Hear it" button (which also uses
-    // force:true regardless of the toggle). The ttsOn toggle governs
-    // AUTOMATIC narration, not explicit triggers. A short dwell avoids a
-    // burst when the mouse sweeps across options; cancelSpeech() keeps clips
-    // from overlapping.
-    if (quizCanHover()) {
-      // Warm this option's audio on render so the first hover plays instantly
-      // (a hover isn't a click, so we can't afford a cold synth at hover time).
-      prewarmTts(q.options[optIdx]);
-      let dwell = null;
-      btn.addEventListener("mouseenter", () => {
+    // Warm each option so its speaker button plays instantly on tap.
+    prewarmTts(q.options[optIdx]);
+    // Per-option speaker button (left of the letter). Replaces hover/rollover
+    // — rollover was unreliable (hover isn't a user gesture, fired for only
+    // some options). A tap is an explicit gesture that plays every time and
+    // works on touch too. It's a clickable span because a <button> can't nest
+    // inside the option <button>; stopPropagation so tapping the speaker HEARS
+    // the option without SELECTING it. force:true — explicit tap always speaks
+    // regardless of the global TTS toggle.
+    const sp = btn.querySelector(".opt-speak");
+    if (sp) {
+      const speakOpt = (e) => {
+        e.stopPropagation();
         if (btn.disabled) return;
-        dwell = setTimeout(() => {
-          cancelSpeech();
-          speak(q.options[optIdx], { force: true });
-        }, 200);
-      });
-      btn.addEventListener("mouseleave", () => {
-        if (dwell) { clearTimeout(dwell); dwell = null; }
+        cancelSpeech();
+        speak(q.options[optIdx], { force: true });
+      };
+      sp.addEventListener("click", speakOpt);
+      sp.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); speakOpt(e); }
       });
     }
   });
