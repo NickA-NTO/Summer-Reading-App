@@ -567,6 +567,36 @@ async function actionGrade(req, res, sessionAuth, url) {
 async function finalizeAndGrade(res, tutorSession, book) {
   const email = tutorSession.email;
 
+  // Anti-skip gate (NO hold). If the kid reached finalize without a single
+  // real spoken turn — a direct action=grade, or a mic that never produced
+  // a transcript all session — we don't grade, don't award, and (key) do
+  // NOT consume the reading session, so their quiz pass is preserved. We
+  // just ask them to actually retell. No human in the loop: they keep going
+  // until they say something. earlyPass implies a graded spoken turn, so
+  // it's exempt. A passed quiz only converts to XP once a real retell
+  // happens — that's the whole gate, with no held queue.
+  const spokenTurns = (tutorSession.transcript || []).filter(
+    (t) => t.role === "student" && String(t.text || "").trim()
+  ).length;
+  if (!tutorSession.earlyPass && spokenTurns === 0) {
+    const askRetell =
+      "I'd love to hear about it! Can you tell me a little about what happened in the book?";
+    let askAudioUrl = null;
+    try {
+      const tts = await synthTutorTts(askRetell, tutorSession.voiceId);
+      askAudioUrl = tts.url;
+    } catch {}
+    trackEvent("tutor_retell_not_attempted", { bookId: tutorSession.bookId });
+    return json(res, 200, {
+      ok: true,
+      sessionId: tutorSession.sessionId,
+      done: false,
+      retry: true,
+      tutorMessage: askRetell,
+      tutorAudioUrl: askAudioUrl,
+    });
+  }
+
   // Grade selection:
   //   - earlyPass (clear pass on turn 1) → trust the preliminary rubric
   //     as the final grade. We already saw all four axes non-zero and
@@ -603,11 +633,12 @@ async function finalizeAndGrade(res, tutorSession, book) {
         character_recall: 0,
         event_recall: 0,
         stayed_on_topic: 0,
-        // Grader call failed (LLM down / network blip) — DO hold for
-        // admin review here. This is a tech fault, not a kid problem,
-        // and we shouldn't penalize them for our outage.
-        overall_pass: null,
-        feedback: "We're having trouble grading right now. We'll check this and get back to you!",
+        // Grader call failed (LLM down / network blip). NO hold: the kid DID
+        // retell, and a passed quiz already earns base XP. Resolve to fF so
+        // they keep base XP immediately and only forfeit the bonus we
+        // couldn't measure — never stuck in a review queue for our outage.
+        overall_pass: false,
+        feedback: "Thanks for telling me about the book!",
       };
     }
   }
@@ -648,38 +679,9 @@ async function finalizeAndGrade(res, tutorSession, book) {
     }
   }
 
-  // #15 — minimum-engagement gate. If the kid reached finalize with
-  // ZERO real spoken turns (called action=grade right after start, or
-  // their mic genuinely never produced a transcript) we do NOT
-  // auto-award base XP. Route to the held-XP human queue: a genuine
-  // tech-fault gets approved, a deliberate skip gets denied. earlyPass
-  // always implies a graded spoken turn, so it's exempt. Setting
-  // overall_pass = null reuses the existing held path downstream.
-  const studentTurnCount = (tutorSession.transcript || []).filter(
-    (t) => t.role === "student" && String(t.text || "").trim()
-  ).length;
-  if (!tutorSession.earlyPass && studentTurnCount === 0 && grade.overall_pass !== null) {
-    grade.overall_pass = null;
-    grade.feedback = "Let's make sure your retell saved — we'll check it and sort out your XP.";
-    grade._heldReason = "retell_no_engagement";
-    trackEvent("tutor_held_no_engagement", { bookId: tutorSession.bookId });
-  }
-
-  // #2 — borderline FAIL → human review instead of a silent zero. A
-  // confident fail whose rubric total sits just under the pass bar
-  // (5-6 / 12) is exactly where a real reader who speaks simply (ESL,
-  // young, shy) gets wrongly denied. Route those to the held-XP queue
-  // so an admin can confirm. Clear fails (< 5) stay an auto-fail; clear
-  // passes (≥ 7) never reach this branch.
-  if (grade.overall_pass === false) {
-    const t = totalRubricScore(grade);
-    if (t >= 5 && t <= 6) {
-      grade.overall_pass = null;
-      grade.feedback = "Thanks for telling me about the book! We'll take a quick look and sort your XP.";
-      grade._heldReason = "retell_borderline";
-      trackEvent("tutor_held_borderline", { bookId: tutorSession.bookId, rubricTotal: t });
-    }
-  }
+  // (Zero-engagement is handled by the anti-skip early return at the top of
+  // this function, and borderline scores no longer hold — every graded
+  // retell resolves to a tier via retellOutcomeFromRubric below. NO HOLDS.)
 
   tutorSession.graded = true;
   tutorSession.gradeResult = grade;
@@ -708,27 +710,17 @@ async function finalizeAndGrade(res, tutorSession, book) {
   const quizOutcome = readingSession?.quizOutcome || "fF";
   const quizAttempt = readingSession?.quizAttempt || 2;
 
-  // Map LLM grader verdict + rubric total → retell outcome code.
-  // The p1/p2/fF codes here encode QUALITY TIER (not attempt count
-  // like the quiz path — retell is one-shot per session, so
-  // "attempt 2" doesn't exist). retellOutcomeFromRubric tiers the
-  // 0-12 rubric total:
-  //   ≥ 10 → "p1" — clear pass (full retell bonus)
-  //    7-9 → "p2" — marginal pass (partial bonus)
-  //    < 7 → "fF" — fail (no retell bonus)
-  // grader returning overall_pass=null is still treated as "held"
-  // (infrastructure fault). Both pass and fail go through the
-  // rubric tier so even a marginal pass differentiates from a
-  // clear-pass on XP.
-  const retellPassed = grade.overall_pass === true;
-  const retellHeld = grade.overall_pass === null;
+  // Map the rubric total → retell outcome tier. NO HOLDS: the rubric total
+  // is the single source of truth — retellOutcomeFromRubric (lib/xp.js)
+  // maps it to fF (base) / p2 (partial bonus) / p1 (full bonus). We no
+  // longer gate on the grader's binary overall_pass, so a genuine retell
+  // that clears the low, grade-calibrated bonus bar earns the bonus even if
+  // the grader's prose verdict was conservative. retellHeld is hard-false:
+  // every graded retell resolves to a tier and awards immediately.
   const rubricTotal = totalRubricScore(grade);
-  // If the grader said overall_pass=false but the rubric total is
-  // ≥ 7, we still treat it as a quality-tier failure (fF). The
-  // grader's binary pass/fail is no longer the sole gate — the
-  // rubric is. Matches the user's spec: 5-6/12 (or now 7-9) is the
-  // marginal floor; below that is fF regardless of grader's verdict.
-  const retellOutcome = retellPassed ? retellOutcomeFromRubric(rubricTotal) : "fF";
+  const retellOutcome = retellOutcomeFromRubric(rubricTotal);
+  const retellPassed = retellOutcome !== "fF";
+  const retellHeld = false;
 
   // Compute combined XP using the ratio table.
   const xpCalc = xpForReadingSession({
