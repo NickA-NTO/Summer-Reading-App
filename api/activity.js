@@ -772,17 +772,20 @@ export default async function handler(req, res) {
     }
 
     // #97 — Per-user bypass of time-based holds. If the profile has
-    // bypassQuizHolds=true, neuter the started-recently and WCPM
-    // verdicts to "clean" BEFORE the combine matrix runs. We leave
-    // openCountStatus untouched so the reopen-pattern lookup
-    // detector still applies (this is the "QA tester or fast reader,
-    // not a free pass" use case). Debug objects are preserved so the
+    // bypassQuizHolds=true (or the email is on the hard-coded demo list),
+    // neuter the started-recently, WCPM, AND reopen-count verdicts to
+    // "clean" BEFORE the combine matrix runs. The reopen-count hold used to
+    // be left in place, but for the demo account that meant a handful of
+    // rehearsal re-opens silently held the kid's XP — so bypass users now
+    // skip it too. Debug objects are preserved (with .bypassed) so the
     // admin can still see WHAT the underlying gap was.
     if (isBypassQuizHoldsActive(profile) || isHardcodedBypassQuizHolds(session.email)) {
       if (recentStartDebug) recentStartDebug.bypassed = true;
       if (wcpmDebug) wcpmDebug.bypassed = true;
+      if (openCountDebug) openCountDebug.bypassed = true;
       recentStartStatus = "clean";
       wcpmStatus = "clean";
+      openCountStatus = "clean";
     }
 
     // 2c. Combine the signals using a fair soft matrix:

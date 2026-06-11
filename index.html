@@ -4457,7 +4457,14 @@ function refreshInteractiveBits() {
       // or lower QUIZ_AVAILABLE_DELAY_MS locally for dev.
       const startedAt = Number(activeRead?.startedAt) || 0;
       const elapsedMs = startedAt ? Date.now() - startedAt : Infinity;
-      const remainingMs = QUIZ_AVAILABLE_DELAY_MS - elapsedMs;
+      // Bypass-list users (e.g. the demo account) skip the 15-min read-time
+      // wait. This mirrors the server-side neutering (api/activity.js) and
+      // the "slow down a sec" overlay, both of which honor bypassQuizHolds.
+      // Without it the quiz button stayed locked for them even though every
+      // other hold was waived — defeating the whole point of the bypass.
+      const remainingMs = state.session?.bypassQuizHolds
+        ? 0
+        : QUIZ_AVAILABLE_DELAY_MS - elapsedMs;
       if (remainingMs > 0) {
         // (A) — locked. Polish v3.1: show a static "🔒 Finish the book"
         // label instead of a live countdown. Knowing the exact minutes
@@ -6523,6 +6530,30 @@ async function finishQuiz() {
       quizState.answers = [];
       quizState.idx = 0;
     }
+  }
+
+  // Transport failure — markBookAsRead caught a fetch error and already
+  // rolled back the optimistic read flag. The answers never reached the
+  // server, so DON'T render a score: "0 / 5" would be a lie, and we must
+  // not burn an attempt over a network blip. Offer a no-penalty retry that
+  // re-submits the same answers (quizState still holds them).
+  if (serverResp && serverResp.error === "network_error") {
+    document.getElementById("quizContent").innerHTML = `
+      <div class="quiz-result" style="position:relative">
+        <div class="emoji">📶</div>
+        <h3>We couldn't reach the server</h3>
+        <p style="font-size:15px;color:var(--muted);margin:12px 0">
+          Your answers weren't sent — check your connection and try again.
+          This won't count against you.
+        </p>
+        <div class="actions">
+          <button class="icon-btn" id="quizRetry">Try again</button>
+          <button class="icon-btn" id="quizLater">Close</button>
+        </div>
+      </div>`;
+    document.getElementById("quizRetry").addEventListener("click", () => { finishQuiz(); });
+    document.getElementById("quizLater").addEventListener("click", closeQuiz);
+    return;
   }
 
   // Server is the authoritative source for score + pass/fail.

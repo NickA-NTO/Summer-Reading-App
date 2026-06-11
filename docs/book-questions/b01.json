@@ -1,6 +1,6 @@
 {
   "bookId": "b01",
-  "version": 3,
+  "version": 4,
   "questions": [
     {
       "q": "Why does the wolf go to his neighbors' houses?",
@@ -73,14 +73,14 @@
       "answer": 2
     },
     {
-      "q": "What does the wolf do with the dead pigs?",
+      "q": "What finally makes the wolf lose his temper?",
       "options": [
-        "He hides them",
-        "He buries them",
-        "He leaves them",
-        "He eats them"
+        "He runs out of cake",
+        "The third pig insults his granny",
+        "The police start chasing him",
+        "He cannot stop sneezing"
       ],
-      "answer": 3
+      "answer": 1
     },
     {
       "q": "What is the third pig's house made of?",
