@@ -6654,7 +6654,10 @@ async function finishQuiz() {
     // it!" reads as an invitation, not a chore.
     const passTts =
       `You nailed it! You got ${score} out of ${total} right. ` +
-      `One more thing — tell me about the book.`;
+      `One more thing — let's talk about it!`;
+    // Warm the retell intro line now so it plays promptly once we advance
+    // (must match the exact string openRetell speaks).
+    prewarmTts("Tell me about the book. Talk into the mic — I'll know when you're done.");
     document.getElementById("quizContent").innerHTML = `
       <div class="quiz-result pass">
         ${quizResultSpeakBtn("quizResultSpeak")}
@@ -6668,18 +6671,24 @@ async function finishQuiz() {
           XP unlocks after the talk.
         </p>
       </div>`;
-    wireQuizResultTTS("quizResultSpeak", passTts);
-    // Auto-transition to retell after a brief beat. Polish v3 bumped
-    // 1.8s → 2.4s — the pass-celebration emoji pop + glow animation
-    // takes ~600ms to land; the previous 1.8s window cut off the
-    // glow before it peaked. 2.4s lets the kid see the score chip
-    // bloom fully, hear "You nailed it!", then flow into retell.
-    setTimeout(() => {
+    const passSpeak = wireQuizResultTTS("quizResultSpeak", passTts);
+    // Auto-transition to the retell only AFTER the celebration TTS finishes,
+    // so "You nailed it! … let's talk about it!" isn't cut off (the old fixed
+    // 2.4s window truncated it, which also stepped on the retell intro line).
+    // Clamp: at least 1.8s so the 🎉 + glow land even if TTS is instant/off,
+    // at most 7s so a failed/hung synth can't strand the kid here.
+    let _passAdvanced = false;
+    const goRetell = () => {
+      if (_passAdvanced) return;
+      _passAdvanced = true;
       if (!quizState.bookId) return;
       const bid = quizState.bookId;
       closeQuiz();
       openRetell(bid);
-    }, 2400);
+    };
+    const passMinBeat = new Promise((r) => setTimeout(r, 1800));
+    Promise.all([Promise.resolve(passSpeak).catch(() => {}), passMinBeat]).then(goRetell);
+    setTimeout(goRetell, 7000);
     return;
   }
 
@@ -6796,8 +6805,9 @@ function wireQuizResultTTS(btnId, text) {
   // toggled off; with force it at least attempts the cloud voice and falls
   // back to the browser voice. The button click is an explicit request to
   // hear it, so it forces too.
+  let autoSpeak = Promise.resolve();
   if (typeof speak === "function") {
-    try { speak(text, { force: true }); } catch {}
+    try { autoSpeak = speak(text, { force: true }) || Promise.resolve(); } catch {}
   }
   const btn = document.getElementById(btnId);
   if (btn) {
@@ -6807,6 +6817,10 @@ function wireQuizResultTTS(btnId, text) {
       }
     });
   }
+  // Resolves when the auto-speak finishes (or immediately if skipped/failed).
+  // The pass screen awaits this so "You nailed it!" isn't cut off by the
+  // auto-advance to the retell.
+  return autoSpeak;
 }
 
 /* ---------- 14. Leaderboard ---------- */

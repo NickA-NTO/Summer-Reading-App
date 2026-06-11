@@ -899,7 +899,10 @@ async function finalizeAndGrade(res, tutorSession, book) {
       (Number(grade.character_recall) || 0) +
       (Number(grade.event_recall)     || 0) +
       (Number(grade.stayed_on_topic)  || 0);
-    const tier = rubricTotal >= 10 ? "clear_pass" : rubricTotal >= 7 ? "marginal" : "fail";
+    // Tier label mirrors the outcome tier so the Caliper extension agrees
+    // with retellOutcomeCode. (Was hardcoded 10/7, which disagreed with the
+    // 9/5 thresholds — e.g. 9/12 = p1 but showed "marginal".)
+    const tier = retellOutcome === "p1" ? "clear_pass" : retellOutcome === "p2" ? "marginal" : "fail";
     const envelope = buildRetellEventEnvelope({
       email,
       studentId: null, // populated once TimeBack id mapping ships
