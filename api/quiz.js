@@ -139,7 +139,13 @@ try {
 } catch (err) {
   console.warn("[quiz] couldn't read docs/book-questions/:", err?.message);
 }
-function getStaticQuestionBank(bookId) {
+// Exported so api/activity.js can grade a submitted quiz DIRECTLY against
+// the shipped answer key — the authoritative, always-present source of
+// truth (a file in the deployment). This replaces token/cache-dependent
+// grading as the primary path: no expiry, no email/day binding, no Redis
+// lookup, so a correctly-answered quiz can never score 0/5 because of a
+// stale token or missing cache.
+export function getStaticQuestionBank(bookId) {
   return BOOK_QUESTION_BANKS.get(String(bookId).toLowerCase()) || null;
 }
 

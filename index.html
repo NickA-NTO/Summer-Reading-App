@@ -6515,43 +6515,44 @@ async function finishQuiz() {
         serverResp.heldInfo.flagCount
       );
     }
-    // Self-heal: if the server returned no_quiz_pool, it means the kid
-    // was running on a stale localStorage resume (mid-attempt saved
-    // BEFORE someone busted the cache). The poolIdx values in their
-    // saved questions no longer match anything cached server-side, so
-    // every answer scores 0. Wipe the stale resume + in-memory state
-    // so the next "Try again" generates a clean attempt.
-    if (serverResp?.error === "no_quiz_pool") {
+  }
+
+  // Never render a score the server didn't actually produce — that's the
+  // guarantee against a false 0/5. Two ungradable cases surface a no-score
+  // "try again" screen instead:
+  //   • network_error — the submit never reached the server (fetch threw).
+  //     markBookAsRead already rolled back the optimistic read flag and no
+  //     attempt was burned; retry re-submits the SAME answers (finishQuiz).
+  //   • no_quiz_pool — the server couldn't grade (e.g. a stale localStorage
+  //     resume whose questions no longer match the shipped bank). Wipe the
+  //     stale resume so retry regenerates a fresh attempt (startAttempt).
+  if (serverResp && (serverResp.error === "network_error" || serverResp.error === "no_quiz_pool")) {
+    const stale = serverResp.error === "no_quiz_pool";
+    if (stale) {
       console.warn("[quiz] no_quiz_pool — wiping stale local resume so next attempt regenerates");
       try { clearQuizProgress(quizState.bookId); } catch {}
-      // Reset attempt-local state too so the retry path picks fresh questions.
       quizState.pool = null;
       quizState.questions = null;
       quizState.answers = [];
       quizState.idx = 0;
     }
-  }
-
-  // Transport failure — markBookAsRead caught a fetch error and already
-  // rolled back the optimistic read flag. The answers never reached the
-  // server, so DON'T render a score: "0 / 5" would be a lie, and we must
-  // not burn an attempt over a network blip. Offer a no-penalty retry that
-  // re-submits the same answers (quizState still holds them).
-  if (serverResp && serverResp.error === "network_error") {
     document.getElementById("quizContent").innerHTML = `
       <div class="quiz-result" style="position:relative">
-        <div class="emoji">📶</div>
-        <h3>We couldn't reach the server</h3>
+        <div class="emoji">${stale ? "🔄" : "📶"}</div>
+        <h3>${stale ? "Let's refresh this quiz" : "We couldn't reach the server"}</h3>
         <p style="font-size:15px;color:var(--muted);margin:12px 0">
-          Your answers weren't sent — check your connection and try again.
-          This won't count against you.
+          ${stale
+            ? "Something went out of date — tap Try again to load fresh questions. This won't count against you."
+            : "Your answers weren't sent — check your connection and try again. This won't count against you."}
         </p>
         <div class="actions">
           <button class="icon-btn" id="quizRetry">Try again</button>
           <button class="icon-btn" id="quizLater">Close</button>
         </div>
       </div>`;
-    document.getElementById("quizRetry").addEventListener("click", () => { finishQuiz(); });
+    document.getElementById("quizRetry").addEventListener("click", () => {
+      if (stale) { startAttempt(); } else { finishQuiz(); }
+    });
     document.getElementById("quizLater").addEventListener("click", closeQuiz);
     return;
   }
