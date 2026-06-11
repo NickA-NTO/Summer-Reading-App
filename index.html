@@ -1240,6 +1240,20 @@
   .quiz-option.admin-correct .letter {
     background: rgba(52,211,153,.25); color: #34d399;
   }
+  /* Per-option speaker button — a SEPARATE sibling beside the answer button
+     (not nested inside it) so a kid reaching for the speaker can't misclick
+     the answer. The row lays them side by side with a gap. */
+  .quiz-option-row { display: flex; align-items: stretch; gap: 8px; }
+  .quiz-option-row .quiz-option { flex: 1 1 auto; }
+  .opt-speak-btn {
+    flex: 0 0 auto; width: 48px;
+    background: var(--panel); border: 2px solid var(--line);
+    border-radius: 12px; color: var(--ink); font-size: 18px;
+    cursor: pointer; display: grid; place-items: center;
+    transition: all .15s;
+  }
+  .opt-speak-btn:hover { border-color: var(--accent-2); background: rgba(37,99,235,.14); }
+  .opt-speak-btn:active { transform: scale(0.94); }
 
   .quiz-result {
     text-align: center; padding: 12px 0;
@@ -6153,14 +6167,15 @@ function renderQuizQuestion() {
           Number.isInteger(q.correctShuffledIdx) &&
           idx === q.correctShuffledIdx;
         return `
-          <button class="quiz-option${isCorrect ? " admin-correct" : ""}" data-i="${idx}">
-            <span class="opt-speak" data-i="${idx}" role="button" tabindex="0"
-              aria-label="Hear this answer choice" title="Hear this answer"
-              style="flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;margin-right:8px;border-radius:8px;cursor:pointer;font-size:15px;background:rgba(255,255,255,0.07)">🔊</span>
-            <span class="letter">${letters[idx]}</span>
-            <span>${escapeHtml(opt)}</span>
-            ${isCorrect ? `<span style="margin-left:auto;font-size:11px;font-weight:700;color:#34d399;letter-spacing:0.05em">✓ correct</span>` : ""}
-          </button>`;
+          <div class="quiz-option-row">
+            <button class="opt-speak-btn" data-i="${idx}" type="button"
+              aria-label="Hear this answer choice" title="Hear this answer">🔊</button>
+            <button class="quiz-option${isCorrect ? " admin-correct" : ""}" data-i="${idx}">
+              <span class="letter">${letters[idx]}</span>
+              <span>${escapeHtml(opt)}</span>
+              ${isCorrect ? `<span style="margin-left:auto;font-size:11px;font-weight:700;color:#34d399;letter-spacing:0.05em">✓ correct</span>` : ""}
+            </button>
+          </div>`;
       }).join("")}
     </div>
     <div class="quiz-report-row">
@@ -6273,26 +6288,16 @@ function renderQuizQuestion() {
     btn.addEventListener("click", () => answerQuestion(optIdx));
     // Warm each option so its speaker button plays instantly on tap.
     prewarmTts(q.options[optIdx]);
-    // Per-option speaker button (left of the letter). Replaces hover/rollover
-    // — rollover was unreliable (hover isn't a user gesture, fired for only
-    // some options). A tap is an explicit gesture that plays every time and
-    // works on touch too. It's a clickable span because a <button> can't nest
-    // inside the option <button>; stopPropagation so tapping the speaker HEARS
-    // the option without SELECTING it. force:true — explicit tap always speaks
-    // regardless of the global TTS toggle.
-    const sp = btn.querySelector(".opt-speak");
-    if (sp) {
-      const speakOpt = (e) => {
-        e.stopPropagation();
-        if (btn.disabled) return;
-        cancelSpeech();
-        speak(q.options[optIdx], { force: true });
-      };
-      sp.addEventListener("click", speakOpt);
-      sp.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); speakOpt(e); }
-      });
-    }
+  });
+  // Per-option speaker button — a SEPARATE sibling beside the answer (not
+  // nested inside it), so a kid reaching for the speaker can't misclick the
+  // answer. Reads just that option; force:true ignores the global TTS toggle.
+  document.querySelectorAll("#qOpts .opt-speak-btn").forEach((sp) => {
+    const optIdx = Number(sp.dataset.i);
+    sp.addEventListener("click", () => {
+      cancelSpeech();
+      speak(q.options[optIdx], { force: true });
+    });
   });
   document.getElementById("qReport").addEventListener("click", () => openReportDialog(q));
 }
