@@ -2191,10 +2191,10 @@
            app. "Read More" implied "scroll for more text" and mismatched
            the modal's verbs (#56). "Take a look" is action-led and
            pairs with the modal opening as the expected outcome.
-           "Listen" → "Hear the blurb" — explicit about WHAT it reads. -->
+           "Listen" → "Hear the summary" — explicit about WHAT it reads. -->
       <div class="hero-actions">
         <button class="btn btn-primary" id="heroOpen">📖  Take a look</button>
-        <button class="btn btn-secondary" id="heroSpeak">🔊  Hear the blurb</button>
+        <button class="btn btn-secondary" id="heroSpeak">🔊  Hear the summary</button>
       </div>
     </div>
     <div class="hero-visual">
@@ -2555,6 +2555,26 @@
     <div class="onb-actions">
       <button class="onb-skip" id="tooSoonCancel" type="button">📖 Keep reading</button>
       <button class="onb-next" id="tooSoonProceed" type="button">Yes, I finished it</button>
+    </div>
+  </div>
+</div>
+
+<!-- Shown right after a kid taps "📖 Start" to declare a book. Sets the
+     mental model: this app tracks reading you do elsewhere — go read the
+     real book, THEN come back to quiz. The demo failed partly because
+     nothing explained this at Start (the demoer didn't know what to do). -->
+<div class="onb-overlay" id="startedReadingOverlay" role="dialog" aria-modal="true" aria-labelledby="startedReadingTitle">
+  <div class="onb-card" style="max-width:480px">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:4px">
+      <div class="onb-eyebrow" style="color:#34d399">📖 Happy reading!</div>
+      <button class="tour-speak" id="startedReadingSpeak" type="button" title="Hear it read aloud">🔊 Read this</button>
+    </div>
+    <h2 class="onb-title" id="startedReadingTitle">You're reading this book!</h2>
+    <p class="onb-sub" id="startedReadingBody">
+      Now go enjoy the book. When you've finished it and you're ready, come back here and tap "Take the quiz" to earn your XP.
+    </p>
+    <div class="onb-actions">
+      <button class="onb-next" id="startedReadingClose" type="button">Got it! 👍</button>
     </div>
   </div>
 </div>
@@ -4824,6 +4844,9 @@ document.getElementById("startReading").addEventListener("click", async () => {
     state.session.currentlyReading = data.currentlyReading;
     refreshInteractiveBits();
     renderStats();
+    // Tell the kid what to do next: go read, then come back to quiz.
+    // (Nothing explained this at Start before — it confused the demoer.)
+    showStartedReadingOverlay(targetTitle);
   } catch (err) {
     alert("Couldn't set this as your current book: " + (err.message || err));
   } finally {
@@ -5733,6 +5756,37 @@ function showTooSoonWarning(gapMs, onProceed) {
   const onYes = () => { cleanup(); if (typeof onProceed === "function") onProceed(); };
   document.getElementById("tooSoonCancel").addEventListener("click", onCancel);
   document.getElementById("tooSoonProceed").addEventListener("click", onYes);
+  if (speakBtn) speakBtn.addEventListener("click", onSpeak);
+}
+
+// Fires right after a kid declares a book via "📖 Start". Explains the
+// read-elsewhere-then-quiz model so they know what to do next — the gap
+// that confused the demoer. Mirrors showTooSoonWarning (auto-speaks, same
+// styling, cancels in-flight TTS on close).
+function showStartedReadingOverlay(bookTitle) {
+  const overlay = document.getElementById("startedReadingOverlay");
+  const titleEl = document.getElementById("startedReadingTitle");
+  const body = document.getElementById("startedReadingBody");
+  if (!overlay || !body) return; // purely informational — never block
+  const safeTitle = (bookTitle || "this book").toString();
+  if (titleEl) titleEl.textContent = `You're reading "${safeTitle}"!`;
+  const bodyText =
+    `Now go enjoy the book. When you've finished it and you're ready, ` +
+    `come back here and tap "Take the quiz" to earn your XP.`;
+  body.textContent = bodyText;
+  overlay.classList.add("open");
+  const ttsText = `You're reading ${safeTitle}! ${bodyText}`;
+  if (typeof speak === "function") { try { speak(ttsText); } catch {} }
+  const speakBtn = document.getElementById("startedReadingSpeak");
+  const closeBtn = document.getElementById("startedReadingClose");
+  const onSpeak = () => { if (typeof speak === "function") { try { speak(ttsText); } catch {} } };
+  const cleanup = () => {
+    try { cancelSpeech(); } catch {}
+    overlay.classList.remove("open");
+    if (closeBtn) closeBtn.removeEventListener("click", cleanup);
+    if (speakBtn) speakBtn.removeEventListener("click", onSpeak);
+  };
+  if (closeBtn) closeBtn.addEventListener("click", cleanup);
   if (speakBtn) speakBtn.addEventListener("click", onSpeak);
 }
 document.getElementById("quizClose").addEventListener("click", closeQuiz);

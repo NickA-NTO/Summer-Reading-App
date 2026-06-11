@@ -234,14 +234,17 @@ async function actionStart(req, res, sessionAuth) {
   // Admins always pass — they're the ones testing.
   const active = await getCurrentlyReading(sessionAuth.email);
   const matchesActive = active && active.bookId === bookId;
-  let matchesRecentQuiz = false;
-  if (!matchesActive && !isAdmin(sessionAuth.email)) {
+  // Eligibility: the kid is either currently reading this book, OR just
+  // submitted a quiz on it (a reading session with a recorded quizOutcome —
+  // the quiz->retell continuation). Admins always pass.
+  let quizContinuation = false;
+  if (!isAdmin(sessionAuth.email)) {
     try {
       const readSess = await getReadingSession(sessionAuth.email, bookId);
-      matchesRecentQuiz = !!(readSess && readSess.quizOutcome);
+      quizContinuation = !!(readSess && readSess.quizOutcome);
     } catch {}
   }
-  if (!matchesActive && !matchesRecentQuiz && !isAdmin(sessionAuth.email)) {
+  if (!matchesActive && !quizContinuation && !isAdmin(sessionAuth.email)) {
     return json(res, 403, {
       error: "not_currently_reading",
       bookId,
@@ -250,24 +253,14 @@ async function actionStart(req, res, sessionAuth) {
     });
   }
 
-  // Daily attempt counter (#40) — the tutor shares the same budget as
-  // the MCQ quiz, so a kid can't bypass the cap by switching modes.
-  // Admin bypass: skip INCR and the limit check entirely so admins can
-  // iterate without being locked out after two test runs.
-  const isAdminUser = isAdmin(sessionAuth.email);
-  const attemptCount = isAdminUser
-    ? 1
-    : await recordQuizAttempt(sessionAuth.email, bookId);
-  if (!isAdminUser && attemptCount != null && attemptCount > QUIZ_DAILY_ATTEMPT_LIMIT) {
-    trackEvent("tutor_attempt_blocked", { bookId, attempt: attemptCount });
-    return json(res, 429, {
-      error: "too_many_attempts",
-      message:
-        "You've used your attempts for this book today. Come back tomorrow and try again!",
-      attempt: attemptCount,
-      limit: QUIZ_DAILY_ATTEMPT_LIMIT,
-    });
-  }
+  // The retell does NOT consume or check the daily quiz-attempt cap (#40).
+  // A kid must NEVER be locked out of the spoken retell because of how many
+  // MCQ-quiz attempts they used — e.g. after FAILING the quiz. That gate is
+  // exactly what blocked the retell in the demo. The retell is a separate
+  // modality from the quiz; spam/cost is already bounded by the per-email
+  // rate limit on /api/tutor (#82) and the eligibility gate above. So: no
+  // INCR of the shared counter, no 429. attemptCount is telemetry only.
+  const attemptCount = null;
 
   // Voice preference — fall back to profile preferredVoiceId, then default.
   const voiceId = profile?.preferredVoiceId || null;
