@@ -3611,8 +3611,11 @@ function prewarmTtsForBook(book) {
   // strings (e.g., "by Author" in one and not the other) result in a
   // cache miss + cold synth on click, which is what caused the 3-sec
   // delay the user was seeing.
-  prewarmTts(book.title);
+  // Hero "🔊" button plays "Title. By Author. Blurb"; the modal "Read
+  // blurb" button (#speakTitle) plays "Title. Blurb" (no author). Warm
+  // BOTH exact strings so neither cold-synths on first click.
   prewarmTts(`${book.title}. By ${book.author}. ${book.blurb || ""}`);
+  prewarmTts(`${book.title}. ${book.blurb || ""}`);
 }
 
 /* Browser Web Speech API fallback */
@@ -3628,6 +3631,12 @@ function speakBrowser(text) {
     u.voice = chosenVoice;
     u.lang  = chosenVoice.lang;
   }
+  // Count the browser-voice fallback as "audio played" too. Without this,
+  // _ttsAudibleSinceLastReset stays false whenever the cloud voice failed
+  // but the browser voice DID speak — making the quiz "Hear it" button show
+  // a false "Tap to retry" and speakWithFeedback never flip to "Playing…".
+  u.addEventListener("start", () => { _ttsAudibleSinceLastReset = true; });
+  _ttsAudibleSinceLastReset = true; // some engines don't fire 'start' reliably
   speechSynthesis.speak(u);
 }
 
@@ -6273,6 +6282,9 @@ function renderQuizQuestion() {
     // mouse sweeps across options; cancelSpeech() keeps clips from
     // overlapping. The question still has its own "Hear it" button.
     if (quizCanHover()) {
+      // Warm this option's audio on render so the first hover plays instantly
+      // (a hover isn't a click, so we can't afford a cold synth at hover time).
+      if (ttsOn) prewarmTts(q.options[optIdx]);
       let dwell = null;
       btn.addEventListener("mouseenter", () => {
         if (!ttsOn || btn.disabled) return;
@@ -6775,14 +6787,20 @@ function quizResultSpeakBtn(id) {
     title="Hear it read aloud">🔊 Read this</button>`;
 }
 function wireQuizResultTTS(btnId, text) {
+  // force:true — the result screen renders off an async chain (no live user
+  // gesture) and the score readout is dynamic ("You got 5 out of 5 right"),
+  // so it's never cached. Without force, it stays silent whenever TTS is
+  // toggled off; with force it at least attempts the cloud voice and falls
+  // back to the browser voice. The button click is an explicit request to
+  // hear it, so it forces too.
   if (typeof speak === "function") {
-    try { speak(text); } catch {}
+    try { speak(text, { force: true }); } catch {}
   }
   const btn = document.getElementById(btnId);
   if (btn) {
     btn.addEventListener("click", () => {
       if (typeof speak === "function") {
-        try { speak(text); } catch {}
+        try { speak(text, { force: true }); } catch {}
       }
     });
   }
@@ -8977,6 +8995,13 @@ function openRetell(bookId) {
   retell.tutorEl.className = "";
   retell.statusEl.textContent = "Getting ready…";
   retell.overlay.classList.add("open");
+  // Read the intro instructions aloud (mirrors the welcome / too-soon
+  // overlays, which auto-speak their copy). force:true so an early reader
+  // hears what to do even if TTS isn't toggled on. This was never spoken
+  // before — the retell was the one instructional overlay with no audio.
+  try {
+    speak("Tell me about the book. Talk into the mic — I'll know when you're done.", { force: true });
+  } catch {}
   // Calibrate VAD silence threshold by the student's working grade —
   // K kids speak slowly with longer pauses, G3 kids are faster.
   const grade = state?.session?.grade;
