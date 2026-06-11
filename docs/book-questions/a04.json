@@ -43,14 +43,14 @@
       "answer": 3
     },
     {
-      "q": "What do Rosamond's cats look like?",
+      "q": "What does Nate decide about Rosamond?",
       "options": [
-        "White with blue eyes",
-        "Black with green eyes",
-        "Orange with yellow eyes",
-        "Gray with brown eyes"
+        "She is strange",
+        "She took the picture",
+        "She is very funny",
+        "She is a great painter"
       ],
-      "answer": 1
+      "answer": 0
     },
     {
       "q": "What color is Annie's bedroom?",
