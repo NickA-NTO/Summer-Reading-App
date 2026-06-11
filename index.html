@@ -1260,6 +1260,12 @@
     background: rgba(70,211,105,.20);
     color: var(--good);
   }
+  /* Grading-screen "Read this" speaker — green while it's reading. */
+  .quiz-result .tour-speak.playing {
+    background: rgba(70,211,105,.30);
+    border-color: rgba(70,211,105,.8);
+    color: #fff;
+  }
 
   .quiz-result {
     text-align: center; padding: 12px 0;
@@ -6819,21 +6825,28 @@ function wireQuizResultTTS(btnId, text) {
   // toggled off; with force it at least attempts the cloud voice and falls
   // back to the browser voice. The button click is an explicit request to
   // hear it, so it forces too.
-  let autoSpeak = Promise.resolve();
-  if (typeof speak === "function") {
-    try { autoSpeak = speak(text, { force: true }) || Promise.resolve(); } catch {}
-  }
   const btn = document.getElementById(btnId);
-  if (btn) {
-    btn.addEventListener("click", () => {
-      if (typeof speak === "function") {
-        try { speak(text, { force: true }); } catch {}
-      }
-    });
-  }
-  // Resolves when the auto-speak finishes (or immediately if skipped/failed).
-  // The pass screen awaits this so "You nailed it!" isn't cut off by the
-  // auto-advance to the retell.
+  // Speak + highlight the button green while the clip plays — both on the
+  // auto-speak at render and on each click — reverting when speak() resolves
+  // (audio end, cancel, or fallback). 15s safety timeout clears a stuck state.
+  const speakWithHighlight = () => {
+    let p = Promise.resolve();
+    if (typeof speak === "function") {
+      try { p = speak(text, { force: true }) || Promise.resolve(); } catch {}
+    }
+    if (btn) {
+      btn.classList.add("playing");
+      let cleared = false;
+      const clear = () => { if (cleared) return; cleared = true; btn.classList.remove("playing"); };
+      const safety = setTimeout(clear, 15000);
+      Promise.resolve(p).catch(() => {}).then(() => { clearTimeout(safety); clear(); });
+    }
+    return p;
+  };
+  const autoSpeak = speakWithHighlight();
+  if (btn) btn.addEventListener("click", speakWithHighlight);
+  // Resolves when the auto-speak finishes (the pass screen awaits this so
+  // "You nailed it!" isn't cut off by the auto-advance to the retell).
   return autoSpeak;
 }
 
