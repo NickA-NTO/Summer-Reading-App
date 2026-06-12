@@ -3517,6 +3517,13 @@ async function speak(text, opts = {}) {
   // estimate elapses as a safety net — some browsers don't reliably
   // fire end on cancellation).
   const browserFallback = () => {
+    // Some callers (e.g. the quiz-result auto-speak) prefer SILENCE over the
+    // jarring generic browser voice when the chosen cloud voice can't play
+    // (autoplay-blocked off an async render, or synth failed). Playing a
+    // different, robotic voice there reads as "the voice picker is broken"
+    // — which is exactly what was reported. A visible "🔊 Read this" button
+    // still gives a tap path to the chosen voice.
+    if (opts.noBrowserFallback) return Promise.resolve();
     speakBrowser(t);
     return sleep(estimateMs());
   };
@@ -6883,10 +6890,10 @@ function wireQuizResultTTS(btnId, text) {
   // Speak + highlight the button green while the clip plays — both on the
   // auto-speak at render and on each click — reverting when speak() resolves
   // (audio end, cancel, or fallback). 15s safety timeout clears a stuck state.
-  const speakWithHighlight = () => {
+  const speakWithHighlight = (speakOpts) => {
     let p = Promise.resolve();
     if (typeof speak === "function") {
-      try { p = speak(text, { force: true }) || Promise.resolve(); } catch {}
+      try { p = speak(text, speakOpts) || Promise.resolve(); } catch {}
     }
     if (btn) {
       btn.classList.add("playing");
@@ -6897,8 +6904,15 @@ function wireQuizResultTTS(btnId, text) {
     }
     return p;
   };
-  const autoSpeak = speakWithHighlight();
-  if (btn) btn.addEventListener("click", speakWithHighlight);
+  // Auto-speak on render: chosen CLOUD voice only — never the generic browser
+  // voice. A wrong/robotic auto-readout on the result screen reads as broken
+  // (this is the fail-screen TTS that was reported). If the cloud voice can't
+  // autoplay (Safari, or autoplay-blocked off the async render), stay silent;
+  // the green button below plays it in the chosen voice on tap.
+  const autoSpeak = speakWithHighlight({ force: true, noBrowserFallback: true });
+  // Explicit tap IS a user gesture, so the click keeps the normal fallback
+  // chain (chosen cloud voice, then browser voice if the cloud path fails).
+  if (btn) btn.addEventListener("click", () => speakWithHighlight({ force: true }));
   // Resolves when the auto-speak finishes (the pass screen awaits this so
   // "You nailed it!" isn't cut off by the auto-advance to the retell).
   return autoSpeak;
