@@ -358,9 +358,19 @@ async function actionTurn(req, res, sessionAuth, url) {
 
   // Transcribe via Whisper (with book-context prompt-bias to suppress
   // YouTube-transcript hallucinations like "Thanks for watching").
+  // #3 — derive the filename extension from the upload's Content-Type so
+  // Whisper decodes the right format. Safari records mp4/aac (not webm);
+  // a ".webm" name on mp4 bytes makes OpenAI reject the file.
+  const _ct = String(req.headers["content-type"] || "").toLowerCase();
+  const _ext =
+    _ct.includes("mp4") || _ct.includes("m4a") ? "mp4" :
+    _ct.includes("aac")                        ? "m4a" :
+    _ct.includes("mpeg") || _ct.includes("mp3") ? "mp3" :
+    _ct.includes("wav")                        ? "wav" :
+                                                 "webm";
   let transcript = "";
   try {
-    transcript = await transcribeAudio(audioBytes, "turn.webm", { book });
+    transcript = await transcribeAudio(audioBytes, `turn.${_ext}`, { book });
   } catch (err) {
     trackError("tutor_whisper_failed", { err: String(err?.message || err) });
     // Couldn't transcribe — ask the kid to repeat. Don't advance the turn.
@@ -830,25 +840,30 @@ async function finalizeAndGrade(res, tutorSession, book) {
     });
   }
 
-  // #77 — ALWAYS clear currentlyReading once the atomic session is
-  // finalized, regardless of outcome (pass / held / zero). The kid
-  // is "done with" this book in this session; whether they earned XP
-  // is a separate concern from the in-progress marker. Without this,
-  // a kid who passed a quiz + did the retell still gets prompted
-  // "switch to a new book?" when they tap a different cover.
-  try {
-    const active = await getCurrentlyReading(email);
-    if (active && active.bookId === tutorSession.bookId) {
-      await clearCurrentlyReading(email);
-      response.clearedCurrentlyReading = true;
+  // #77 + #6 — clear the in-progress markers ONLY when the session reached a
+  // TERMINAL state: XP awarded, or held for admin review. On a 0-XP outcome
+  // (failed quiz + failed retell) we PRESERVE currentlyReading + the reading
+  // session so the kid can retry the (uncapped) retell to earn XP. Clearing
+  // here would strand them: their quiz attempts may be exhausted (2/day cap),
+  // so they couldn't re-submit the quiz to become eligible again — a hard
+  // lockout at 0 XP recoverable only by an admin reset.
+  const terminal = retellHeld || xpCalc.xp > 0;
+  if (terminal) {
+    try {
+      const active = await getCurrentlyReading(email);
+      if (active && active.bookId === tutorSession.bookId) {
+        await clearCurrentlyReading(email);
+        response.clearedCurrentlyReading = true;
+      }
+    } catch (err) {
+      trackError("tutor_clear_current_failed", { err: String(err?.message || err) });
     }
-  } catch (err) {
-    trackError("tutor_clear_current_failed", { err: String(err?.message || err) });
+    await clearReadingSession(email, tutorSession.bookId);
+  } else {
+    // 0 XP — leave currentlyReading + the reading session intact so the kid
+    // can re-open and retry the retell without re-taking the quiz. (#6)
+    response.retryable = true;
   }
-
-  // Clear the reading-session record either way — atomic award succeeded
-  // or the kid bottomed out at 0 XP. New session needed for next attempt.
-  await clearReadingSession(email, tutorSession.bookId);
 
   // #94 — persist the retell rubric + transcript so admin can audit
   // how the kid was graded. Per-user Redis LIST, capped at 50 entries,
