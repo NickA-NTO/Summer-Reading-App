@@ -118,6 +118,149 @@ const RETAKE_MULTIPLIER = Number(
   process.env.POINTS_RETAKE_MULTIPLIER || "0.7"
 );
 
+// #1 — Anti-cheat verdict for a quiz PASS, computed at quiz_submit time.
+// The atomic quiz→retell flow awards XP later (api/tutor.js finalize), which
+// previously ran NO fraud check — the entire WCPM / first-open / "started
+// recently" / reopen-pattern matrix lived in an unreachable post-award block.
+// We now compute the verdict here (where the timing context is freshest),
+// persist it on the reading session, and gate the award on it.
+//
+// Logic is lifted verbatim from the original inline block so the behaviour is
+// unchanged. Returns { status, heldReason, cooldownUntil, debug }. Side
+// effects (run once per submit): consumeQuizOpens (read+DEL) and setLastQuizAt
+// (the baseline for the next submission). NO applyFraudFlag / addHeldXpEntry —
+// the caller applies the consequence with its own point value.
+async function computeQuizFraudVerdict({ email, bookId, book, grade, profile }) {
+  const now = Date.now();
+  const fraud = await getQuizFraudState(email);
+  const cooldownUntil =
+    fraud.cooldownUntil && now < fraud.cooldownUntil ? fraud.cooldownUntil : null;
+
+  // WCPM speed (quiz-to-quiz hop).
+  let wcpmStatus = "clean";
+  let wcpmDebug = null;
+  if (fraud.lastQuizAt && now - fraud.lastQuizAt < FRAUD_FRESHNESS_WINDOW_MS) {
+    const elapsedMins = (now - fraud.lastQuizAt) / 60_000;
+    const wcpm = WCPM_BY_GRADE[grade] ?? WCPM_BY_GRADE["K"];
+    const minExpectedMins = book.wordCount / wcpm;
+    const ratio = minExpectedMins > 0 ? elapsedMins / minExpectedMins : 1.0;
+    wcpmDebug = {
+      elapsedMins: +elapsedMins.toFixed(1),
+      minExpectedMins: +minExpectedMins.toFixed(1),
+      ratio: +ratio.toFixed(3),
+    };
+    if (ratio < FRAUD_RATIO_HOLD) wcpmStatus = "hold";
+    else if (ratio < FRAUD_RATIO_SOFT) wcpmStatus = "soft";
+  }
+
+  // First-open fairness (soft Amazon-ordering proxy).
+  let openStatus = "clean";
+  let openDebug = null;
+  const firstOpenAt = await getFirstOpenAt(email, bookId);
+  if (firstOpenAt) {
+    const hoursSinceOpen = (now - firstOpenAt) / 3_600_000;
+    openDebug = { hoursSinceOpen: +hoursSinceOpen.toFixed(2) };
+    if (hoursSinceOpen < FIRST_OPEN_SUSPICION_HOURS) openStatus = "suspicious";
+  }
+
+  // "I'm reading this" → quiz gap (hard floor — the Andy guess-and-win catch).
+  let recentStartStatus = "clean";
+  let recentStartDebug = null;
+  try {
+    const active = await getCurrentlyReading(email);
+    if (active?.bookId === bookId && active?.startedAt) {
+      const startedAt = Number(active.startedAt);
+      const gap = now - startedAt;
+      recentStartDebug = {
+        startedAt,
+        gapSec: Math.round(gap / 1000),
+        gapMin: +(gap / 60000).toFixed(2),
+      };
+      const gradeFloorMs = book
+        ? startedRecentlyHoldMsForGrade(book.grade)
+        : STARTED_RECENTLY_HOLD_MS;
+      let holdMs = gradeFloorMs;
+      if (book && book.wordCount > 0) {
+        const wcpm = WCPM_BY_GRADE[normalizeGrade(grade)] || WCPM_BY_GRADE.K;
+        const expectedReadMs = (book.wordCount / wcpm) * 60_000;
+        const readBasedMs = Math.max(2 * 60_000, expectedReadMs * 0.5);
+        holdMs = Math.min(gradeFloorMs, readBasedMs);
+      }
+      recentStartDebug.holdMs = holdMs;
+      recentStartDebug.holdMin = +(holdMs / 60000).toFixed(2);
+      recentStartDebug.gradeFloorMin = +(gradeFloorMs / 60000).toFixed(2);
+      if (gap >= 0 && gap < holdMs) recentStartStatus = "hold";
+    }
+  } catch {
+    /* missing currentlyReading → don't synthesize a hold from absence */
+  }
+
+  // Quiz-open count (#41) — lookup-pattern detector.
+  let openCountStatus = "clean";
+  let openCountDebug = null;
+  try {
+    const opens = await consumeQuizOpens(email, bookId);
+    openCountDebug = { opens: opens.count, firstAt: opens.firstAt };
+    if (opens.count >= 6) openCountStatus = "hold";
+    else if (opens.count >= 3) openCountStatus = "suspicious";
+  } catch {
+    /* missing open data → don't synthesize fraud from absence */
+  }
+
+  // #97 — per-user / hard-coded demo bypass of the time-based holds.
+  if (isBypassQuizHoldsActive(profile) || isHardcodedBypassQuizHolds(email)) {
+    if (recentStartDebug) recentStartDebug.bypassed = true;
+    if (wcpmDebug) wcpmDebug.bypassed = true;
+    if (openCountDebug) openCountDebug.bypassed = true;
+    recentStartStatus = "clean";
+    wcpmStatus = "clean";
+    openCountStatus = "clean";
+  }
+
+  // Combine (same fair soft matrix as the original block).
+  let combined = "clean";
+  if (recentStartStatus === "hold") combined = "hold";
+  else if (wcpmStatus === "hold") combined = "hold";
+  else if (openCountStatus === "hold") combined = "hold";
+  else if (
+    wcpmStatus === "soft" &&
+    (openStatus === "suspicious" || openCountStatus === "suspicious")
+  )
+    combined = "hold";
+  else if (
+    wcpmStatus === "soft" ||
+    openStatus === "suspicious" ||
+    openCountStatus === "suspicious"
+  )
+    combined = "soft";
+
+  const heldReason =
+    combined !== "hold" ? null
+    : recentStartStatus === "hold" ? "started_recently"
+    : openCountStatus === "hold" ? "quiz_reopen_pattern"
+    : wcpmStatus === "hold" ? "speed"
+    : openStatus === "suspicious" && wcpmStatus === "soft" ? "speed_plus_recent_open"
+    : wcpmStatus === "soft" && openCountStatus === "suspicious" ? "speed_plus_reopens"
+    : "speed";
+
+  // Always refresh the baseline for the next submission.
+  try { await setLastQuizAt(email, now); } catch {}
+
+  const status =
+    combined === "hold" ? "held" : combined === "soft" ? "soft_flag" : "clean";
+  return {
+    status,
+    heldReason,
+    cooldownUntil,
+    debug: {
+      wcpm: wcpmDebug,
+      open: openDebug,
+      recentStart: recentStartDebug,
+      openCount: openCountDebug,
+    },
+  };
+}
+
 export default async function handler(req, res) {
   res.setHeader("Content-Type", "application/json");
 
@@ -584,12 +727,51 @@ export default async function handler(req, res) {
     // If the kid never starts the retell, the session expires and they
     // get 0 XP — matching the "complete the whole section" rule.
     const quizOutcome = passed ? (attemptNum === 2 ? "p2" : "p1") : "fF";
+
+    // #1 — compute the anti-cheat verdict NOW. The atomic flow awards XP at
+    // retell finalize (api/tutor.js), which previously ran NO fraud check, so
+    // the whole WCPM / first-open / started-recently / reopen matrix was dead.
+    // We compute it here for passes by non-admins (a fail earns no base XP, so
+    // nothing to gate), block on an active cooldown, and persist the verdict on
+    // the reading session for the finalize step to honor. Fail-open on error.
+    let fraudVerdict = { status: "clean", heldReason: null, cooldownUntil: null };
+    if (passed && !isAdminUser) {
+      try {
+        fraudVerdict = await computeQuizFraudVerdict({
+          email: session.email,
+          bookId,
+          book: getBook(bookId),
+          grade,
+          profile,
+        });
+      } catch (err) {
+        trackError("quiz_fraud_verdict_failed", {
+          bookId,
+          err: String(err?.message || err),
+        });
+      }
+      if (fraudVerdict.cooldownUntil) {
+        res.statusCode = 423;
+        return res.end(
+          JSON.stringify({
+            ok: false,
+            error: "cooldown",
+            cooldownUntil: fraudVerdict.cooldownUntil,
+            message:
+              "You're on a reading cool-down. Take a break and come back later!",
+          })
+        );
+      }
+    }
+
     try {
       await setReadingSessionQuizOutcome({
         email: session.email,
         bookId,
         quizOutcome,
         quizAttempt: attemptNum,
+        fraudStatus: fraudVerdict.status,
+        fraudReason: fraudVerdict.heldReason,
       });
     } catch (err) {
       trackError("quiz_submit_session_save_failed", {
