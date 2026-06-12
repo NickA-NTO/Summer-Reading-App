@@ -9174,6 +9174,9 @@ async function closeRetell({ confirmed = false } = {}) {
 }
 
 function _retellTearDownAudio() {
+  // Stop any in-flight narration (e.g. the intro clip via speak()/currentTtsAudio)
+  // so it doesn't keep droning over the catalog after the modal closes. (#7)
+  try { cancelSpeech(); } catch {}
   cancelAnimationFrame(retell.rafId);
   retell.rafId = null;
   try { retell.mediaRecorder?.stop(); } catch {}
@@ -9264,6 +9267,9 @@ function _retellAppendTranscript(role, text) {
 // Start the conversation: server creates the session + returns the
 // first tutor message + audio URL. Then we play it and start listening.
 async function _retellStartSession() {
+  // Stop the intro instruction clip ("Tell me about the book…") before the
+  // tutor's first question plays — otherwise the two voices overlap. (#7)
+  try { cancelSpeech(); } catch {}
   retell.intro.style.display = "none";
   retell.live.style.display = "block";
   _retellSetState("thinking");
@@ -9346,6 +9352,12 @@ async function _retellPlayTutor(audioUrl, fallbackText) {
     return new Promise((resolve) => {
       try { window.speechSynthesis.cancel(); } catch {}
       const u = new SpeechSynthesisUtterance(fallbackText);
+      // Use the SAME browser voice the rest of the app selects, not the OS
+      // default — keeps the tutor consistent when the cloud audio falls back. (#8)
+      try {
+        if (!chosenVoice) refreshChosenVoice();
+        if (chosenVoice) { u.voice = chosenVoice; u.lang = chosenVoice.lang; }
+      } catch {}
       u.rate = 0.95; u.pitch = 1.05;
       u.onend = resolve;
       u.onerror = resolve;
@@ -9429,14 +9441,42 @@ async function _retellListenForKid() {
   retell.recordedChunks = [];
 
   // Spin up a fresh MediaRecorder per turn so we get one tidy chunk.
-  retell.mediaRecorder = new MediaRecorder(retell.stream, {
-    mimeType: "audio/webm;codecs=opus",
-  });
+  // Pick a format the browser actually supports: Chrome/Edge/FF do webm/opus,
+  // but Safari (iPad + Mac) does NOT and needs mp4/aac. Hardcoding
+  // "audio/webm" threw NotSupportedError on Safari and killed the whole
+  // retell. Probe once, fall back to the browser default if none match. (#3)
+  if (retell.recMime === undefined) {
+    const candidates = [
+      "audio/webm;codecs=opus",
+      "audio/webm",
+      "audio/mp4;codecs=mp4a.40.2",
+      "audio/mp4",
+      "audio/aac",
+      "audio/mpeg",
+    ];
+    retell.recMime =
+      (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported)
+        ? (candidates.find((t) => { try { return MediaRecorder.isTypeSupported(t); } catch { return false; } }) || "")
+        : "";
+  }
+  try {
+    retell.mediaRecorder = retell.recMime
+      ? new MediaRecorder(retell.stream, { mimeType: retell.recMime })
+      : new MediaRecorder(retell.stream); // let the browser choose its default
+  } catch (err) {
+    console.error("[retell] MediaRecorder unsupported", retell.recMime, err);
+    retell.statusEl.textContent = "This device can't record audio for the talk. Tap × to close.";
+    _retellSetState("idle");
+    return;
+  }
   retell.mediaRecorder.ondataavailable = (e) => {
     if (e.data && e.data.size > 0) retell.recordedChunks.push(e.data);
   };
   retell.mediaRecorder.onstop = async () => {
-    const blob = new Blob(retell.recordedChunks, { type: "audio/webm" });
+    // Use the recorder's actual mime so the upload Content-Type matches what
+    // we recorded (lets the server hand Whisper the right file extension).
+    const mime = (retell.mediaRecorder && retell.mediaRecorder.mimeType) || retell.recMime || "audio/webm";
+    const blob = new Blob(retell.recordedChunks, { type: mime });
     retell.recordedChunks = [];
     if (retell._closed) return;
     await _retellUploadTurn(blob);
@@ -9542,7 +9582,9 @@ async function _retellUploadTurn(blob) {
       `/api/tutor?action=turn&sessionId=${encodeURIComponent(retell.sessionId)}`,
       {
         method: "POST",
-        headers: { "Content-Type": "audio/webm" },
+        // Match the recorded format (webm on Chromium, mp4/aac on Safari) so
+        // the server can hand Whisper the correct file extension. (#3)
+        headers: { "Content-Type": blob.type || "audio/webm" },
         credentials: "same-origin",
         body: blob,
         signal: controller.signal,
