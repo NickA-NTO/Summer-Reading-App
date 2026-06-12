@@ -932,6 +932,10 @@ async function finalizeAndGrade(res, tutorSession, book) {
       studentGrade: tutorSession.workingGrade,
       xpAwarded: response.xpBreakdown?.xp ?? null,
       held: !!response.held,
+      // Per-completion nonce so a legitimate re-read (e.g. after an admin
+      // reset) gets a fresh event id instead of colliding with the prior
+      // completion's id and being deduped away. (audit #4)
+      eventNonce: readingSession?.quizSubmittedAt || readingSession?.quizAttempt || undefined,
     });
     sendCaliperEnvelopeAsync(envelope);
   } catch (err) {
