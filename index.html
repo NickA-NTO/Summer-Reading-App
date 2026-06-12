@@ -4806,10 +4806,9 @@ document.getElementById("readToggle").addEventListener("click", async () => {
     const now = Date.now();
     if (now - lastHoverAt < HOVER_COOLDOWN_MS) return;
     lastHoverAt = now;
-    const label = cleanLabel(btn.textContent) || "Start";
-    try { speak(label); } catch (err) {
-      console.warn("[hover-speak] speak() failed", err);
-    }
+    // Tap-only: TTS no longer fires on hover/focus. Those aren't reliable user
+    // gestures, so cloud audio would autoplay-block and fall back to the wrong
+    // (browser) voice. Kids hear labels via the explicit 🔊 speaker buttons.
   };
   btn.addEventListener("mouseenter", speakHover);
   btn.addEventListener("focus", speakHover);
@@ -5217,10 +5216,8 @@ function showCommentModError(message) {
   if (!wrap || !txt) return;
   txt.textContent = message;
   wrap.style.display = "block";
-  // Speak it if TTS is on so emergent readers hear the why.
-  if (typeof speak === "function") {
-    try { speak(message); } catch {}
-  }
+  // Tap-only: no auto-speak (the message is shown on screen). Auto-narration
+  // off an async response can autoplay-block and fall back to the wrong voice.
 }
 function hideCommentModError() {
   const wrap = document.getElementById("commentModError");
@@ -5738,10 +5735,9 @@ function showTooSoonWarning(gapMs, onProceed) {
   const ttsText =
     `Did you finish the book? You started this ${elapsed}. ` +
     `Are you sure you've finished?`;
-  // Speak it aloud once on open if TTS is on so emergent readers hear it.
-  if (typeof speak === "function") {
-    try { speak(ttsText); } catch {}
-  }
+  // Tap-only: the kid taps "🔊 Read this" to hear it. No auto-speak on open —
+  // auto-narration off an async render can autoplay-block and fall back to the
+  // wrong (browser) voice; a tap is a gesture, so the chosen voice plays.
   const speakBtn = document.getElementById("tooSoonSpeak");
   const onSpeak = () => {
     if (typeof speak === "function") {
@@ -5783,7 +5779,8 @@ function showStartedReadingOverlay(bookTitle) {
   body.textContent = bodyText;
   overlay.classList.add("open");
   const ttsText = `You're reading ${safeTitle}! ${bodyText}`;
-  if (typeof speak === "function") { try { speak(ttsText); } catch {} }
+  // Tap-only: no auto-speak on open; the "🔊 Read this" button (a gesture)
+  // plays it in the chosen voice.
   const speakBtn = document.getElementById("startedReadingSpeak");
   const closeBtn = document.getElementById("startedReadingClose");
   const onSpeak = () => { if (typeof speak === "function") { try { speak(ttsText); } catch {} } };
@@ -6904,18 +6901,15 @@ function wireQuizResultTTS(btnId, text) {
     }
     return p;
   };
-  // Auto-speak on render: chosen CLOUD voice only — never the generic browser
-  // voice. A wrong/robotic auto-readout on the result screen reads as broken
-  // (this is the fail-screen TTS that was reported). If the cloud voice can't
-  // autoplay (Safari, or autoplay-blocked off the async render), stay silent;
-  // the green button below plays it in the chosen voice on tap.
-  const autoSpeak = speakWithHighlight({ force: true, noBrowserFallback: true });
-  // Explicit tap IS a user gesture, so the click keeps the normal fallback
-  // chain (chosen cloud voice, then browser voice if the cloud path fails).
+  // Tap-only: the result narration plays ONLY when the kid taps the green
+  // "🔊 Read this" button. A tap is a real user gesture, so the chosen cloud
+  // voice always plays — never the wrong/browser voice (the fail-screen TTS
+  // that was reported). No auto-speak on render.
   if (btn) btn.addEventListener("click", () => speakWithHighlight({ force: true }));
-  // Resolves when the auto-speak finishes (the pass screen awaits this so
-  // "You nailed it!" isn't cut off by the auto-advance to the retell).
-  return autoSpeak;
+  // The pass screen awaits this to pace its auto-advance to the retell; with
+  // no auto-speak there's nothing to wait on, so resolve immediately (the
+  // caller's 1.8s min-beat still paces the celebration).
+  return Promise.resolve();
 }
 
 /* ---------- 14. Leaderboard ---------- */
@@ -7634,10 +7628,8 @@ function showAchievementToast(ach) {
   stack.appendChild(el);
   // Trigger the slide-in on next frame so the transition actually runs.
   requestAnimationFrame(() => el.classList.add("show"));
-  // Speak it aloud (if TTS is on) so emergent readers hear it too.
-  if (typeof speak === "function") {
-    try { speak(`Achievement unlocked! ${ach.name}`); } catch {}
-  }
+  // Tap-only: no auto-speak on the toast (it's visual + ephemeral). Auto-
+  // narration here would autoplay-block and fall back to the wrong voice.
   setTimeout(() => {
     el.classList.remove("show");
     setTimeout(() => el.remove(), 450);
