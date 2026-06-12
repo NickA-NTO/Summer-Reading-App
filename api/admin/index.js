@@ -58,10 +58,11 @@ import {
   COST_PER_CHAR,
   hasPolly,
 } from "../../lib/tts.js";
-import { normalizeGrade } from "../../lib/xp.js";
-import { buildQuizEventEnvelope } from "../../lib/caliper.js";
+import { normalizeGrade, retellOutcomeFromRubric } from "../../lib/xp.js";
+import { buildQuizEventEnvelope, buildRetellEventEnvelope } from "../../lib/caliper.js";
 import {
   postCaliperEnvelope,
+  sendCaliperEnvelopeAsync,
   getCaliperHealthSnapshot,
   drainCaliperRetryQueue,
   getCaliperDebugCapture,
@@ -472,6 +473,59 @@ export default async function handler(req, res) {
       points: result.entry?.points ?? null,
       bookId: result.entry?.bookId ?? null,
     });
+    // #2 — emit a CORRECTED Caliper event on APPROVAL so TimeBack records the
+    // real XP. A held entry never emitted a decided event (retell finalize +
+    // quiz_submit skip Caliper when held), so without this the approved XP
+    // never reaches TimeBack. eventNonce = heldId makes it a NEW fact, never
+    // deduped against a prior event. Retell-held entries carry a tutorRubric.
+    if (a === "approve" && result.entry && Number(result.entry.points) > 0) {
+      try {
+        const e = result.entry;
+        let envelope;
+        if (e.tutorRubric) {
+          const rb = e.tutorRubric;
+          const rubricTotal =
+            (Number(rb.retell_quality) || 0) +
+            (Number(rb.character_recall) || 0) +
+            (Number(rb.event_recall) || 0) +
+            (Number(rb.stayed_on_topic) || 0);
+          const retellOutcome = retellOutcomeFromRubric(rubricTotal);
+          envelope = buildRetellEventEnvelope({
+            email: e.email,
+            bookId: e.bookId,
+            bookTitle: e.bookTitle || e.bookId,
+            attemptNum: 1,
+            rubricTotal,
+            rubric: rb,
+            tier:
+              retellOutcome === "p1" ? "clear_pass"
+              : retellOutcome === "p2" ? "marginal"
+              : "fail",
+            retellOutcome,
+            outcomeKey: e.quizOutcome ? `${e.quizOutcome}_${retellOutcome}` : undefined,
+            studentGrade: e.grade,
+            xpAwarded: e.points,
+            eventNonce: id,
+          });
+        } else {
+          envelope = buildQuizEventEnvelope({
+            email: e.email,
+            bookId: e.bookId,
+            bookTitle: e.bookTitle || e.bookId,
+            attemptNum: 1,
+            scoreGiven: 5,
+            maxScore: 5,
+            studentGrade: e.grade,
+            xpAwarded: e.points,
+            fraudFlag: "approved",
+            eventNonce: id,
+          });
+        }
+        sendCaliperEnvelopeAsync(envelope);
+      } catch (err) {
+        console.warn("[held_xp_caliper_emit_failed]", String(err?.message || err));
+      }
+    }
     return json(res, 200, { ok: true, action: a, entry: result.entry });
   }
 

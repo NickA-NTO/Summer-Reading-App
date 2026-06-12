@@ -734,6 +734,20 @@ async function finalizeAndGrade(res, tutorSession, book) {
     emergent: book.quizStyle === "emergent",
   });
 
+  // #1 — honor the anti-cheat verdict computed at quiz_submit (persisted on
+  // the reading session). The atomic award path previously ran NO fraud check.
+  //   held      → route the XP to the admin held-XP queue (no leaderboard
+  //               write, no Caliper emit) for human review.
+  //   soft_flag → halve the award (single weak signal).
+  // Fail-open: a missing verdict (legacy session, Redis miss) → "clean".
+  const quizFraudStatus = readingSession?.fraudStatus || "clean";
+  const quizFraudReason = readingSession?.fraudReason || "speed";
+  const fraudHeld = quizFraudStatus === "held";
+  const awardXp =
+    quizFraudStatus === "soft_flag"
+      ? Math.max(1, Math.floor(xpCalc.xp * 0.5))
+      : xpCalc.xp;
+
   let response = {
     ok: true,
     sessionId: tutorSession.sessionId,
@@ -757,10 +771,14 @@ async function finalizeAndGrade(res, tutorSession, book) {
     },
   };
 
-  if (retellHeld) {
-    // LLM grader was unsure — hold the XP for admin review even if the
-    // ratio says non-zero. Quiz outcome still counts in the audit trail.
+  if (retellHeld || fraudHeld) {
+    // Hold the XP for admin review: either the LLM grader was unsure
+    // (retellHeld) OR the quiz_submit anti-cheat verdict flagged this pass
+    // (fraudHeld, #1). Quiz outcome still counts in the audit trail.
     try {
+      const heldReason = fraudHeld
+        ? quizFraudReason
+        : grade._heldReason || "tutor_review";
       const flagResult = await applyFraudFlag(email);
       const heldResult = await addHeldXpEntry({
         email,
@@ -774,7 +792,7 @@ async function finalizeAndGrade(res, tutorSession, book) {
         // shows the right context: grader infra fault (tutor_review),
         // no spoken turns (retell_no_engagement), or a borderline
         // 5-6/12 fail flagged for a human second look (retell_borderline).
-        reason: grade._heldReason || "tutor_review",
+        reason: heldReason,
         tutorRubric: grade,
         tutorTranscript: tutorSession.transcript,
         tutorAudioUrls: tutorSession.audioUrls,
@@ -782,7 +800,7 @@ async function finalizeAndGrade(res, tutorSession, book) {
       });
       response.held = true;
       response.heldInfo = {
-        reason: grade._heldReason || "tutor_review",
+        reason: heldReason,
         cooldownUntil: flagResult.cooldownUntil,
         flagCount: flagResult.flagCount,
         heldId: heldResult.id || null,
@@ -791,9 +809,10 @@ async function finalizeAndGrade(res, tutorSession, book) {
       trackError("tutor_held_xp_failed", { err: String(err?.message || err) });
     }
     trackEvent("tutor_held", { bookId: tutorSession.bookId });
-  } else if (xpCalc.xp > 0) {
+  } else if (awardXp > 0) {
     // Atomic award — single recordRead call routes through the same
     // leaderboard/dedupe/Caliper pipeline as the legacy quiz path.
+    // awardXp == xpCalc.xp for a clean pass, or half it for a soft_flag. (#1)
     const result = await recordRead({
       email,
       // #35 — redacted display name (this becomes the leaderboard
@@ -801,7 +820,7 @@ async function finalizeAndGrade(res, tutorSession, book) {
       name: displayName(tutorSession.name || tutorSession.email),
       grade: tutorSession.workingGrade,
       bookId: tutorSession.bookId,
-      points: xpCalc.xp,
+      points: awardXp,
     });
     response.passed = retellPassed;
     response.recorded = result.recorded;
@@ -847,7 +866,7 @@ async function finalizeAndGrade(res, tutorSession, book) {
   // here would strand them: their quiz attempts may be exhausted (2/day cap),
   // so they couldn't re-submit the quiz to become eligible again — a hard
   // lockout at 0 XP recoverable only by an admin reset.
-  const terminal = retellHeld || xpCalc.xp > 0;
+  const terminal = retellHeld || fraudHeld || awardXp > 0;
   if (terminal) {
     try {
       const active = await getCurrentlyReading(email);
@@ -898,9 +917,9 @@ async function finalizeAndGrade(res, tutorSession, book) {
   // human will approve or deny it. Emitting now would post a 0/fail
   // GradeEvent to the official TimeBack record before review, with no
   // correction path. The Caliper event for an approved held entry is
-  // emitted at approval time instead (admin held-XP resolve).
-  // TODO(followup): wire resolveHeldXp to emit the retell GradeEvent
-  // on approval so approved held XP reaches TimeBack.
+  // emitted at approval time instead — see api/admin/index.js held-xp
+  // approve handler, which rebuilds the envelope with a unique eventNonce
+  // (the heldId) so the correction reaches TimeBack and isn't deduped. (#2)
   if (!response.held) try {
     const rubricTotal =
       (Number(grade.retell_quality)   || 0) +
@@ -930,8 +949,15 @@ async function finalizeAndGrade(res, tutorSession, book) {
       outcomeKey: response.xpBreakdown?.outcomeKey,
       bookGradeLevel: book.grade,
       studentGrade: tutorSession.workingGrade,
-      xpAwarded: response.xpBreakdown?.xp ?? null,
+      // Actual XP credited (halved for a soft_flag), not the gross calc. (#1)
+      xpAwarded: response.points != null ? response.points : (response.xpBreakdown?.xp ?? null),
       held: !!response.held,
+      // Per-completion nonce = the tutor session id (fresh on every retell
+      // attempt). Ensures a legitimate re-read after an admin reset AND a
+      // retell retry on a preserved 0-XP session (see #6) each get a fresh
+      // event id instead of colliding with a prior completion and being
+      // deduped away. Network retries replay the same built envelope. (#4)
+      eventNonce: tutorSession.sessionId,
     });
     sendCaliperEnvelopeAsync(envelope);
   } catch (err) {
