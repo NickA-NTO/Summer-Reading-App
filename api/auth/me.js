@@ -1,7 +1,7 @@
 // Returns the current session as JSON. Called by the client on page load to
 // populate the user's name / email / avatar / working grade / visible tracks.
 
-import { verifySession, parseCookies, isAdmin, isHardcodedBypassQuizHolds } from "../../lib/session.js";
+import { verifySession, parseCookies, isAdmin, isHardcodedBypassQuizHolds, isTombstoned } from "../../lib/session.js";
 import {
   guessGradeFromEmail,
   redis,
@@ -62,6 +62,18 @@ export default async function handler(req, res) {
       authenticated: false,
       // #71 — surface the environment even when unauthenticated so the
       // welcome screen can show the PREVIEW banner before sign-in.
+      env: (process.env.VERCEL_ENV || "production").toLowerCase(),
+    }));
+  }
+
+  // #13 — a session whose account was deleted (tombstoned) must not keep
+  // resurrecting profile / achievement rows via the writes below. Treat it
+  // as logged out so the client shows the welcome screen.
+  if (await isTombstoned(session.email)) {
+    res.statusCode = 401;
+    return res.end(JSON.stringify({
+      authenticated: false,
+      accountRemoved: true,
       env: (process.env.VERCEL_ENV || "production").toLowerCase(),
     }));
   }

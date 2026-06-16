@@ -22,7 +22,7 @@ The neighbourhood where Nate, Annie, and their friend Rosamond all live. Nate ea
 - **Annie** — Nate's friend. She has painted a picture and lost it. Her whole bedroom is **yellow**, and she likes the colour yellow.
 - **Fang** — Annie's **big yellow dog**. He buries things (including bones) in the yard.
 - **Rosamond** — Annie's friend, described as **strange**. She has four cats.
-- **The four cats** — all called **Hex**. Their full names are **Super Hex, Big Hex, Plain Hex, and Little Hex**.
+- **The four cats** — all called **Hex**, all with **black hair and green eyes**. Their full names are **Super Hex, Big Hex, Plain Hex, and Little Hex**.
 - **Harry** — Annie's little brother. He has been painting his own pictures using **red paint**.
 
 ## Plot in order
@@ -35,7 +35,7 @@ The neighbourhood where Nate, Annie, and their friend Rosamond all live. Nate ea
 6. **Suspect: Fang.** Nate notices Fang is a **big yellow dog** who **buries things in the yard**. He wonders if Fang has buried the picture.
 7. **Digging.** Nate and Annie dig up the yard. They find buried bones, but no picture.
 8. **Suspect: Rosamond.** Annie says her friend Rosamond saw the picture too. Nate and Annie go to Rosamond's house.
-9. **Rosamond is strange.** Rosamond has **four cats**, all of them with "Hex" in their names: **Super Hex, Big Hex, Plain Hex, and Little Hex**. Nate decides Rosamond is strange but did not take the picture.
+9. **Rosamond is strange.** Rosamond has **four cats**, all of them with **black hair and green eyes**, and all with "Hex" in their names. Rosamond tells Nate: **"His name is Super Hex. I have four cats. They are all named Hex."** The other three are **Big Hex, Little Hex, and Plain Hex**. Nate decides Rosamond is strange but did not take the picture.
 10. **Suspect: Harry.** Back at Annie's, Nate questions her **little brother Harry**. Harry has been painting his own pictures with **red paint** — including, in one of them, what he calls a **red monster**.
 11. **The solution.** Nate looks at Harry's painting and realises what has happened. **Yellow and red make orange.** Harry has painted on top of Annie's **yellow** picture of Fang with **red** paint, so the picture is now an **orange monster**.
 12. **Case closed.** Annie is upset at first that her picture has been painted over, but she **forgives Harry**. Nate has solved another case.
@@ -80,6 +80,8 @@ Short, dry, declarative sentences in first person. Each sentence often takes its
 - How many cats Rosamond has: **four**.
 - All four cats have **"Hex"** in their names.
 - The four cats' names: **Super Hex, Big Hex, Plain Hex, and Little Hex**.
+- What all four cats look like: **black hair and green eyes**.
+- Rosamond's exact line about her cats: **"His name is Super Hex. I have four cats. They are all named Hex."**
 - Annie's little brother: **Harry**.
 - What Harry has been doing with paint: **painting his own pictures with red paint**.
 - The key colour fact that solves the mystery: **yellow + red = orange**.

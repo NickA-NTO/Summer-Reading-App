@@ -1,6 +1,6 @@
 {
   "bookId": "c05",
-  "version": 4,
+  "version": 5,
   "questions": [
     {
       "q": "Who saves Wilbur's life when he is born?",
@@ -13,7 +13,7 @@
       "answer": 0
     },
     {
-      "q": "Why does Mr. Arable not want to keep Wilbur at the start of the story?",
+      "q": "Why does Mr. Arable want to get rid of Wilbur at the start of the story?",
       "options": [
         "Wilbur is too loud",
         "Wilbur is the runt of the litter",

@@ -9,6 +9,8 @@ import {
   parseCookies,
   serializeCookie,
   verifyGoogleIdToken,
+  isTombstoned,
+  safeNextPath,
 } from "../../lib/session.js";
 import { recordLogin } from "../../lib/store.js";
 
@@ -111,6 +113,22 @@ export default async function handler(req, res) {
     );
   }
 
+  // #13 — don't resurrect an admin-deleted account. If the email is
+  // tombstoned (deleted within the ~30-day window), refuse a new session
+  // rather than silently re-creating the profile via recordLogin below.
+  if (await isTombstoned(payload.email)) {
+    res.setHeader("Set-Cookie", serializeCookie("rs_oauth_state", "", { maxAge: 0 }));
+    res.statusCode = 403;
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    return res.end(
+      "<!doctype html><html><head><meta charset=\"utf-8\"><title>Account removed</title></head>" +
+      "<body style=\"font-family:system-ui,sans-serif;max-width:30rem;margin:15vh auto;text-align:center;padding:0 1rem\">" +
+      "<h1 style=\"font-size:1.35rem\">Account removed</h1>" +
+      "<p style=\"color:#555\">This account has been removed. Please contact your teacher or administrator if you think this is a mistake.</p>" +
+      "</body></html>"
+    );
+  }
+
   const nowSec = Math.floor(Date.now() / 1000);
   const session = {
     email: payload.email,
@@ -134,10 +152,9 @@ export default async function handler(req, res) {
     hd: payload.hd,
   }).catch(() => {});
 
-  // Recover the post-login "next" path encoded into state
-  const next = (state.split(":").slice(1).join(":") || "/").startsWith("/")
-    ? state.split(":").slice(1).join(":") || "/"
-    : "/";
+  // Recover the post-login "next" path encoded into state. safeNextPath
+  // rejects protocol-relative / backslash values (open-redirect fix, #12).
+  const next = safeNextPath(state.split(":").slice(1).join(":") || "/");
 
   res.setHeader("Set-Cookie", [
     serializeCookie("rs_session", token, {

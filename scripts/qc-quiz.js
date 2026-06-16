@@ -84,6 +84,10 @@ const COMPLEX_PHRASING = [
   /\bdoesn[’']t\b/i, /\bdon[’']t\b/i, /\bdidn[’']t\b/i, /\bisn[’']t\b/i,
   /\baren[’']t\b/i, /\bwasn[’']t\b/i, /\bweren[’']t\b/i, /\bcan[’']t\b/i,
   /\bnever\b/i, /\bwithout\b/i,
+  // Bare "not"/"NOT" — K-2 readers can't reliably parse negation. Catches
+  // stems the bigrams above miss ("did Henry NOT want", "tell Stellaluna
+  // NOT to do"). "knot"/"nothing" are safe — \bnot\b needs word boundaries.
+  /\bnot\b/i,
 ];
 
 const norm = (s) =>

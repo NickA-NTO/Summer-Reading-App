@@ -28,7 +28,7 @@
 // session passes, so XP / leaderboard / Caliper events / held-XP queue
 // all behave identically downstream.
 
-import { verifySession, parseCookies, isAdmin, displayName } from "../lib/session.js";
+import { verifySession, parseCookies, isAdmin, displayName, isTombstoned } from "../lib/session.js";
 import {
   redis,
   recordRead,
@@ -43,7 +43,9 @@ import {
   getReadingSession,
   clearReadingSession,
   appendRetellLog,
+  flagTutorSafety,
 } from "../lib/store.js";
+import { containsProfanity, containsPII, containsSelfHarm } from "../lib/moderation.js";
 import { resolveVisibleTracks, trackForBook } from "../lib/tracks.js";
 import { getBook } from "../lib/books.js";
 import { getBookSummary } from "./quiz.js";
@@ -69,6 +71,7 @@ import {
   totalRubricScore,
   storeTutorAudio,
   synthTutorTts,
+  synthSafeTutorTts,
 } from "../lib/tutor.js";
 
 // Hard cap on raw audio body to keep a buggy/malicious client from
@@ -153,6 +156,15 @@ export default async function handler(req, res) {
   const session = await verifySession(cookies.rs_session, secret);
   if (!session) {
     return json(res, 401, { error: "unauthenticated" });
+  }
+
+  // #child-safety / data-deletion — a deleted account's signed cookie stays
+  // valid until it expires (there's no server-side session store to revoke).
+  // Block it on the tutor too — quiz + activity already do (#19) — so a
+  // just-deleted child can't keep recording voice to storage or re-creating
+  // per-user data. One cheap Redis read; no perceptible latency.
+  if (await isTombstoned(session.email)) {
+    return json(res, 410, { error: "account_deleted" });
   }
 
   // #82 per-email rate limit. The retell uses OpenAI for transcription
@@ -417,6 +429,84 @@ async function actionTurn(req, res, sessionAuth, url) {
     });
   }
 
+  // #child-safety — scan the child's words with the deterministic filter
+  // BEFORE they're echoed into the tutor prompt, graded, logged, or sent to
+  // TimeBack. Instant + local (no added latency). On a hit (profanity, a
+  // slur, a self-harm/bullying phrase, or PII) we do NOT advance the turn or
+  // feed the text to any model — we gently redirect (same shape as the
+  // "didn't catch that" retry) and flag it for an adult to review in
+  // context. The child keeps their quiz pass; they simply don't progress on
+  // this utterance. The already-stored audio (audioUrl) is referenced on the
+  // flag so a safeguarding concern can be heard, not just read.
+  const _selfHarm = containsSelfHarm(transcript);
+  const _profane = _selfHarm || containsProfanity(transcript);
+  const _pii = containsPII(transcript);
+  if (_profane || _pii) {
+    const _reason = _selfHarm ? "self_harm" : _profane ? "profanity_or_harm" : "pii";
+    // Await the safety write — safeguarding data must be durable (a fire-
+    // and-forget can be cut off when the serverless function freezes after
+    // responding). Cost is one Redis lpush, on the FLAGGED path only, which
+    // already synthesizes a redirect TTS — so nothing perceptible is added.
+    // A write error must never break the kid-facing redirect.
+    try {
+      await flagTutorSafety({
+        email: tutorSession.email,
+        sessionId: tutorSession.sessionId,
+        bookId: tutorSession.bookId,
+        reason: _reason,
+        text: transcript,
+        audioUrl,
+      });
+    } catch (err) {
+      trackError("tutor_safety_flag_failed", { err: String(err?.message || err) });
+    }
+    // #child-safety — proactive escalation for a self-harm signal. The flag
+    // above is captured for admin review regardless; for self-harm we ALSO
+    // emit a distinct event and, if SAFETY_ALERT_WEBHOOK is configured, push
+    // an immediate notification (email + pointer to the admin queue — NOT the
+    // raw text) so an adult is alerted now, not whenever someone next opens
+    // the queue. Best-effort + time-boxed so it can't hang the child's turn.
+    if (_selfHarm) {
+      trackEvent("tutor_self_harm_flagged", { bookId: tutorSession.bookId });
+      const hook = process.env.SAFETY_ALERT_WEBHOOK;
+      if (hook) {
+        try {
+          await fetch(hook, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              kind: "self_harm",
+              email: tutorSession.email,
+              bookId: tutorSession.bookId,
+              sessionId: tutorSession.sessionId,
+              ts: Date.now(),
+              note: "A student's spoken retell tripped the self-harm filter. Review the admin safety-flags queue.",
+            }),
+            signal: AbortSignal.timeout(3000),
+          });
+        } catch (err) {
+          trackError("safety_alert_webhook_failed", { err: String(err?.message || err) });
+        }
+      }
+    }
+    const redirect = "Let's keep talking about the book. What happened in the story?";
+    let redirectAudioUrl = null;
+    try {
+      const tts = await synthTutorTts(redirect, tutorSession.voiceId);
+      redirectAudioUrl = tts.url;
+    } catch {}
+    trackEvent("tutor_input_flagged", { bookId: tutorSession.bookId });
+    return json(res, 200, {
+      ok: true,
+      sessionId: tutorSession.sessionId,
+      turnIndex: tutorSession.turnIndex,
+      tutorMessage: redirect,
+      tutorAudioUrl: redirectAudioUrl,
+      retry: true,
+      done: false,
+    });
+  }
+
   // Topic moderation. Off-topic responses count as a turn but the tutor
   // gently redirects rather than asking a new question.
   const moderation = await moderateOnTopic({ book, studentText: transcript });
@@ -503,11 +593,20 @@ async function actionTurn(req, res, sessionAuth, url) {
       trackError("tutor_next_message_failed", { err: String(err?.message || err) });
       nextMessage = "Can you tell me more about the book?";
     }
-    // Synth TTS for the new tutor message.
+    // #child-safety — moderate the generated follow-up before it's spoken.
+    // The deterministic scan is instant; the OpenAI moderation pass runs IN
+    // PARALLEL with the TTS synth (inside synthSafeTutorTts) so latency is
+    // ~unchanged. If flagged, the spoken line is swapped to a safe fallback —
+    // reassign nextMessage so the transcript + client get the SPOKEN text.
     let nextAudioUrl = null;
     try {
-      const tts = await synthTutorTts(nextMessage, tutorSession.voiceId);
-      nextAudioUrl = tts.url;
+      const safe = await synthSafeTutorTts(
+        nextMessage,
+        "You're doing great! Tell me more about what happened in the book.",
+        tutorSession.voiceId
+      );
+      nextMessage = safe.text;
+      nextAudioUrl = safe.url;
     } catch (err) {
       trackError("tutor_tts_failed", { stage: "turn", err: String(err?.message || err) });
     }
@@ -560,14 +659,21 @@ async function actionGrade(req, res, sessionAuth, url) {
   }
   const book = getBook(tutorSession.bookId);
   if (!book) return json(res, 404, { error: "unknown_book" });
-  return await finalizeAndGrade(res, tutorSession, book);
+  // #no-mic — a device with no usable microphone (no hardware, or
+  // MediaRecorder unsupported) can never produce a spoken retell. Allow
+  // finalize WITHOUT a spoken turn so a passed quiz still earns its base
+  // XP (p1_fF = 1.00× / p2_fF = 0.70×). Safe from gaming: skipping the
+  // talk only forfeits the retell BONUS, never the base — there is no
+  // outcome where claiming "no device" earns MORE than retelling.
+  const noDevice = url.searchParams.get("noDevice") === "1";
+  return await finalizeAndGrade(res, tutorSession, book, { allowNoSpeech: noDevice });
 }
 
 /* ------------------------------------------------------------------ */
 /* Grading + recordRead routing                                        */
 /* ------------------------------------------------------------------ */
 
-async function finalizeAndGrade(res, tutorSession, book) {
+async function finalizeAndGrade(res, tutorSession, book, opts = {}) {
   const email = tutorSession.email;
 
   // Anti-skip gate (NO hold). If the kid reached finalize without a single
@@ -581,7 +687,7 @@ async function finalizeAndGrade(res, tutorSession, book) {
   const spokenTurns = (tutorSession.transcript || []).filter(
     (t) => t.role === "student" && String(t.text || "").trim()
   ).length;
-  if (!tutorSession.earlyPass && spokenTurns === 0) {
+  if (!tutorSession.earlyPass && spokenTurns === 0 && !opts.allowNoSpeech) {
     const askRetell =
       "I'd love to hear about it! Can you tell me a little about what happened in the book?";
     let askAudioUrl = null;
@@ -609,8 +715,59 @@ async function finalizeAndGrade(res, tutorSession, book) {
   //     the kid's had their second chance we owe them a definitive
   //     pass/fail, not an admin-review null. Borderline collapses to
   //     fail (no bonus XP).
+  // #18 — single-finalize lock. We're past the anti-skip early-return, so
+  // from here we WILL grade + award + emit Caliper. The `graded` flag is only
+  // persisted after seconds of awaited LLM/TTS work, so two near-simultaneous
+  // finalizes (final `turn` racing the tech-fault `grade`, or a client retry)
+  // could both pass the early graded-check and double-grade / double-award /
+  // double-emit. Claim a short NX lock keyed by session; the loser returns the
+  // graded result if ready, else a benign in-progress.
+  {
+    const _lockKey = `tutor:finalize:${tutorSession.sessionId}`;
+    const _r = redis();
+    if (_r) {
+      let locked = false;
+      try {
+        const got = await _r.set(_lockKey, "1", { nx: true, ex: 90 });
+        locked = got === "OK" || got === true;
+      } catch {
+        locked = true; // Redis hiccup → don't block a legitimate finalize.
+      }
+      if (!locked) {
+        try {
+          const fresh = await getTutorSession(tutorSession.sessionId);
+          if (fresh && fresh.graded && fresh.gradeResult) {
+            return json(res, 200, {
+              ok: true,
+              sessionId: tutorSession.sessionId,
+              done: true,
+              graded: true,
+              already: true,
+              gradeResult: fresh.gradeResult,
+            });
+          }
+        } catch {}
+        return json(res, 409, { error: "finalize_in_progress" });
+      }
+    }
+  }
+
   let grade;
-  if (tutorSession.earlyPass && tutorSession.preliminaryGrade) {
+  if (opts.allowNoSpeech && spokenTurns === 0) {
+    // #no-mic — no spoken retell possible on this device. Skip the LLM
+    // grader (an empty transcript would be a wasted, unreliable call) and
+    // resolve the retell to a clean fF: zero rubric, no bonus. A passed
+    // quiz still earns its base XP via the p1_fF / p2_fF ratio below; a
+    // failed quiz stays fF_fF (0 XP, retryable), same as before.
+    grade = {
+      retell_quality: 0,
+      character_recall: 0,
+      event_recall: 0,
+      stayed_on_topic: 0,
+      overall_pass: false,
+      feedback: "Thanks! We saved your quiz XP.",
+    };
+  } else if (tutorSession.earlyPass && tutorSession.preliminaryGrade) {
     const p = tutorSession.preliminaryGrade;
     grade = {
       retell_quality:   p.retell_quality,

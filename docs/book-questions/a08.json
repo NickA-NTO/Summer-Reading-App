@@ -1,6 +1,6 @@
 {
   "bookId": "a08",
-  "version": 2,
+  "version": 3,
   "questions": [
     {
       "q": "What kind of animal is Ping?",
@@ -103,7 +103,7 @@
       "answer": 1
     },
     {
-      "q": "Why does the little boy say Ping should not be eaten?",
+      "q": "Why does the little boy want to save Ping?",
       "options": [
         "He is too small",
         "He is too old",

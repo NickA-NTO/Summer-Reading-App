@@ -1,7 +1,7 @@
 // Kicks off the Google OAuth flow. Sets a short-lived state cookie so we can
 // CSRF-check the redirect back, then bounces the user to Google.
 
-import { serializeCookie } from "../../lib/session.js";
+import { serializeCookie, safeNextPath } from "../../lib/session.js";
 
 export default function handler(req, res) {
   const clientId = process.env.GOOGLE_CLIENT_ID;
@@ -27,7 +27,7 @@ export default function handler(req, res) {
   // If middleware redirected here with a "next" param, preserve it through the
   // OAuth dance via the state payload.
   const url = new URL(req.url, `${proto}://${host}`);
-  const next = url.searchParams.get("next") || "/";
+  const next = safeNextPath(url.searchParams.get("next"));
   // Embed the next path into state as `<csrf>:<next>` (cookie stores same).
   const stateValue = `${state}:${next}`;
 

@@ -5,6 +5,7 @@
 **First published:** 1987
 **Grade band:** Grade 1 / Ages 5–7
 **Format:** Early chapter book (seven short chapters)
+**Chapter titles, in order:** *Henry, Mudge, Henry, Mudge, Mudge, Henry, Henry and Mudge*
 
 ---
 
@@ -78,3 +79,4 @@ Very short chapters made of short, simple sentences — designed for a new reade
 - How Mudge feels when he is lost: **sad**, just like Henry.
 - How the book ends: Henry and Mudge are **reunited**, and Henry promises **never to leave Mudge again**.
 - What kind of friend Mudge becomes for Henry: his **best friend**.
+- The book has **seven short chapters**, titled **Henry, Mudge, Henry, Mudge, Mudge, Henry, and Henry and Mudge** — the chapters alternate between the two characters' names.

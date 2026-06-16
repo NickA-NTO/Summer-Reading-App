@@ -2467,6 +2467,13 @@
         font-size:13px;line-height:1.5;color:var(--ink-soft);
         font-family:ui-monospace,monospace"></div>
       <div>
+        <button id="retellResultRetry" style="
+          display:none;background:linear-gradient(135deg,#34d399,#10b981);
+          color:#04241a;border:none;padding:12px 24px;border-radius:12px;
+          font-weight:800;font-size:15px;cursor:pointer;font-family:inherit;
+          margin-right:10px">
+          🎤 Try the talk again
+        </button>
         <button id="retellResultClose" style="
           background:var(--panel);color:var(--ink);border:1px solid var(--line);
           padding:12px 24px;border-radius:12px;font-weight:700;font-size:15px;
@@ -6695,6 +6702,51 @@ async function finishQuiz() {
     return;
   }
 
+  // Any OTHER definitive server error (the two no-penalty cases above
+  // already returned) — e.g. 429 too_many_attempts / rate-limit, 410
+  // account_deleted, 403 track_locked / not_currently_reading, 5xx. The
+  // submit reached a real server rejection, so DON'T burn an attempt or
+  // render a false "0 / 5". Show a kid-friendly, recoverable message.
+  if (serverResp && serverResp.error) {
+    const err = serverResp.error;
+    let icon = "⚠️";
+    let title = "Something went wrong";
+    let msg = "We couldn't check your answers just now. Try again in a moment — this won't count against you.";
+    let allowRetry = true;
+    if (err === "too_many_attempts") {
+      icon = "⏰"; title = "Out of attempts"; allowRetry = false;
+      msg = "You've used both tries for this book. Pick a different book to read next!";
+      // Sync the local counter to the server's cap so the UI stays honest.
+      rec.count = MAX_ATTEMPTS_PER_DAY;
+      saveAttemptRecord(quizState.bookId, rec);
+    } else if (err === "account_deleted") {
+      icon = "👋"; title = "Account removed"; allowRetry = false;
+      msg = "This account was removed. Please refresh the page and sign in again.";
+    } else if (err === "track_locked" || err === "not_currently_reading") {
+      icon = "🔒"; title = "Let's set this up first"; allowRetry = false;
+      msg = "Tap “I'm reading this” on the book, then take the quiz.";
+    } else if (serverResp.status === 429) {
+      icon = "⏳"; title = "One sec!";
+      msg = "That was a little fast — wait a moment and try again. This won't count against you.";
+    }
+    document.getElementById("quizContent").innerHTML = `
+      <div class="quiz-result" style="position:relative">
+        <div class="emoji">${icon}</div>
+        <h3>${title}</h3>
+        <p style="font-size:15px;color:var(--muted);margin:12px 0">${msg}</p>
+        <div class="actions">
+          ${allowRetry ? '<button class="icon-btn" id="quizRetry">Try again</button>' : ""}
+          <button class="icon-btn" id="quizLater">Close</button>
+        </div>
+      </div>`;
+    if (allowRetry) {
+      const _rb = document.getElementById("quizRetry");
+      if (_rb) _rb.addEventListener("click", () => finishQuiz());
+    }
+    document.getElementById("quizLater").addEventListener("click", closeQuiz);
+    return;
+  }
+
   // Server is the authoritative source for score + pass/fail.
   const passed = !!(serverResp && serverResp.passed);
   const score = serverResp && Number.isInteger(serverResp.score)
@@ -9072,6 +9124,7 @@ function _retellGrabRefs() {
   retell.resultTitle    = document.getElementById("retellResultTitle");
   retell.resultMsg      = document.getElementById("retellResultMsg");
   retell.resultXp       = document.getElementById("retellResultXp");
+  retell.resultRetryBtn = document.getElementById("retellResultRetry");
 }
 
 function openRetell(bookId) {
@@ -9171,6 +9224,40 @@ async function closeRetell({ confirmed = false } = {}) {
   // No XP awarded on a mid-session close — server reading session
   // expires on its 30-min TTL. (Tech-fault path above does award via
   // /api/tutor?action=grade before reaching this point.)
+}
+
+// #no-mic — finalize a retell for a device that can't record (no mic
+// hardware or MediaRecorder unsupported). The server's noDevice=1 flag
+// bypasses the "say something" anti-skip so a PASSED quiz still earns its
+// base XP (p1_fF / p2_fF); a failed quiz stays 0 XP (retryable). No gaming
+// incentive — skipping the talk only forfeits the retell bonus, never the
+// base. Without this, a kid on a mic-less school device passes the quiz
+// and is stranded at 0 XP with the book marked done.
+async function _retellFinalizeNoDevice() {
+  if (!retell.sessionId) {
+    retell.statusEl.textContent =
+      "We couldn't start the talk on this device. Tap × to close.";
+    _retellSetState("idle");
+    return;
+  }
+  retell.statusEl.textContent = "No microphone — saving your quiz XP…";
+  try {
+    const r = await fetch(
+      `/api/tutor?action=grade&sessionId=${encodeURIComponent(retell.sessionId)}&noDevice=1`,
+      { method: "POST", credentials: "same-origin" }
+    );
+    if (r.ok) {
+      const data = await r.json();
+      _retellShowResult(data);
+      try { refreshMyRank(); } catch {}
+      return;
+    }
+  } catch (err) {
+    console.warn("[retell] no-device finalize failed", err);
+  }
+  retell.statusEl.textContent =
+    "We couldn't save that right now. Tap × to close — your progress is safe.";
+  _retellSetState("idle");
 }
 
 function _retellTearDownAudio() {
@@ -9382,6 +9469,14 @@ async function _retellListenForKid() {
       });
     } catch (err) {
       console.error("[retell] getUserMedia failed", err);
+      // Genuinely no usable mic (vs. a recoverable permission denial) —
+      // retrying can't help, so don't strand a kid who passed the quiz
+      // at 0 XP: finalize for quiz-tier XP instead. (#no-mic)
+      if (err && (err.name === "NotFoundError" || err.name === "DevicesNotFoundError" ||
+                  err.name === "OverconstrainedError" || err.name === "NotReadableError")) {
+        await _retellFinalizeNoDevice();
+        return;
+      }
       // Show a retry button so the kid (or their parent) can grant
       // permission and try again WITHOUT closing + reopening the modal.
       // On click we FULLY tear down any half-built audio state (closed
@@ -9465,8 +9560,10 @@ async function _retellListenForKid() {
       : new MediaRecorder(retell.stream); // let the browser choose its default
   } catch (err) {
     console.error("[retell] MediaRecorder unsupported", retell.recMime, err);
-    retell.statusEl.textContent = "This device can't record audio for the talk. Tap × to close.";
-    _retellSetState("idle");
+    // Recording is impossible on this device — finalize for quiz-tier XP
+    // rather than stranding a passed-quiz kid at 0 XP. (#no-mic)
+    retell.statusEl.textContent = "This device can't record the talk — saving your quiz XP…";
+    await _retellFinalizeNoDevice();
     return;
   }
   retell.mediaRecorder.ondataavailable = (e) => {
@@ -9685,7 +9782,16 @@ function _retellShowResult(data) {
   retell.live.style.display = "none";
   retell.result.style.display = "block";
   const xp = data.points || 0;
+  retell.resultXp.style.display = "";
   retell.resultXp.textContent = `+${xp} XP`;
+  // A 0-XP, non-held result is NOT terminal: the server preserves the
+  // reading session + sets retryable=true (failed quiz + weak retell),
+  // and the anti-skip path returns {done:false, retry:true}. Offer the
+  // retry so the kid has a forward path — the old screen dead-ended with
+  // "read again" and a hidden quiz button (attempts already spent).
+  const canRetryTalk =
+    !data.passed && !data.held && xp === 0 &&
+    (data.retryable || data.retry || data.done === false);
   if (data.passed) {
     retell.resultIcon.textContent = "🎉";
     retell.resultTitle.textContent = "Awesome reading!";
@@ -9697,13 +9803,31 @@ function _retellShowResult(data) {
   } else if (xp > 0) {
     retell.resultIcon.textContent = "👍";
     retell.resultTitle.textContent = "Nice work!";
+  } else if (canRetryTalk) {
+    retell.resultIcon.textContent = "🎤";
+    retell.resultTitle.textContent = "Let's try the talk again!";
+    retell.resultXp.style.display = "none";
   } else {
     retell.resultIcon.textContent = "📚";
     retell.resultTitle.textContent = "Read again and give it another shot.";
     retell.resultXp.style.display = "none";
   }
-  retell.resultMsg.textContent =
-    (data.gradeResult?.feedback) || "Thanks for telling me about the book!";
+  retell.resultMsg.textContent = canRetryTalk
+    ? "You can still earn your XP — tap “Try the talk again” to tell me about the book."
+    : ((data.gradeResult?.feedback) || "Thanks for telling me about the book!");
+  // Show/hide the retry button and wire it to re-enter the talk. The
+  // server kept the session alive, so openRetell starts a fresh talk on
+  // the same book (currentlyReading + reading session are preserved).
+  if (retell.resultRetryBtn) {
+    if (canRetryTalk) {
+      const _retryBookId = retell.bookId;
+      retell.resultRetryBtn.style.display = "inline-block";
+      retell.resultRetryBtn.onclick = () => { openRetell(_retryBookId); };
+    } else {
+      retell.resultRetryBtn.style.display = "none";
+      retell.resultRetryBtn.onclick = null;
+    }
+  }
 
   // Admin debug — show the full rubric breakdown so admins can audit
   // their own retell grading. Two kids saying VASTLY different things

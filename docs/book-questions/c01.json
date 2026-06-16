@@ -1,6 +1,6 @@
 {
   "bookId": "c01",
-  "version": 3,
+  "version": 4,
   "questions": [
     {
       "q": "How old is Jack?",
@@ -73,7 +73,7 @@
       "answer": 2
     },
     {
-      "q": "Which dinosaur is described as bigger than a truck?",
+      "q": "Which dinosaur chases Jack and Annie at the end?",
       "options": [
         "The Anatosaurus",
         "The Pteranodon",
