@@ -32,8 +32,6 @@ import { verifySession, parseCookies, isAdmin, displayName, isTombstoned } from 
 import {
   redis,
   recordRead,
-  recordQuizAttempt,
-  QUIZ_DAILY_ATTEMPT_LIMIT,
   getCurrentlyReading,
   clearCurrentlyReading,
   evaluateAchievementsForUser,
