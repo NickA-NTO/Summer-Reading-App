@@ -1269,6 +1269,7 @@ const COMPLEX_PHRASING = [
   /\bweren[’']t\b/i,
   /\bcan[’']t\b/i,
   /\bnever\b/i,
+  /\bnot\b/i,
 ];
 function verifyQuestionPhrasing(q) {
   const text = String(q.q || "");

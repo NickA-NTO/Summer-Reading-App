@@ -18,8 +18,10 @@
 //                                              bypass flag (body: { email, value })
 
 import { verifySession, parseCookies, isAdmin } from "../../lib/session.js";
+import { cleanupOldTutorAudio } from "../../lib/tutor.js";
 import {
   listRetellLog,
+  listTutorSafetyFlags,
   listAllUsers,
   getTtsUsage,
   listQuizReports,
@@ -65,7 +67,6 @@ import {
   sendCaliperEnvelopeAsync,
   getCaliperHealthSnapshot,
   drainCaliperRetryQueue,
-  getCaliperDebugCapture,
 } from "../../lib/timeback.js";
 
 const ALLOWED_GRADES = new Set([
@@ -126,6 +127,16 @@ export default async function handler(req, res) {
     !!cronSecret &&
     cronHeader === `Bearer ${cronSecret}` &&
     CRON_ALLOWED_ACTIONS.has(action);
+
+  // #24 — a Bearer-token (cron-shaped) request to a cron action that did NOT
+  // authenticate means CRON_SECRET is unset or mismatched. In that state the
+  // real Vercel cron silently 401s and the daily grade-sync + retry-drain stop
+  // firing — so make the misconfiguration loud instead of silent. (Admin
+  // button presses use a session cookie, not a Bearer header, so this won't
+  // false-fire on them.)
+  if (CRON_ALLOWED_ACTIONS.has(action) && !isCronCall && cronHeader.startsWith("Bearer ")) {
+    try { await trackError("cron_auth_failed", { action, hasCronSecret: !!cronSecret }); } catch {}
+  }
 
   // Authed user's email — exposed for endpoints that need to act on
   // the calling admin's own account (e.g., reset-my-book). Null for
@@ -251,6 +262,10 @@ export default async function handler(req, res) {
       hasRedis: !!(process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL),
       hasAnthropic: !!process.env.ANTHROPIC_API_KEY,
       hasPolly: !!(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY),
+      // #24 — without CRON_SECRET the daily timeback-sync + caliper-drain
+      // crons can't authenticate and silently stop. Surface it here so a
+      // missing secret is caught before grades go stale.
+      hasCronSecret: !!process.env.CRON_SECRET,
     });
   }
 
@@ -264,6 +279,23 @@ export default async function handler(req, res) {
   if (action === "retell-log" && req.method === "GET") {
     const limit = Math.min(50, Math.max(1, Number(url.searchParams.get("limit")) || 25));
     const result = await listRetellLog(authedEmail, { limit });
+    return json(res, 200, {
+      hasRedis: !!result.hasRedis,
+      count: result.entries.length,
+      entries: result.entries,
+      error: result.error || null,
+    });
+  }
+
+  // ===================== safety-flags ============================
+  // #child-safety — flagged tutor interactions (the deterministic filter
+  // caught profanity / a slur / a self-harm or bullying phrase / PII in a
+  // child's spoken retell). Admin-only review surface so an adult can act on
+  // a safeguarding concern. Raw text is shown here (and only here).
+  // GET /api/admin?action=safety-flags[&limit=100]
+  if (action === "safety-flags" && req.method === "GET") {
+    const limit = Math.min(200, Math.max(1, Number(url.searchParams.get("limit")) || 100));
+    const result = await listTutorSafetyFlags({ limit });
     return json(res, 200, {
       hasRedis: !!result.hasRedis,
       count: result.entries.length,
@@ -464,7 +496,8 @@ export default async function handler(req, res) {
     if (!result.ok) {
       return json(
         res,
-        result.reason === "not_found" ? 404 : 500,
+        result.reason === "not_found" ? 404 :
+        result.reason === "already_resolved" ? 409 : 500,
         { error: result.reason || "resolve_failed" }
       );
     }
@@ -819,9 +852,18 @@ export default async function handler(req, res) {
       xpAwarded: body.xpAwarded != null ? Number(body.xpAwarded) : 2,
       fraudFlag: body.fraudFlag || "clean",
     });
+    // #14 — never let an admin POST a hand-crafted event into the REAL
+    // TimeBack dashboards from production (every envelope field is caller-
+    // controlled). On preview/dev endpointUrl() already returns null so the
+    // send is a no-op; in production we refuse outright. The built envelope is
+    // still returned for inspection.
+    const _isProd = String(process.env.VERCEL_ENV || "production").toLowerCase() === "production";
     let dispatch = null;
     if (body.send) {
-      dispatch = await postCaliperEnvelope(envelope);
+      dispatch = _isProd
+        ? { ok: false, reason: "send_disabled_in_production",
+            message: "test-caliper send is disabled in production to avoid injecting fabricated events into real dashboards. Use a preview deployment." }
+        : await postCaliperEnvelope(envelope);
     }
     return json(res, 200, { envelope, dispatch });
   }
@@ -830,16 +872,6 @@ export default async function handler(req, res) {
   if (action === "caliper-health" && req.method === "GET") {
     const health = await getCaliperHealthSnapshot();
     return json(res, 200, health);
-  }
-
-  // ====================== caliper-debug ==========================
-  // Temporary demo aid (remove post-demo): returns the last few BUILT
-  // Caliper envelopes + their send result, so an admin can inspect exactly
-  // what was emitted for a just-completed quiz/retell. 15-min TTL on the
-  // capture. Open GET /api/admin?action=caliper-debug right after a quiz.
-  if (action === "caliper-debug" && req.method === "GET") {
-    const capture = await getCaliperDebugCapture();
-    return json(res, 200, capture);
   }
 
   // ==================== caliper-drain-retry ======================
@@ -863,6 +895,25 @@ export default async function handler(req, res) {
     if (result.stillFailing > 0) {
       await trackError("caliper_drain_still_failing", { stillFailing: result.stillFailing });
     }
+    // #10 — piggyback the daily children's-audio retention cleanup on this
+    // existing cron so we don't add a third Vercel cron job (Hobby caps them).
+    // Best-effort; never let it fail the drain response.
+    let audioCleanup = null;
+    try { audioCleanup = await cleanupOldTutorAudio({ days: 14 }); } catch {}
+    return json(res, 200, { ...result, audioCleanup, triggeredBy: isCronCall ? "cron" : "admin" });
+  }
+
+  // ==================== audio-cleanup ============================
+  // #10 — manually delete children's voice recordings older than the
+  // retention window. Also runs daily, piggybacked on caliper-drain-retry.
+  // POST /api/admin?action=audio-cleanup[&days=14]
+  if (action === "audio-cleanup") {
+    const days = Math.min(365, Math.max(1, Number(url.searchParams.get("days")) || 14));
+    const result = await cleanupOldTutorAudio({ days });
+    trackEvent("audio_cleanup", {
+      deleted: result.deleted, scanned: result.scanned,
+      triggeredBy: isCronCall ? "cron" : "admin",
+    });
     return json(res, 200, { ...result, triggeredBy: isCronCall ? "cron" : "admin" });
   }
 
@@ -894,7 +945,7 @@ export default async function handler(req, res) {
       });
     }
     const resolved = await resolveDataRequest({
-      id, decision, adminEmail: session.email, note,
+      id, decision, adminEmail: authedEmail, note,
     });
     if (!resolved.ok) {
       return json(res, 500, { error: resolved.reason || "resolve_failed" });

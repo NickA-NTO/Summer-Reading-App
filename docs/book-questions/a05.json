@@ -1,6 +1,6 @@
 {
   "bookId": "a05",
-  "version": 2,
+  "version": 3,
   "questions": [
     {
       "q": "Why does Henry want a dog?",
@@ -13,12 +13,12 @@
       "answer": 0
     },
     {
-      "q": "What kind of coat did Henry NOT want on a dog?",
+      "q": "What kind of ears does Mudge have?",
       "options": [
-        "Spotted",
-        "Curly",
-        "Short",
-        "Brown"
+        "Pointy",
+        "Floppy",
+        "Round",
+        "Tall"
       ],
       "answer": 1
     },
