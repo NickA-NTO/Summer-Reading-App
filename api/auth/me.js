@@ -17,6 +17,7 @@ import {
   getReadingSession,
   getQuizAttemptCount,
   QUIZ_DAILY_ATTEMPT_LIMIT,
+  getReadBookIds,
 } from "../../lib/store.js";
 import { normalizeGrade, stallAlarmDays, estimatedMinutes } from "../../lib/xp.js";
 import { resolveVisibleTracks, TRACK_ORDER, trackForBook } from "../../lib/tracks.js";
@@ -190,6 +191,10 @@ export default async function handler(req, res) {
   // gate — catalog see-all, the response's `isAdmin` flag, the
   // currentlyReading track-lock bypass — treats them as an ordinary kid.
   const isAdminUser = isEffectiveAdmin(session.email, profile);
+  // #redo — server-side completed-book set; the source of truth for "done" so a
+  // finished book can't be redone for 0 XP after a localStorage reset / new
+  // device / deploy.
+  const readBookIds = await getReadBookIds(session.email).catch(() => []);
   const visibleTracks = isAdminUser
     ? [...TRACK_ORDER]
     : resolveVisibleTracks(grade, trackOverrides);
@@ -303,6 +308,9 @@ export default async function handler(req, res) {
       // toggle so the operator can switch back.
       trueAdmin,
       studentMode,
+      // #redo — books the kid has already FINISHED (server set). Client marks
+      // these Done so they can't be redone for 0 XP.
+      readBookIds,
       grade,
       visibleTracks,
       currentlyReading,

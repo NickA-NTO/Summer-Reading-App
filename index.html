@@ -3755,6 +3755,20 @@ let featuredBook = null;
 
 function startApp(session) {
   state = { session, data: loadData(session.email) };
+  // #redo — hydrate the server's completed-book set into the local read flags
+  // so a book finished on another device / before a cache-clear / before a
+  // deploy still shows "✅ Done" and can't be redone for 0 XP (recordRead
+  // dedupes a repeat to already_read → 0 XP). We only ADD (never clear) so a
+  // just-finished local flag the server hasn't caught up on isn't wiped.
+  // Skipped for admins so they can still re-test finished books.
+  if (!session.isAdmin && Array.isArray(session.readBookIds) && session.readBookIds.length) {
+    state.data.read = state.data.read || {};
+    let _changed = false;
+    for (const id of session.readBookIds) {
+      if (!state.data.read[id]) { state.data.read[id] = true; _changed = true; }
+    }
+    if (_changed) { try { saveData(session.email, state.data); } catch {} }
+  }
   document.getElementById("whoName").textContent = session.name;
   document.getElementById("whoEmail").textContent = session.email;
   document.getElementById("avatar").textContent =
@@ -10367,6 +10381,9 @@ function _retellShowResult(data) {
       isAdmin: !!me.isAdmin,
       trueAdmin: !!me.trueAdmin,
       studentMode: !!me.studentMode,
+      // #redo — server's completed-book set; startApp marks these Done so a
+      // finished book can't be redone for 0 XP across deploys/devices.
+      readBookIds: Array.isArray(me.readBookIds) ? me.readBookIds : [],
       grade: me.grade || "K",
       visibleTracks: Array.isArray(me.visibleTracks) ? me.visibleTracks : null,
       currentlyReading: me.currentlyReading || null,
