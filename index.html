@@ -4045,8 +4045,14 @@ function renderRows() {
   // fallback during the brief window before /api/auth/me lands).
   const visible = state.session?.visibleTracks;
   const allowed = Array.isArray(visible) ? new Set(visible) : null;
+  // #D — collect bookIds in VISIBLE tracks so the genre ("Browse by topic")
+  // rows below can be filtered the same way the grade rows are. Without this a
+  // young reader saw above-grade books in the genre carousels and hit a raw
+  // track_locked alert on "I'm reading this".
+  const allowedBookIds = new Set();
   CATEGORIES.forEach(cat => {
     if (allowed && !allowed.has(cat.id)) return;
+    cat.books.forEach((b) => allowedBookIds.add(b.id));
     // #91 — drop books without a shipped question bank for non-admins.
     // Whole-row suppression when nothing in the row is available, so
     // a kid never sees an empty "Grade 2" carousel.
@@ -4073,7 +4079,12 @@ function renderRows() {
   // Genre rows (each book appears in every matching genre).
   // #91 — same available-quiz filter as grade rows.
   GENRES.forEach(g => {
-    const books = genreBooks(g.id).filter((b) => bookHasQuiz(b.id));
+    // #D — genre rows must respect visibleTracks too (grade rows already do),
+    // else a young reader sees above-grade books here and hits a raw
+    // track_locked alert on "I'm reading this".
+    const books = genreBooks(g.id).filter(
+      (b) => bookHasQuiz(b.id) && (!allowed || allowedBookIds.has(b.id))
+    );
     if (!books.length) return;
     root.appendChild(buildRow({ ...g, books }, true /* isRecent treatment — no progress meter */));
   });
@@ -6031,6 +6042,15 @@ async function openQuiz(bookId) {
   // Admin bypass: skip the client-side cap entirely so testers can iterate.
   // The server-side cap (api/activity #40) is also admin-bypassed.
   const rec = getAttemptRecord(bookId);
+  // #A — already passed this quiz but the retell isn't finished (book not yet
+  // "done"): never re-enter the MCQ — a re-take could overwrite the earned
+  // passing outcome and strip XP. Route to the retell instead.
+  if (!state.session?.isAdmin && rec.passed && !state.data.read[bookId]) {
+    _markRetellPending(bookId);
+    closeQuiz();
+    openRetell(bookId);
+    return;
+  }
   if (!state.session?.isAdmin && rec.count >= MAX_ATTEMPTS_PER_DAY && !rec.passed) {
     // #6 — both quiz attempts used without a pass is NOT a dead-end: the retell
     // is the kid's path to base XP. Route straight to it instead of the old
@@ -6857,6 +6877,11 @@ async function finishQuiz() {
   saveAttemptRecord(quizState.bookId, rec);
 
   if (passed) {
+    // #A — flip in-memory retellPending NOW so if the kid closes the pass
+    // screen (instead of tapping the green Next), the book modal + quiz button
+    // route them to the RETELL, not a fresh quiz that could overwrite their
+    // earned passing outcome and strip the XP.
+    _markRetellPending(quizState.bookId);
     // #9 atomic flow — XP is no longer awarded from quiz_submit. The
     // retell modal launches immediately and the server awards combined
     // XP after both halves finish (via /api/tutor finalize). Show a
@@ -8456,12 +8481,6 @@ const ONB_VOICES = [
   { id: "fable",   emoji: "📖", label: "Fable"   },
   { id: "ash",     emoji: "🌳", label: "Ash"     },
 ];
-// Polish v3.4: preview line corrected — TTS reads titles/blurbs/tips,
-// it doesn't read along the book itself. "Read along with you" set the
-// wrong expectation for kids who then asked why it wouldn't follow a
-// physical book they were holding.
-const ONB_PREVIEW_TEXT =
-  "Hi! I can read titles and tips out loud. Pick a voice you like.";
 
 let _onbSelectedVoice = null;
 let _onbPreviewAudio = null;
@@ -8562,7 +8581,13 @@ function startOnboarding() {
   }, 350);
 }
 
+// #3 — cancellation token for the voice-preview fetch. Bumped here (called on
+// each new tap AND when the onboarding overlay closes/advances) so a
+// late-resolving /api/tts preview can't build + auto-play after the kid has
+// moved on (the same orphaned-fetch class as the tour's #13 bug).
+let _onbPreviewSeq = 0;
 function onbCleanupAudio() {
+  _onbPreviewSeq++;
   if (_onbPreviewAudio) {
     try { _onbPreviewAudio.pause(); } catch {}
     _onbPreviewAudio = null;
@@ -8600,11 +8625,16 @@ async function onbHandleVoiceClick(btn) {
   // Play the preview through the existing TTS endpoint. Browser fallback
   // is fine if Polly isn't configured — kid still gets a voice sample.
   onbCleanupAudio();
+  const mySeq = _onbPreviewSeq;
   try {
     const url = `/api/tts?voice=${encodeURIComponent(voice)}&text=${encodeURIComponent(previewText)}`;
     const r = await fetch(url, { credentials: "same-origin" });
+    // #3 — bail if a newer tap or an overlay close superseded us during the
+    // fetch, so a stale preview clip can't auto-play later.
+    if (mySeq !== _onbPreviewSeq) return;
     if (r.ok) {
       const j = await r.json();
+      if (mySeq !== _onbPreviewSeq) return;
       if (j.url) {
         _onbPreviewAudio = new Audio(j.url);
         _onbPreviewAudio.onended = () => {
@@ -8619,6 +8649,7 @@ async function onbHandleVoiceClick(btn) {
     throw new Error("polly_unavailable");
   } catch {
     // Browser TTS fallback
+    if (mySeq !== _onbPreviewSeq) return;
     try {
       const u = new SpeechSynthesisUtterance(previewText);
       window.speechSynthesis.speak(u);
@@ -9573,6 +9604,11 @@ async function _retellStartSession() {
     }
   } catch (err) {
     console.error("[retell] /api/tutor?action=start failed", err.status, err.serverBody || err);
+    // #R2 — the session never started, so there's nothing to lose. Clear the
+    // active flag so closing this error screen doesn't fire the scary
+    // "you'll lose all your XP" confirm (the kid did nothing wrong; their quiz
+    // XP is safe and they can retry the talk).
+    retell.active = false;
     // Friendly kid-facing message + admin gets the real error in console.
     // For admin sessions, also surface the server error code in the UI so
     // debugging is one glance not three.
@@ -9585,6 +9621,14 @@ async function _retellStartSession() {
       const code = err.serverBody?.error || err.message || "unknown";
       const detail = err.serverBody?.message ? ` — ${err.serverBody.message.slice(0, 80)}` : "";
       retell.statusEl.textContent = `Couldn't start (${err.status || "?"}: ${code}${detail}). Tap × to close.`;
+    } else if (err.status === 403 &&
+               (err.serverBody?.error === "not_currently_reading" ||
+                err.serverBody?.error === "track_locked")) {
+      // #7 — eligibility lapsed (e.g. the reading session expired after 24h and
+      // the kid had switched to a different current book). Don't dead-end with a
+      // generic error — tell them exactly how to recover.
+      retell.statusEl.textContent =
+        "Let's set this up first — tap “I'm reading this” on the book, then try the talk again. Tap × to close.";
     } else {
       retell.statusEl.textContent = "Couldn't start the reading buddy. Tap × to close.";
     }
@@ -9646,14 +9690,31 @@ async function _retellPlayTutor(audioUrl, fallbackText) {
       // turns 2/3 aren't autoplay-blocked. Fall back to a fresh Audio() only if
       // the persistent element was never created (defensive).
       const a = retell.persistentAudio || new Audio();
+      let settled = false;
+      let stallTimer = null;
+      const done = (ok) => {
+        if (settled) return;
+        settled = true;
+        if (stallTimer) { clearTimeout(stallTimer); stallTimer = null; }
+        resolve(ok);
+      };
       try { a.pause(); } catch {}
       try { a.muted = false; a.src = audioUrl; a.currentTime = 0; } catch {}
       retell.tutorAudio = a;
-      a.onended = () => { resolve(true); };
+      a.onended = () => done(true);
       a.onerror = (ev) => {
         console.warn("[retell] tutor audio onerror", ev);
-        resolve(false);
+        done(false);
       };
+      // #B — tutor lines are short (a few seconds). If the clip hasn't ENDED in
+      // 15s it has STALLED (never started, or buffered mid-clip with no
+      // onended/onerror) — the bug that froze the result/turn screen + mic.
+      // Resolve false so we fall through to browser TTS / proceed.
+      stallTimer = setTimeout(() => {
+        console.warn("[retell] tutor audio stalled — falling back");
+        try { a.pause(); } catch {}
+        done(false);
+      }, 15000);
       const p = a.play();
       if (p && typeof p.then === "function") {
         p.catch((err) => {
@@ -9661,7 +9722,7 @@ async function _retellPlayTutor(audioUrl, fallbackText) {
           // this browser. Resolve false → the browser-TTS fallback below keeps
           // the tutor audible so the kid knows it's their turn.
           console.warn("[retell] audio.play() rejected:", err?.name || err);
-          resolve(false);
+          done(false);
         });
       }
     });
@@ -10035,7 +10096,13 @@ async function _retellUploadTurn(blob) {
       });
     }
     if (giveUpEl) {
-      giveUpEl.addEventListener("click", () => closeRetell());
+      // #C — "Skip retell" must PRESERVE a passed quiz's base XP, not forfeit
+      // it. Finalize via the no-mic path (noDevice=1 → server allowNoSpeech
+      // branch awards p1_fF/p2_fF), instead of closeRetell() which, with zero
+      // server-side turns, leaves the kid in a retry loop / 0 XP.
+      giveUpEl.addEventListener("click", () => {
+        _retellFinalizeNoDevice().catch(() => closeRetell());
+      });
     }
     return;
   }

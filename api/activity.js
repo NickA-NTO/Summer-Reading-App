@@ -31,6 +31,7 @@ import {
   recordQuizAttempt,
   consumeQuizOpens,
   setReadingSessionQuizOutcome,
+  getReadingSession,
   redis,
   FRAUD_RATIO_HOLD,
   FRAUD_RATIO_SOFT,
@@ -100,7 +101,10 @@ function resolveAgeGradeServerSide(profile, fallbackGrade) {
  * Admins bypass — they need to act on every book for QA + admin work.
  */
 function isBookTrackVisibleForUser(book, profile, email) {
-  if (isAdmin(email)) return true;
+  // #studentmode — effective admin: an operator in Student Mode hits the same
+  // /api/activity track-locks a kid would (consistent with the quiz/tutor/me
+  // gates), instead of bypassing this one.
+  if (isEffectiveAdmin(email, profile)) return true;
   const t = trackForBook(book);
   if (!t) return true; // unknown track → don't block (defensive)
   const grade = resolveGradeServerSide(profile, email);
@@ -545,7 +549,7 @@ export default async function handler(req, res) {
       res.statusCode = 429;
       return res.end(JSON.stringify({
         error: "too_many_attempts",
-        message: "You've used your attempts for this book today. Come back tomorrow and try again!",
+        message: "You've used both quiz tries for this book — let's tell me about it instead!",
         attempt: serverAttempt,
         limit: QUIZ_DAILY_ATTEMPT_LIMIT,
       }));
@@ -771,11 +775,23 @@ export default async function handler(req, res) {
       }
     }
 
+    // #A — never let a re-take downgrade an already-EARNED passing outcome that
+    // hasn't been finalized yet. A reading session with a p1/p2 outcome exists
+    // only pre-finalize (finalize clears it), so its presence means "passed,
+    // retell not done". Preserve it so a stray re-quiz can't strip the XP.
+    let outcomeToStore = quizOutcome;
+    try {
+      const existingSess = await getReadingSession(session.email, bookId);
+      const existingPass = existingSess &&
+        (existingSess.quizOutcome === "p1" || existingSess.quizOutcome === "p2");
+      const newPass = quizOutcome === "p1" || quizOutcome === "p2";
+      if (existingPass && !newPass) outcomeToStore = existingSess.quizOutcome;
+    } catch {}
     try {
       await setReadingSessionQuizOutcome({
         email: session.email,
         bookId,
-        quizOutcome,
+        quizOutcome: outcomeToStore,
         quizAttempt: attemptNum,
         fraudStatus: fraudVerdict.status,
         fraudReason: fraudVerdict.heldReason,
