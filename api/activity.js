@@ -32,6 +32,7 @@ import {
   consumeQuizOpens,
   setReadingSessionQuizOutcome,
   getReadingSession,
+  recordQuizOutcomeDurable,
   redis,
   FRAUD_RATIO_HOLD,
   FRAUD_RATIO_SOFT,
@@ -796,6 +797,10 @@ export default async function handler(req, res) {
         fraudStatus: fraudVerdict.status,
         fraudReason: fraudVerdict.heldReason,
       });
+      // #T41 — also persist the best quiz outcome durably (365d) so "passed /
+      // settled" survives the reading-session window: drives the cross-device
+      // re-quiz block + retellPending for a pass whose retell isn't done yet.
+      await recordQuizOutcomeDurable(session.email, bookId, outcomeToStore);
     } catch (err) {
       trackError("quiz_submit_session_save_failed", {
         bookId,

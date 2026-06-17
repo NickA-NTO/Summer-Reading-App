@@ -3761,10 +3761,10 @@ function startApp(session) {
   // dedupes a repeat to already_read → 0 XP). We only ADD (never clear) so a
   // just-finished local flag the server hasn't caught up on isn't wiped.
   // Skipped for admins so they can still re-test finished books.
-  if (!session.isAdmin && Array.isArray(session.readBookIds) && session.readBookIds.length) {
+  if (!session.isAdmin && Array.isArray(session.doneBookIds) && session.doneBookIds.length) {
     state.data.read = state.data.read || {};
     let _changed = false;
-    for (const id of session.readBookIds) {
+    for (const id of session.doneBookIds) {
       if (!state.data.read[id]) { state.data.read[id] = true; _changed = true; }
     }
     if (_changed) { try { saveData(session.email, state.data); } catch {} }
@@ -9308,11 +9308,17 @@ function openRetell(bookId) {
   const bookGrade = String(
     BOOK_BY_ID[bookId]?.grade ?? state?.session?.grade ?? "K"
   ).toUpperCase();
+  // #cutoff (T40) — how long of continuous quiet ENDS the kid's turn. K-3 kids
+  // pause to think mid-sentence, so this MUST exceed a typical thinking pause
+  // or they get cut off mid-retell (QC report). Erring generous: a little dead
+  // air after they truly finish is far better than losing their words. Keeps
+  // #10's book-grade keying (deterministic across accounts); the earlier
+  // tightening (2200/1900/1500) was too aggressive and is loosened here. No
+  // admin-fast band — testers shouldn't be cut off mid-retell either.
   retell.vadSilenceMs =
-    state?.session?.isAdmin                   ? 1500 :
-    (bookGrade === "PK" || bookGrade === "K") ? 2200 :
-    (bookGrade === "1")                       ? 1900 :
-                                                1500;
+    (bookGrade === "PK" || bookGrade === "K") ? 3500 :
+    (bookGrade === "1")                       ? 3000 :
+                                                2500;
 }
 
 async function closeRetell({ confirmed = false } = {}) {
@@ -10381,9 +10387,10 @@ function _retellShowResult(data) {
       isAdmin: !!me.isAdmin,
       trueAdmin: !!me.trueAdmin,
       studentMode: !!me.studentMode,
-      // #redo — server's completed-book set; startApp marks these Done so a
-      // finished book can't be redone for 0 XP across deploys/devices.
-      readBookIds: Array.isArray(me.readBookIds) ? me.readBookIds : [],
+      // #redo / #T41 — server's FULLY-DONE set (retell done, or non-quiz read);
+      // startApp marks these Done so a finished book can't be redone for 0 XP
+      // across deploys/devices. Quiz-passed-retell-pending books are excluded.
+      doneBookIds: Array.isArray(me.doneBookIds) ? me.doneBookIds : [],
       grade: me.grade || "K",
       visibleTracks: Array.isArray(me.visibleTracks) ? me.visibleTracks : null,
       currentlyReading: me.currentlyReading || null,

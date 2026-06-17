@@ -42,6 +42,7 @@ import {
   clearReadingSession,
   appendRetellLog,
   flagTutorSafety,
+  markRetellDone,
 } from "../lib/store.js";
 import { containsProfanity, containsPII, containsSelfHarm } from "../lib/moderation.js";
 import { resolveVisibleTracks, trackForBook } from "../lib/tracks.js";
@@ -1026,6 +1027,9 @@ async function finalizeAndGrade(res, tutorSession, book, opts = {}) {
       trackError("tutor_held_xp_failed", { err: String(err?.message || err) });
     }
     trackEvent("tutor_held", { bookId: tutorSession.bookId });
+    // #T41 — the kid completed the retell (XP pending review). Mark it done so
+    // it isn't re-offered as pending.
+    try { await markRetellDone(email, tutorSession.bookId); } catch {}
   } else if (awardXp > 0) {
     // Atomic award — single recordRead call routes through the same
     // leaderboard/dedupe/Caliper pipeline as the legacy quiz path.
@@ -1043,6 +1047,10 @@ async function finalizeAndGrade(res, tutorSession, book, opts = {}) {
     response.recorded = result.recorded;
     response.points = result.points || 0;
     response.reason = result.reason || null;
+    // #T41 — the retell finalized: record the TRUE "fully done" signal so the
+    // client shows Done (and never re-offers the quiz/retell) across devices,
+    // and an already-completed book can't run the flow again for stray XP.
+    try { await markRetellDone(email, tutorSession.bookId); } catch {}
     if (result.recorded) {
       try {
         const profile = await loadProfile(email);
