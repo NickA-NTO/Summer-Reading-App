@@ -326,6 +326,11 @@ export default async function handler(req, res) {
   // client value is a hint, the server count is the source of truth.
   let attemptNum =
     body.attemptNum != null ? Number(body.attemptNum) : null;
+  // #6 — per-attempt idempotency key from the client. Lets recordQuizAttempt
+  // dedupe duplicate submits of the SAME attempt (the transient-error retry,
+  // or two open tabs) so the attempt counter isn't over-counted and the
+  // retell isn't spuriously blocked. Bounded length to keep the Redis key sane.
+  const submissionId = body.submissionId ? String(body.submissionId).slice(0, 64) : null;
 
   // -----------------------------------------------------------------------
   // kind === "open"  — first-time book-modal open, no XP, no leaderboard.
@@ -534,7 +539,7 @@ export default async function handler(req, res) {
     const isAdminUser = isEffectiveAdmin(session.email, profile);
     const serverAttempt = isAdminUser
       ? attemptNum // trust the client value for admin (no INCR side effect)
-      : await recordQuizAttempt(session.email, bookId);
+      : await recordQuizAttempt(session.email, bookId, submissionId);
     if (!isAdminUser && serverAttempt != null && serverAttempt > QUIZ_DAILY_ATTEMPT_LIMIT) {
       trackEvent("quiz_attempt_blocked", { bookId, attempt: serverAttempt });
       res.statusCode = 429;
