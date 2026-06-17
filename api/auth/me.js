@@ -6,6 +6,7 @@ import {
   guessGradeFromEmail,
   redis,
   getCurrentlyReading,
+  clearCurrentlyReading,
   getAchievements,
   evaluateAchievementsForUser,
   setInitialGradeIfMissing,
@@ -237,6 +238,10 @@ export default async function handler(req, res) {
       const isHiddenForUser =
         !isAdminUser && t && !visibleTracks.includes(t);
       if (isHiddenForUser) {
+        // #E — don't just MASK it in the response: clear the server row too,
+        // else the stale reading:{email} keeps 409-blocking "I'm reading this"
+        // on every OTHER book (already_reading) — a permanent lockout.
+        try { await clearCurrentlyReading(session.email); } catch {}
         currentlyReading = null;
       } else {
         const opts = {
