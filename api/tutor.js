@@ -28,7 +28,7 @@
 // session passes, so XP / leaderboard / Caliper events / held-XP queue
 // all behave identically downstream.
 
-import { verifySession, parseCookies, isAdmin, displayName, isTombstoned } from "../lib/session.js";
+import { verifySession, parseCookies, isAdmin, isEffectiveAdmin, displayName, isTombstoned } from "../lib/session.js";
 import {
   redis,
   recordRead,
@@ -59,6 +59,7 @@ import {
   createTutorSession,
   getTutorSession,
   saveTutorSession,
+  getActiveTutorSession,
   buildFirstQuestion,
   buildClosingMessage,
   generateTutorNextMessage,
@@ -135,7 +136,9 @@ function resolveAgeGrade(profile, fallback) {
 
 // Track-locking gate — same logic as /api/quiz + /api/activity.
 function bookVisibleForUser(book, profile, email) {
-  if (isAdmin(email)) return true;
+  // #studentmode — effective admin: an operator in Student Mode hits the same
+  // track-locks a kid would, instead of seeing every book.
+  if (isEffectiveAdmin(email, profile)) return true;
   const t = trackForBook(book);
   if (!t) return true; // defensive: unknown track → don't block
   const grade = resolveGrade(profile, email);
@@ -248,19 +251,78 @@ async function actionStart(req, res, sessionAuth) {
   // submitted a quiz on it (a reading session with a recorded quizOutcome —
   // the quiz->retell continuation). Admins always pass.
   let quizContinuation = false;
-  if (!isAdmin(sessionAuth.email)) {
+  if (!isEffectiveAdmin(sessionAuth.email, profile)) {
     try {
       const readSess = await getReadingSession(sessionAuth.email, bookId);
       quizContinuation = !!(readSess && readSess.quizOutcome);
     } catch {}
   }
-  if (!matchesActive && !quizContinuation && !isAdmin(sessionAuth.email)) {
+  if (!matchesActive && !quizContinuation && !isEffectiveAdmin(sessionAuth.email, profile)) {
     return json(res, 403, {
       error: "not_currently_reading",
       bookId,
       message:
         "Tap \"I'm reading this\" on the book first so we know it's the one you're working on.",
     });
+  }
+
+  // #resume (Item 4) — if the kid has an in-flight, un-graded retell for this
+  // book, pick it up where they left off instead of restarting. Covers the
+  // "quit mid-retell and come back" case: the Reading Buddy says "Welcome
+  // back" and repeats the last question it asked. We resume only a session
+  // that (a) is indexed active for (email,bookId), (b) still exists (30-min
+  // TTL), (c) belongs to this kid, (d) isn't graded, and (e) has a tutor
+  // question to repeat. Any failure falls through to a fresh session below.
+  try {
+    const activeSessionId = await getActiveTutorSession(sessionAuth.email, bookId);
+    if (activeSessionId) {
+      const prior = await getTutorSession(activeSessionId);
+      const ownedByKid =
+        prior && prior.email === String(sessionAuth.email).toLowerCase();
+      if (prior && ownedByKid && !prior.graded && Array.isArray(prior.transcript)) {
+        const lastTutorTurn = [...prior.transcript]
+          .reverse()
+          .find((t) => t && t.role === "tutor" && String(t.text || "").trim());
+        if (lastTutorTurn) {
+          const welcome =
+            `Welcome back! Let's pick up where we left off. ${lastTutorTurn.text}`;
+          let welcomeAudioUrl = null;
+          try {
+            const tts = await synthTutorTts(welcome, prior.voiceId);
+            welcomeAudioUrl = tts.url;
+          } catch (err) {
+            trackError("tutor_tts_failed", {
+              stage: "resume",
+              err: String(err?.message || err),
+            });
+          }
+          // Don't append the welcome to the transcript — it's a re-prompt of
+          // the existing pending question, not a new turn. Refresh the TTL via
+          // save so the resumed session doesn't expire out from under the kid.
+          await saveTutorSession(prior);
+          trackEvent("tutor_resumed", { bookId, turnIndex: prior.turnIndex });
+          return json(res, 200, {
+            ok: true,
+            sessionId: prior.sessionId,
+            bookId,
+            bookTitle: book.title,
+            turnIndex: prior.turnIndex,
+            questionCount: TUTOR_QUESTION_COUNT,
+            tutorMessage: welcome,
+            tutorAudioUrl: welcomeAudioUrl,
+            voiceId: prior.voiceId,
+            done: false,
+            resumed: true,
+          });
+        }
+      }
+    }
+  } catch (err) {
+    trackError("tutor_resume_failed", {
+      bookId,
+      err: String(err?.message || err),
+    });
+    // Fall through to a fresh session below.
   }
 
   // The retell does NOT consume or check the daily quiz-attempt cap (#40).

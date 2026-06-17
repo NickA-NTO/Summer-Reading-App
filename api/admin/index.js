@@ -33,6 +33,7 @@ import {
   setUserWorkingGrade,
   setUserAgeGrade,
   setBypassQuizHolds,
+  setStudentMode,
   bulkSetWorkingGrades,
   setTrackOverrides,
   clearReadingSession,
@@ -611,6 +612,26 @@ export default async function handler(req, res) {
     }
     await audit("set-bypass-holds", email, { value });
     return json(res, 200, { ok: true, email, value });
+  }
+
+  // ========================= set-student-mode ====================
+  // #studentmode — toggle Student Mode on the CALLING admin's OWN account.
+  // Body: { value: boolean }. The global isAdmin gate at the top already
+  // ensures only true admins reach here, and we act on authedEmail (self), so
+  // a non-admin can never enable it and an admin can always switch it back off
+  // (isEffectiveAdmin, not this route, gates student-flow behavior). Cron has
+  // no authedEmail → reject.
+  if (action === "set-student-mode" && req.method === "POST") {
+    if (!authedEmail) return json(res, 403, { error: "forbidden" });
+    const body = await readBody(req);
+    if (body === null) return json(res, 400, { error: "invalid_json" });
+    const value = !!body.value;
+    const result = await setStudentMode(authedEmail, value, authedEmail);
+    if (!result.ok) {
+      return json(res, 500, { error: result.reason || "save_failed" });
+    }
+    await audit("set-student-mode", authedEmail, { value });
+    return json(res, 200, { ok: true, email: authedEmail, value });
   }
 
   // ========================= reset-my-book =======================

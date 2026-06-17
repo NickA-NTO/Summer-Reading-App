@@ -1,7 +1,7 @@
 // Returns the current session as JSON. Called by the client on page load to
 // populate the user's name / email / avatar / working grade / visible tracks.
 
-import { verifySession, parseCookies, isAdmin, isHardcodedBypassQuizHolds, isTombstoned } from "../../lib/session.js";
+import { verifySession, parseCookies, isAdmin, isEffectiveAdmin, isHardcodedBypassQuizHolds, isTombstoned } from "../../lib/session.js";
 import {
   guessGradeFromEmail,
   redis,
@@ -13,6 +13,9 @@ import {
   STARTED_RECENTLY_HOLD_MS_RULES,
   createDataRequest,
   isBypassQuizHoldsActive,
+  getReadingSession,
+  getQuizAttemptCount,
+  QUIZ_DAILY_ATTEMPT_LIMIT,
 } from "../../lib/store.js";
 import { normalizeGrade, stallAlarmDays, estimatedMinutes } from "../../lib/xp.js";
 import { resolveVisibleTracks, TRACK_ORDER, trackForBook } from "../../lib/tracks.js";
@@ -179,7 +182,13 @@ export default async function handler(req, res) {
   // Admins see every catalog tier regardless of working grade — they need
   // the full view for QA and for managing student-side track-locking.
   // Students get the normal at-or-below-working-grade rule (+ overrides).
-  const isAdminUser = isAdmin(session.email);
+  const trueAdmin = isAdmin(session.email);
+  const studentMode = trueAdmin && !!profile?.studentMode;
+  // `isAdminUser` is the EFFECTIVE admin: a true admin loses admin testing
+  // privileges while Student Mode is on (#studentmode), so every downstream
+  // gate — catalog see-all, the response's `isAdmin` flag, the
+  // currentlyReading track-lock bypass — treats them as an ordinary kid.
+  const isAdminUser = isEffectiveAdmin(session.email, profile);
   const visibleTracks = isAdminUser
     ? [...TRACK_ORDER]
     : resolveVisibleTracks(grade, trackOverrides);
@@ -237,6 +246,28 @@ export default async function handler(req, res) {
         currentlyReading.alarmDays = stallAlarmDays(book.wordCount, grade, opts);
         currentlyReading.expectedMinutes = estimatedMinutes(book.wordCount, grade);
         currentlyReading.title = book.title;
+        // #return — surface in-progress quiz/retell state so the client can
+        // route a returning student to the correct next step instead of
+        // dead-ending after they exit. The reading session only exists
+        // pre-finalize (finalizeAndGrade clears it), so a present quizOutcome
+        // means the retell hasn't been completed yet. The attempt counter has
+        // a 365-day TTL, so it survives the reading-session window and lets us
+        // tell "failed once, take attempt 2" apart from "failed both → retell".
+        try {
+          const rs = await getReadingSession(session.email, currentlyReading.bookId);
+          const attemptsUsed =
+            Number(await getQuizAttemptCount(session.email, currentlyReading.bookId)) || 0;
+          const quizOutcome = rs?.quizOutcome || null;
+          const quizPassed = quizOutcome === "p1" || quizOutcome === "p2";
+          currentlyReading.progress = {
+            quizOutcome,
+            quizPassed,
+            attemptsUsed,
+            // The retell is the next step once the quiz is settled: either the
+            // student passed, or they used up both attempts (base-XP retell).
+            retellPending: quizPassed || attemptsUsed >= QUIZ_DAILY_ATTEMPT_LIMIT,
+          };
+        } catch {}
       }
     }
   }
@@ -259,6 +290,14 @@ export default async function handler(req, res) {
       picture: session.picture || null,
       ageGrade,
       isAdmin: isAdminUser,
+      // #studentmode — the TRUE admin bit (drives the Student Mode toggle's
+      // visibility + the persistent banner) and whether Student Mode is on.
+      // `isAdmin` above is the EFFECTIVE value (false while in Student Mode),
+      // so every existing client `isAdmin` branch auto-flips with no per-check
+      // client edit; `trueAdmin` is the escape hatch that always shows the
+      // toggle so the operator can switch back.
+      trueAdmin,
+      studentMode,
       grade,
       visibleTracks,
       currentlyReading,
@@ -304,7 +343,12 @@ export default async function handler(req, res) {
       // is permanent + reviewed in git). Hard-coded list bypasses the
       // first-login requirement — no need to seed the Redis profile.
       bypassQuizHolds:
-        isBypassQuizHoldsActive(profile) || isHardcodedBypassQuizHolds(session.email),
+        isBypassQuizHoldsActive(profile) ||
+        isHardcodedBypassQuizHolds(session.email) ||
+        // Student Mode keeps the time-holds bypassed so the operator can run
+        // the full kid flow fast — caps/gating are what Student Mode restores,
+        // not the 15-min/WCPM waits. #studentmode
+        studentMode,
       // Onboarding state (#17) — client uses these to decide whether to
       // show the first-run voice picker + spotlight tour. tourCompleted=true
       // suppresses it forever (admin can reset via the admin endpoint).

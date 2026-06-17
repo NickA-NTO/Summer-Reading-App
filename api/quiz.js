@@ -26,7 +26,7 @@ import { anthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
 import fs from "node:fs";
 import path from "node:path";
-import { verifySession, parseCookies, isAdmin, signQuizAnswer } from "../lib/session.js";
+import { verifySession, parseCookies, isEffectiveAdmin, signQuizAnswer } from "../lib/session.js";
 import { moderateQuizQuestions } from "../lib/moderation.js";
 import { trackError, trackEvent } from "../lib/observability.js";
 import {
@@ -1499,6 +1499,7 @@ export default async function handler(req, res) {
   let profileGrade = null;
   let profileAgeGrade = null;
   let trackOverrides = {};
+  let profileStudentMode = false;
   const r = redis();
   if (r) {
     try {
@@ -1508,6 +1509,7 @@ export default async function handler(req, res) {
         if (prof?.grade) profileGrade = prof.grade;
         if (prof?.ageGrade) profileAgeGrade = prof.ageGrade;
         if (prof?.trackOverrides) trackOverrides = prof.trackOverrides;
+        if (prof?.studentMode) profileStudentMode = true;
       }
     } catch {
       /* fall through to email heuristic */
@@ -1523,13 +1525,20 @@ export default async function handler(req, res) {
     ? normalizeGrade(profileAgeGrade)
     : studentGrade;
 
+  // #studentmode — every admin-only behavior in this handler (track-lock
+  // bypass, revealing correct answers to the client, the adminMode flag) keys
+  // off the EFFECTIVE admin bit, so an operator in Student Mode hits the real
+  // student-side gates. The toggle itself stays gated on true isAdmin
+  // (api/admin set-student-mode), so they can always switch back.
+  const effectiveAdmin = isEffectiveAdmin(session.email, { studentMode: profileStudentMode });
+
   // Track-visibility enforcement (#14). If admin has locked this book's
   // track for this student (or default rule hides it), refuse to serve the
   // quiz. Prevents bypassing the UI filter with a direct bookId fetch.
   // Admins bypass — they need QA access to every book regardless of grade.
   const bookTrack = trackForBook(book);
   const visible = resolveVisibleTracks(studentGrade, trackOverrides);
-  if (!isAdmin(session.email) && bookTrack && !visible.includes(bookTrack)) {
+  if (!effectiveAdmin && bookTrack && !visible.includes(bookTrack)) {
     res.statusCode = 403;
     return res.end(
       JSON.stringify({
@@ -1581,7 +1590,7 @@ export default async function handler(req, res) {
     // else. Without a token the client posts answerToken:"" and every
     // answer grades wrong (0/5). So sign tokens for admins too; the only
     // admin-extra is that we keep the `answer` field alongside.
-    const clientQuestions = isAdmin(session.email)
+    const clientQuestions = effectiveAdmin
       ? await Promise.all(
           signed.map(async (q) => ({
             ...q,
@@ -1604,7 +1613,7 @@ export default async function handler(req, res) {
         source: "static",
         bankVersion: staticBank.version,
         questions: clientQuestions,
-        adminMode: isAdmin(session.email),
+        adminMode: effectiveAdmin,
       })
     );
   }
@@ -1664,10 +1673,10 @@ export default async function handler(req, res) {
         // Strip the raw answer index before sending to the client; the
         // HMAC answerToken survives (kid needs it to submit). Admin
         // exception: admins see the raw answer for QA walkthroughs.
-        questions: isAdmin(session.email)
+        questions: effectiveAdmin
           ? cached.questions
           : cached.questions.map(stripAnswerKey),
-        adminMode: isAdmin(session.email),
+        adminMode: effectiveAdmin,
       })
     );
   }
@@ -1857,10 +1866,10 @@ export default async function handler(req, res) {
         ...payload,
         // Admin exception (see cached path comment): full pool with
         // answers goes to admins only; students still get stripped.
-        questions: isAdmin(session.email)
+        questions: effectiveAdmin
           ? payload.questions
           : payload.questions.map(stripAnswerKey),
-        adminMode: isAdmin(session.email),
+        adminMode: effectiveAdmin,
       })
     );
   } catch (err) {

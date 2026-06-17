@@ -12,7 +12,7 @@
 //       reading time, the XP is either held for admin review or partially
 //       reduced. Manual "I read this" reads skip fraud detection entirely.
 
-import { verifySession, parseCookies, isAdmin, displayName, isTombstoned, verifyQuizAnswer, isHardcodedBypassQuizHolds } from "../lib/session.js";
+import { verifySession, parseCookies, isAdmin, isEffectiveAdmin, displayName, isTombstoned, verifyQuizAnswer, isHardcodedBypassQuizHolds } from "../lib/session.js";
 import { resolveVisibleTracks, trackForBook } from "../lib/tracks.js";
 import {
   recordRead,
@@ -326,6 +326,11 @@ export default async function handler(req, res) {
   // client value is a hint, the server count is the source of truth.
   let attemptNum =
     body.attemptNum != null ? Number(body.attemptNum) : null;
+  // #6 — per-attempt idempotency key from the client. Lets recordQuizAttempt
+  // dedupe duplicate submits of the SAME attempt (the transient-error retry,
+  // or two open tabs) so the attempt counter isn't over-counted and the
+  // retell isn't spuriously blocked. Bounded length to keep the Redis key sane.
+  const submissionId = body.submissionId ? String(body.submissionId).slice(0, 64) : null;
 
   // -----------------------------------------------------------------------
   // kind === "open"  — first-time book-modal open, no XP, no leaderboard.
@@ -528,11 +533,13 @@ export default async function handler(req, res) {
     //
     // Admin bypass: admins are testing the flow repeatedly and cannot be
     // gated by a per-book attempt limit. INCR is skipped entirely so
-    // their attempts don't pollute the counter either.
-    const isAdminUser = isAdmin(session.email);
+    // their attempts don't pollute the counter either. #studentmode: this is
+    // the EFFECTIVE admin bit — an operator in Student Mode loses the bypass,
+    // so the real 2-attempt cap applies (the whole point of Student Mode).
+    const isAdminUser = isEffectiveAdmin(session.email, profile);
     const serverAttempt = isAdminUser
       ? attemptNum // trust the client value for admin (no INCR side effect)
-      : await recordQuizAttempt(session.email, bookId);
+      : await recordQuizAttempt(session.email, bookId, submissionId);
     if (!isAdminUser && serverAttempt != null && serverAttempt > QUIZ_DAILY_ATTEMPT_LIMIT) {
       trackEvent("quiz_attempt_blocked", { bookId, attempt: serverAttempt });
       res.statusCode = 429;
