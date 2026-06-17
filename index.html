@@ -2096,6 +2096,11 @@
         <button id="menuToggleNoQuizBooks" style="display:none">
           🙈 Hide books without quizzes
         </button>
+        <!-- #studentmode — true-admin only. Flips the operator into the real
+             student experience (attempt caps, track-locks, no answer reveal,
+             no admin tools) while keeping the time-holds bypassed for fast
+             testing. Visible whether ON or OFF so they can switch back. -->
+        <button id="menuStudentMode" style="display:none">🎒 Enter Student Mode</button>
         <button id="menuReplayTour">🎬 Replay intro tour</button>
         <!-- COPPA/GDPR — moved from self-service to admin-approval
              flow. Clicking either button queues a request that an
@@ -2125,6 +2130,14 @@
 <div class="tts-budget-banner" id="ttsBudgetBanner">
   <span id="ttsBudgetMsg">Read-aloud is using the browser voice for now (cloud voice budget reached).</span>
   <button id="ttsBudgetDismiss" aria-label="Dismiss">×</button>
+</div>
+
+<!-- #studentmode — persistent banner shown to a true admin while Student Mode
+     is on, so they never forget they're seeing the restricted kid view (caps,
+     gating, no admin tools). Hidden by default; toggled in JS. -->
+<div id="studentModeBanner" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:9999;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-weight:700;text-align:center;padding:8px 14px;box-shadow:0 -2px 10px rgba(0,0,0,.25);font-size:14px">
+  🎒 STUDENT MODE — you're seeing the app as a student (caps &amp; gating on).
+  <button id="studentModeBannerOff" style="margin-left:10px;background:rgba(255,255,255,.25);border:none;color:#fff;font-weight:700;border-radius:6px;padding:3px 10px;cursor:pointer">Exit</button>
 </div>
 
 <!-- ============ Stats / filter strip ============ -->
@@ -4521,7 +4534,17 @@ function refreshInteractiveBits() {
   if (hasQuiz && !wasRead) {
     readBtn.style.display = "none";
     quizBtn.style.display = "inline-flex";
-    if (isActiveBook) {
+    const prog = isActiveBook ? activeRead?.progress : null;
+    if (prog && prog.retellPending) {
+      // #return — the quiz is already settled for this active book (passed, or
+      // both attempts used up), so the next step is the RETELL, not the quiz.
+      // Point the button straight at it so a student who exited after the quiz
+      // can come back and finish — instead of seeing "Done" or re-quizzing.
+      quizBtn.textContent = "🎙️ Tell me about it";
+      quizBtn.disabled = false;
+      quizBtn.title = "";
+      quizBtn.classList.remove("locked");
+    } else if (isActiveBook) {
       // The kid has declared they're reading this book. Three sub-states:
       //   A) Less than QUIZ_AVAILABLE_DELAY_MS since "I'm reading this"  → greyed countdown
       //   B) At or past QUIZ_AVAILABLE_DELAY_MS                          → active "Take the Quiz"
@@ -4893,12 +4916,20 @@ document.getElementById("startReading").addEventListener("click", async () => {
 //     it needs to also reset attempt counters etc.
 async function markBookAsRead(bookId, attemptNum, submitAnswers) {
   // Snapshot pre-write state so we can roll back cleanly.
+  const isQuizSubmit = Array.isArray(submitAnswers);
   const wasAlreadyRead = !!state.data.read[bookId];
   const today = new Date().toISOString().slice(0,10);
   const streakBefore = (state.data.streakDays || []).slice();
 
   // Optimistic write — UX feels instant; we undo on failure.
-  state.data.read[bookId] = true;
+  // #return: quiz-enabled books are NOT marked "done" on a quiz pass. The
+  // pass is only the first half of the flow; the book becomes done once the
+  // RETELL finalizes (set in _retellShowResult). Marking read here stranded
+  // students who exited between the quiz and the retell — the modal showed
+  // "Done" with no path back to the retell. Manual (non-quiz) reads have no
+  // retell, so they still mark done immediately. The streak counts either
+  // way — engaging with a book today is a read day.
+  if (!isQuizSubmit) state.data.read[bookId] = true;
   state.data.streakDays = Array.from(new Set([...streakBefore, today]));
   saveData(state.session.email, state.data);
   refreshInteractiveBits();
@@ -4908,7 +4939,7 @@ async function markBookAsRead(bookId, attemptNum, submitAnswers) {
   // wrote — if `wasAlreadyRead` is true we leave read=true alone
   // (the original mark wasn't from us).
   const rollback = () => {
-    if (!wasAlreadyRead) {
+    if (!isQuizSubmit && !wasAlreadyRead) {
       state.data.read[bookId] = false;
       delete state.data.read[bookId];
     }
@@ -4924,7 +4955,6 @@ async function markBookAsRead(bookId, attemptNum, submitAnswers) {
     // Server now resolves grade from the profile (no client trust), so we
     // don't send it. Quiz passes go through kind:"quiz_submit" so the
     // server can validate answers; manual reads stay as kind:"read".
-    const isQuizSubmit = Array.isArray(submitAnswers);
     const body = isQuizSubmit
       ? {
           kind: "quiz_submit",
@@ -5694,6 +5724,13 @@ document.getElementById("quizBtn").addEventListener("click", () => {
     if (startBtn) startBtn.focus();
     return;
   }
+  // #return — if the quiz is already settled (passed, or both attempts used),
+  // the button now reads "🎙️ Tell me about it" and must open the RETELL, not
+  // reopen the quiz. Mirrors the gate in refreshInteractiveBits().
+  if (active?.progress?.retellPending) {
+    openRetell(activeBookId);
+    return;
+  }
   // #21 — Pre-quiz warning. If the kid clicked "I'm reading this" less
   // than the server's hold threshold ago, give them a chance to back
   // out before the server queues their XP for review. Threshold is
@@ -6084,6 +6121,11 @@ function startAttempt() {
   quizState.questions = chosenIndices.map((poolIdx) =>
     withShuffledOptions(quizState.pool[poolIdx], poolIdx)
   );
+  // Freeze this attempt's question set + option order RIGHT NOW (before any
+  // answer) so closing and reopening restores the SAME questions instead of
+  // re-rolling a new 5-of-pool. A genuine new attempt re-rolls because
+  // clearQuizProgress() runs on submit. (#quiz-freeze)
+  saveQuizProgress();
   // Pre-warm TTS for both parts of every question. Staggered so we
   // don't fire 10 parallel /api/tts requests at once — OpenAI TTS has
   // per-second limits and parallel bursts can queue some requests for
@@ -6518,10 +6560,11 @@ function _quizProgressKey(bookId) {
 }
 function saveQuizProgress() {
   if (!quizState.bookId || !Array.isArray(quizState.questions)) return;
-  // Don't save if we haven't started yet (idx 0 + 0 answers = "fresh"
-  // and re-rolling the pool on reopen is fine; the kid hasn't seen
-  // anything yet, so there's nothing to game).
-  if (quizState.idx === 0 && quizState.answers.length === 0) return;
+  // Persist as soon as the attempt's questions exist — even at idx 0 before
+  // the first answer. Closing/reopening must restore the SAME questions, not
+  // re-roll (the old "fresh = don't save" rule let a kid fish for questions
+  // they recognised by reopening). A NEW attempt still re-rolls because
+  // clearQuizProgress() runs on submit. (#quiz-freeze)
   try {
     localStorage.setItem(_quizProgressKey(quizState.bookId), JSON.stringify({
       bookId:     quizState.bookId,
@@ -7175,6 +7218,42 @@ document.getElementById("menuToggleNoQuizBooks")?.addEventListener("click", (e) 
 // reflects the user's existing preference (default: "Hide books…"
 // because the localStorage flag is unset).
 _refreshNoQuizBooksToggleLabel();
+
+// #studentmode — show/hide the persistent banner + offset the page so the
+// fixed bar doesn't cover the footer. Hoisted (function decl) so the boot
+// /api/auth/me consumer can call it before this point in source order.
+function setStudentModeBanner(on) {
+  const b = document.getElementById("studentModeBanner");
+  if (b) b.style.display = on ? "block" : "none";
+  document.body.style.paddingBottom = on ? "44px" : "";
+}
+// POST the new Student Mode value for the calling admin, then full-reload so
+// every server-driven gate (catalog filter, attempt caps, currentlyReading
+// progress, admin UI) re-evaluates cleanly under the new effective-admin bit.
+async function toggleStudentMode(turnOn) {
+  try {
+    const r = await fetch("/api/admin?action=set-student-mode", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ value: !!turnOn }),
+    });
+    if (!r.ok) throw new Error("set_failed");
+    location.reload();
+  } catch (e) {
+    alert("Couldn't switch Student Mode — try again.");
+  }
+}
+document.getElementById("menuStudentMode")?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  document.getElementById("userMenu").classList.remove("open");
+  // Flip to the opposite of the current value (trueAdmin set studentMode).
+  toggleStudentMode(!state.session?.studentMode);
+});
+document.getElementById("studentModeBannerOff")?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  toggleStudentMode(false);
+});
 
 // #94 — Retell rubric history (admin only). Opens a list of the
 // admin's own past retell attempts. Each row shows the rubric scores,
@@ -9067,6 +9146,9 @@ const retell = {
   overlay: null, card: null,
   intro: null, live: null, result: null,
   startBtn: null, closeBtn: null, resultCloseBtn: null,
+  // #tts-unlock — one persistent <audio> reused for every tutor clip, unlocked
+  // on the "Start the talk" gesture so turns 2+ aren't autoplay-blocked.
+  persistentAudio: null,
   tutorEl: null, statusEl: null, transcriptEl: null,
   micBarsEl: null, eqBars: null, eqLevels: null,
   turnLabelEl: null, bookTitleEl: null,
@@ -9400,7 +9482,12 @@ async function _retellStartSession() {
   retell.sessionId = resp.sessionId;
   retell.totalTurns = resp.questionCount || 3;
   retell.voiceId = resp.voiceId || "nova";
-  retell.turnLabelEl.textContent = `Question 1 of ${retell.totalTurns}`;
+  // Honor the server's turn index so a RESUMED session (#resume / Item 4)
+  // shows the right question number instead of snapping back to "Question 1".
+  // Fresh sessions return turnIndex 0 → "Question 1 of N".
+  retell.turnIndex = Number(resp.turnIndex) || 0;
+  retell.turnLabelEl.textContent =
+    `Question ${Math.min(retell.turnIndex + 1, retell.totalTurns)} of ${retell.totalTurns}`;
   _retellAppendTranscript("tutor", resp.tutorMessage);
   await _retellPlayTutor(resp.tutorAudioUrl, resp.tutorMessage);
   if (retell._closed) return;
@@ -9408,28 +9495,64 @@ async function _retellStartSession() {
 }
 
 // Play tutor audio (TTS) and wait for it to finish before unmuting mic.
+// #tts-unlock — a verified ~8ms silent 8-bit WAV. Playing this through the
+// persistent <audio> element inside the "Start the talk" user gesture marks the
+// element as user-activated, so later programmatic .play() calls (tutor turns 2
+// and 3) are allowed instead of being autoplay-blocked into silence.
+const RETELL_SILENT_WAV =
+  "data:audio/wav;base64,UklGRmQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YUAAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA";
+
+// Create (once) + unlock the persistent tutor-audio element. MUST be called
+// synchronously from a user gesture (the Start tap) — the first real clip is
+// fetched async and would otherwise miss the gesture window on iOS/Safari.
+function _retellUnlockAudio() {
+  try {
+    if (!retell.persistentAudio) {
+      const el = new Audio();
+      el.preload = "auto";
+      el.playsInline = true;
+      el.setAttribute("playsinline", ""); // iOS: inline, not fullscreen takeover
+      retell.persistentAudio = el;
+    }
+    const el = retell.persistentAudio;
+    el.muted = false;          // unlock UNMUTED so real clips can play unmuted
+    el.src = RETELL_SILENT_WAV;
+    el.currentTime = 0;
+    const p = el.play();
+    if (p && typeof p.then === "function") {
+      p.then(() => { try { el.pause(); el.currentTime = 0; } catch {} }).catch(() => {});
+    }
+  } catch {}
+}
+
 async function _retellPlayTutor(audioUrl, fallbackText) {
   _retellSetState("speaking");
   console.log("[retell] tutor speaking:", { audioUrl: !!audioUrl, fallbackText: fallbackText?.slice(0, 60) });
   // Try server-synthed audio first.
   if (audioUrl) {
     const played = await new Promise((resolve) => {
-      const a = new Audio(audioUrl);
+      // #tts-unlock — reuse the ONE element we unlocked on the Start gesture so
+      // turns 2/3 aren't autoplay-blocked. Fall back to a fresh Audio() only if
+      // the persistent element was never created (defensive).
+      const a = retell.persistentAudio || new Audio();
+      try { a.pause(); } catch {}
+      try { a.muted = false; a.src = audioUrl; a.currentTime = 0; } catch {}
       retell.tutorAudio = a;
-      a.onended = () => { retell.tutorAudio = null; resolve(true); };
+      a.onended = () => { resolve(true); };
       a.onerror = (ev) => {
         console.warn("[retell] tutor audio onerror", ev);
-        retell.tutorAudio = null;
         resolve(false);
       };
-      a.play().catch((err) => {
-        // Most common: NotAllowedError on turns 2/3 because the
-        // user-gesture window can expire after long async waits.
-        // Resolve false → we fall back to browser TTS below.
-        console.warn("[retell] audio.play() rejected:", err?.name || err);
-        retell.tutorAudio = null;
-        resolve(false);
-      });
+      const p = a.play();
+      if (p && typeof p.then === "function") {
+        p.catch((err) => {
+          // NotAllowedError can still occur if the gesture-unlock failed on
+          // this browser. Resolve false → the browser-TTS fallback below keeps
+          // the tutor audible so the kid knows it's their turn.
+          console.warn("[retell] audio.play() rejected:", err?.name || err);
+          resolve(false);
+        });
+      }
     });
     if (played) return;
     // Server audio failed → fall through to browser TTS so the kid
@@ -9794,6 +9917,17 @@ function _retellShowResult(data) {
   const canRetryTalk =
     !data.passed && !data.held && xp === 0 &&
     (data.retryable || data.retry || data.done === false);
+  // #return — the RETELL is the authoritative "done" signal for quiz books
+  // (NOT the quiz pass; see markBookAsRead). Mark the book read for every
+  // TERMINAL outcome — passed, held, earned XP, or a final 0-XP result — but
+  // NOT when the kid can still retry the talk (the server preserved the
+  // session). This flips the book-modal to the "✅ Done" badge and stops the
+  // gate from routing them back into the retell. Mirrors the server, which
+  // records the read at finalize, so client + server now agree on timing.
+  if (retell.bookId && !canRetryTalk) {
+    state.data.read[retell.bookId] = true;
+    try { saveData(state.session.email, state.data); } catch {}
+  }
   if (data.passed) {
     retell.resultIcon.textContent = "🎉";
     retell.resultTitle.textContent = "Awesome reading!";
@@ -9915,6 +10049,10 @@ function _retellShowResult(data) {
       return;
     }
     retell.startBtn.addEventListener("click", () => {
+      // #tts-unlock — unlock the persistent audio element WITHIN this gesture
+      // (synchronously, before the async session fetch) so every tutor turn can
+      // auto-play, not just the first.
+      _retellUnlockAudio();
       _retellStartSession().catch((err) => {
         console.error("[retell] start session failed", err);
         if (retell.statusEl) {
@@ -9961,11 +10099,24 @@ function _retellShowResult(data) {
       const toggleNoQuizBtn = document.getElementById("menuToggleNoQuizBooks");
       if (toggleNoQuizBtn) toggleNoQuizBtn.style.display = "block";
     }
+    // #studentmode — the toggle + banner use trueAdmin (NOT the effective
+    // isAdmin, which is false while Student Mode is on) so the operator can
+    // always switch back. me.isAdmin above already hid the admin-only tools.
+    if (me.trueAdmin) {
+      const smBtn = document.getElementById("menuStudentMode");
+      if (smBtn) {
+        smBtn.style.display = "block";
+        smBtn.textContent = me.studentMode ? "🎓 Exit Student Mode" : "🎒 Enter Student Mode";
+      }
+    }
+    setStudentModeBanner(!!me.studentMode);
     startApp({
       email: me.email,
       name: me.name,
       picture: me.picture || null,
       isAdmin: !!me.isAdmin,
+      trueAdmin: !!me.trueAdmin,
+      studentMode: !!me.studentMode,
       grade: me.grade || "K",
       visibleTracks: Array.isArray(me.visibleTracks) ? me.visibleTracks : null,
       currentlyReading: me.currentlyReading || null,

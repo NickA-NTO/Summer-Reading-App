@@ -12,7 +12,7 @@
 //       reading time, the XP is either held for admin review or partially
 //       reduced. Manual "I read this" reads skip fraud detection entirely.
 
-import { verifySession, parseCookies, isAdmin, displayName, isTombstoned, verifyQuizAnswer, isHardcodedBypassQuizHolds } from "../lib/session.js";
+import { verifySession, parseCookies, isAdmin, isEffectiveAdmin, displayName, isTombstoned, verifyQuizAnswer, isHardcodedBypassQuizHolds } from "../lib/session.js";
 import { resolveVisibleTracks, trackForBook } from "../lib/tracks.js";
 import {
   recordRead,
@@ -528,8 +528,10 @@ export default async function handler(req, res) {
     //
     // Admin bypass: admins are testing the flow repeatedly and cannot be
     // gated by a per-book attempt limit. INCR is skipped entirely so
-    // their attempts don't pollute the counter either.
-    const isAdminUser = isAdmin(session.email);
+    // their attempts don't pollute the counter either. #studentmode: this is
+    // the EFFECTIVE admin bit — an operator in Student Mode loses the bypass,
+    // so the real 2-attempt cap applies (the whole point of Student Mode).
+    const isAdminUser = isEffectiveAdmin(session.email, profile);
     const serverAttempt = isAdminUser
       ? attemptNum // trust the client value for admin (no INCR side effect)
       : await recordQuizAttempt(session.email, bookId);
