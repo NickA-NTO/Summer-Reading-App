@@ -5748,7 +5748,9 @@ function showTooSoonWarning(gapMs, onProceed) {
   const speakBtn = document.getElementById("tooSoonSpeak");
   const onSpeak = () => {
     if (typeof speak === "function") {
-      try { speak(ttsText); } catch {}
+      // force:true — an explicit tap must play even when the global TTS
+      // toggle is off (older/admin/test accounts default it off).
+      try { speak(ttsText, { force: true }); } catch {}
     }
   };
   // Polish: cancel any in-flight TTS on dismissal — both "Keep reading"
@@ -5790,7 +5792,7 @@ function showStartedReadingOverlay(bookTitle) {
   // plays it in the chosen voice.
   const speakBtn = document.getElementById("startedReadingSpeak");
   const closeBtn = document.getElementById("startedReadingClose");
-  const onSpeak = () => { if (typeof speak === "function") { try { speak(ttsText); } catch {} } };
+  const onSpeak = () => { if (typeof speak === "function") { try { speak(ttsText, { force: true }); } catch {} } };
   const cleanup = () => {
     try { cancelSpeech(); } catch {}
     overlay.classList.remove("open");
