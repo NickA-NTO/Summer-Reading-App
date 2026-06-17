@@ -545,7 +545,7 @@ export default async function handler(req, res) {
       res.statusCode = 429;
       return res.end(JSON.stringify({
         error: "too_many_attempts",
-        message: "You've used your attempts for this book today. Come back tomorrow and try again!",
+        message: "You've used both quiz tries for this book — let's tell me about it instead!",
         attempt: serverAttempt,
         limit: QUIZ_DAILY_ATTEMPT_LIMIT,
       }));

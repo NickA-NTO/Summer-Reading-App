@@ -8562,7 +8562,13 @@ function startOnboarding() {
   }, 350);
 }
 
+// #3 — cancellation token for the voice-preview fetch. Bumped here (called on
+// each new tap AND when the onboarding overlay closes/advances) so a
+// late-resolving /api/tts preview can't build + auto-play after the kid has
+// moved on (the same orphaned-fetch class as the tour's #13 bug).
+let _onbPreviewSeq = 0;
 function onbCleanupAudio() {
+  _onbPreviewSeq++;
   if (_onbPreviewAudio) {
     try { _onbPreviewAudio.pause(); } catch {}
     _onbPreviewAudio = null;
@@ -8600,11 +8606,16 @@ async function onbHandleVoiceClick(btn) {
   // Play the preview through the existing TTS endpoint. Browser fallback
   // is fine if Polly isn't configured — kid still gets a voice sample.
   onbCleanupAudio();
+  const mySeq = _onbPreviewSeq;
   try {
     const url = `/api/tts?voice=${encodeURIComponent(voice)}&text=${encodeURIComponent(previewText)}`;
     const r = await fetch(url, { credentials: "same-origin" });
+    // #3 — bail if a newer tap or an overlay close superseded us during the
+    // fetch, so a stale preview clip can't auto-play later.
+    if (mySeq !== _onbPreviewSeq) return;
     if (r.ok) {
       const j = await r.json();
+      if (mySeq !== _onbPreviewSeq) return;
       if (j.url) {
         _onbPreviewAudio = new Audio(j.url);
         _onbPreviewAudio.onended = () => {
@@ -8619,6 +8630,7 @@ async function onbHandleVoiceClick(btn) {
     throw new Error("polly_unavailable");
   } catch {
     // Browser TTS fallback
+    if (mySeq !== _onbPreviewSeq) return;
     try {
       const u = new SpeechSynthesisUtterance(previewText);
       window.speechSynthesis.speak(u);
@@ -9585,6 +9597,14 @@ async function _retellStartSession() {
       const code = err.serverBody?.error || err.message || "unknown";
       const detail = err.serverBody?.message ? ` — ${err.serverBody.message.slice(0, 80)}` : "";
       retell.statusEl.textContent = `Couldn't start (${err.status || "?"}: ${code}${detail}). Tap × to close.`;
+    } else if (err.status === 403 &&
+               (err.serverBody?.error === "not_currently_reading" ||
+                err.serverBody?.error === "track_locked")) {
+      // #7 — eligibility lapsed (e.g. the reading session expired after 24h and
+      // the kid had switched to a different current book). Don't dead-end with a
+      // generic error — tell them exactly how to recover.
+      retell.statusEl.textContent =
+        "Let's set this up first — tap “I'm reading this” on the book, then try the talk again. Tap × to close.";
     } else {
       retell.statusEl.textContent = "Couldn't start the reading buddy. Tap × to close.";
     }
