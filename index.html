@@ -3458,7 +3458,15 @@ ttsSwitch.addEventListener("click", () => {
 
 function cancelSpeech() {
   if (currentTtsAudio) {
-    try { currentTtsAudio.pause(); currentTtsAudio.currentTime = 0; } catch {}
+    // #12 — also detach the source so a clip that already issued .play() is
+    // silenced immediately on supersede, instead of a brief blip of the
+    // previous voice (chose Ash → heard Shimmer) before the pause lands.
+    try {
+      currentTtsAudio.pause();
+      currentTtsAudio.currentTime = 0;
+      currentTtsAudio.removeAttribute("src");
+      currentTtsAudio.load();
+    } catch {}
     currentTtsAudio = null;
   }
   if (window.speechSynthesis) speechSynthesis.cancel();
@@ -6875,28 +6883,33 @@ async function finishQuiz() {
         <p style="font-size:15px;color:var(--muted);margin:14px 0 4px">
           One more thing — tell me about it!
         </p>
-        <p style="font-size:12px;color:var(--muted);margin:0">
+        <p style="font-size:12px;color:var(--muted);margin:0 0 18px">
           XP unlocks after the talk.
         </p>
+        <div class="actions">
+          <button id="quizPassNext" type="button" style="
+            background:linear-gradient(135deg,#34d399,#10b981);color:#052e1c;
+            border:none;border-radius:14px;padding:13px 28px;font-weight:800;
+            font-size:16px;cursor:pointer;font-family:inherit">
+            Next → Tell me about it
+          </button>
+        </div>
       </div>`;
     const passSpeak = wireQuizResultTTS("quizResultSpeak", passTts);
-    // Auto-transition to the retell only AFTER the celebration TTS finishes,
-    // so "You nailed it! … let's talk about it!" isn't cut off (the old fixed
-    // 2.4s window truncated it, which also stepped on the retell intro line).
-    // Clamp: at least 1.8s so the 🎉 + glow land even if TTS is instant/off,
-    // at most 7s so a failed/hung synth can't strand the kid here.
-    let _passAdvanced = false;
+    // #11 — the kid must tap a green "Next" to move to the retell, instead of
+    // an auto-advance that skipped past the score and cut off the 🔊 "Read
+    // this" button before they could hear their result. No timer — they control
+    // the pace. Leaving without tapping keeps the book retell-pending, and the
+    // #6/#7 recovery routes them back via "Tell me about it".
+    void passSpeak; // congrats still auto-speaks; we just don't gate on it
     const goRetell = () => {
-      if (_passAdvanced) return;
-      _passAdvanced = true;
       if (!quizState.bookId) return;
       const bid = quizState.bookId;
       closeQuiz();
       openRetell(bid);
     };
-    const passMinBeat = new Promise((r) => setTimeout(r, 1800));
-    Promise.all([Promise.resolve(passSpeak).catch(() => {}), passMinBeat]).then(goRetell);
-    setTimeout(goRetell, 7000);
+    const nextBtn = document.getElementById("quizPassNext");
+    if (nextBtn) nextBtn.addEventListener("click", goRetell);
     return;
   }
 
@@ -8558,6 +8571,10 @@ function onbCleanupAudio() {
 
 async function onbHandleVoiceClick(btn) {
   const voice = btn.dataset.voice;
+  // #15 — each voice introduces itself BY NAME ("Hi, my name is Ash.") so kids
+  // can tell the voices apart. Falls back to the id if no label is found.
+  const _vName = (ONB_VOICES.find((v) => v.id === voice)?.label) || VOICE_LABELS[voice] || voice;
+  const previewText = `Hi, my name is ${_vName}.`;
   // Cancel any in-flight SpeechSynthesis (e.g., the 350ms auto-speak
   // intro that fires when the overlay opens). Without this the intro
   // utterance overlaps the Polly preview audio and the kid hears
@@ -8584,7 +8601,7 @@ async function onbHandleVoiceClick(btn) {
   // is fine if Polly isn't configured — kid still gets a voice sample.
   onbCleanupAudio();
   try {
-    const url = `/api/tts?voice=${encodeURIComponent(voice)}&text=${encodeURIComponent(ONB_PREVIEW_TEXT)}`;
+    const url = `/api/tts?voice=${encodeURIComponent(voice)}&text=${encodeURIComponent(previewText)}`;
     const r = await fetch(url, { credentials: "same-origin" });
     if (r.ok) {
       const j = await r.json();
@@ -8603,7 +8620,7 @@ async function onbHandleVoiceClick(btn) {
   } catch {
     // Browser TTS fallback
     try {
-      const u = new SpeechSynthesisUtterance(ONB_PREVIEW_TEXT);
+      const u = new SpeechSynthesisUtterance(previewText);
       window.speechSynthesis.speak(u);
       u.onend = () => {
         const status = btn.querySelector("[data-role=status]");
@@ -8691,14 +8708,10 @@ const TOUR_STEPS = [
     body: "Get a new badge when you finish a book.",
   },
   {
-    // Highlight a single book card so the kid sees exactly what to tap.
-    // Cards live inside .row > .scroller-wrap > .scroller (not .cards —
-    // common mistake from earlier markup).
-    selectorFn: () => document.querySelector(".row .scroller .card[data-book-id]"),
-    title: "Pick a book",
-    body: "Tap a book to open it. Try this one!",
-  },
-  {
+    // #16 — the standalone "Pick a book" highlight step was removed: the
+    // infinite-scroller's triple-rendered cards made the spotlight land on an
+    // off-screen copy (no visible highlight). The NEXT step's onEnter already
+    // auto-OPENS a representative book, which is the behavior we want here.
     // The "I'm reading this" button only exists when a book modal is open
     // AND the kid hasn't already read that book. Earlier versions opened
     // the first card in the catalog, but if that book was already finished
@@ -8788,13 +8801,16 @@ function runTourExitHook() {
 }
 
 function cancelTourSpeech() {
+  // #13 — the tour now plays through the shared global speak() channel, so
+  // cancel via the hardened cancelSpeech(): it pauses + detaches the current
+  // clip, aborts the in-flight /api/tts fetch, AND bumps _ttsSeq so a
+  // late-resolving clip can't auto-play after the tour is gone (the orphaned
+  // ~10-min-later TTS bug). Legacy _tourSpeakAudio is paused too, defensively.
   if (_tourSpeakAudio) {
     try { _tourSpeakAudio.pause(); } catch {}
     _tourSpeakAudio = null;
   }
-  if (window.speechSynthesis) {
-    try { window.speechSynthesis.cancel(); } catch {}
-  }
+  cancelSpeech();
   const btn = document.getElementById("tourSpeak");
   if (btn) {
     btn.classList.remove("playing");
@@ -8802,61 +8818,20 @@ function cancelTourSpeech() {
   }
 }
 
-let _tourSpeakSeq = 0;
 async function speakCurrentTourStep() {
-  cancelTourSpeech();
-  // Also cancel any global TTS audio (welcome screen, modal speak, etc.)
-  // — the tour speaker shouldn't double up on those.
+  // #13/#14/#17 — route the tour speaker through the SHARED, hardened pipeline
+  // (speakWithFeedback → speak() → _fetchTtsUrl) instead of a bespoke
+  // fetch+Audio copy. This inherits, for free: warm-cache (no ~10s cold synth —
+  // paired with the prewarm in renderTourStep), a Loading→Playing label driven
+  // off REAL audio start (not an eager "Speaking…" the instant it's clicked),
+  // chosen-voice fidelity WITH a chosen-voice browser fallback, and
+  // cancelSpeech()'s abort + _ttsSeq bump so a pending clip is invalidated on
+  // step-change / tour-end (no orphaned clip auto-playing minutes later).
   cancelSpeech();
-  const mySeq = ++_tourSpeakSeq;
   const step = TOUR_STEPS[_tourIdx];
   if (!step) return;
   const btn = document.getElementById("tourSpeak");
-  btn.classList.add("playing");
-  btn.textContent = "🔊 Speaking…";
-  const text = `${step.title}. ${step.body}`;
-  const voice = normalizeVoiceId(
-    (typeof chosenPollyVoice !== "undefined" && chosenPollyVoice) ||
-    state.session?.preferredVoiceId ||
-    "nova"
-  );
-  // Try Polly first via the same /api/tts endpoint TTS uses elsewhere.
-  try {
-    const r = await fetch(
-      `/api/tts?voice=${encodeURIComponent(voice)}&text=${encodeURIComponent(text)}`,
-      { credentials: "same-origin" }
-    );
-    // Bail if a newer tour-speak superseded us during the fetch.
-    if (mySeq !== _tourSpeakSeq) return;
-    if (r.ok) {
-      const j = await r.json();
-      if (mySeq !== _tourSpeakSeq) return;
-      if (j.url) {
-        _tourSpeakAudio = new Audio(j.url);
-        _tourSpeakAudio.onended = () => {
-          btn.classList.remove("playing");
-          btn.textContent = "🔊 Read this";
-        };
-        _tourSpeakAudio.play().catch(() => {});
-        return;
-      }
-    }
-    throw new Error("polly_unavailable");
-  } catch {
-    // Browser TTS fallback so the kid still hears something even when
-    // Polly is unconfigured or over budget.
-    try {
-      const u = new SpeechSynthesisUtterance(text);
-      u.onend = () => {
-        btn.classList.remove("playing");
-        btn.textContent = "🔊 Read this";
-      };
-      window.speechSynthesis.speak(u);
-    } catch {
-      btn.classList.remove("playing");
-      btn.textContent = "🔊 Read this";
-    }
-  }
+  return speakWithFeedback(btn, `${step.title}. ${step.body}`, { force: true });
 }
 
 function resolveTourTarget(step) {
@@ -8876,6 +8851,9 @@ function renderTourStep() {
   // Fire onExit of the previously entered step (if any) before swapping in.
   runTourExitHook();
   const step = TOUR_STEPS[_tourIdx];
+  // #14 — warm THIS step's narration so the kid's "Read this" tap is an instant
+  // cache hit instead of a ~10s cold synth (same (voice,text) key speak() uses).
+  if (step) { try { prewarmTts(`${step.title}. ${step.body}`); } catch {} }
   // onEnter can mutate the DOM (e.g. open a modal); we settle below
   // before measuring the target.
   if (typeof step.onEnter === "function") {
