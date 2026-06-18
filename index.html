@@ -9957,7 +9957,11 @@ async function _retellListenForKid() {
     if (retell._closed) return;
     await _retellUploadTurn(blob);
   };
-  retell.mediaRecorder.start();
+  // #T42 — start with a 1s timeslice so ondataavailable flushes chunks DURING
+  // recording, not only at stop(). On some devices a no-timeslice recorder
+  // delivers an empty/late final chunk (EQ bars move from the analyser, but the
+  // recorded blob is silent) → Whisper gets nothing → endless re-prompt loop.
+  retell.mediaRecorder.start(1000);
 
   // VAD loop — read frequency-domain RMS each animation frame.
   const buf = new Uint8Array(retell.analyser.frequencyBinCount);
@@ -9999,8 +10003,15 @@ async function _retellListenForKid() {
 
     if (retell.vadState === "warming") {
       // First ~500 ms: just calibrate background floor + ignore.
-      if (now - startTime > 500) {
-        retell.energyThreshold = Math.max(0.018, energy * 1.5);
+      if (now - startTime > 700) {
+        // #T43 — hysteresis: a HIGHER onset threshold to START detecting speech,
+        // a LOWER sustain threshold to END it. With one threshold a kid speaking
+        // softly hovered right at it and flickered speech↔silence → cut off
+        // mid-sentence (the EQ bar "went flat" though they were still talking).
+        // The lower sustain level keeps the turn alive through quiet patches.
+        const base = Math.max(0.016, energy * 1.5);
+        retell.energyThreshold = base;                          // onset
+        retell.silenceThreshold = Math.max(0.009, base * 0.5);  // sustain (lower)
         retell.vadState = "silenceCountdown";
         retell.silenceStartAt = now;
       }
@@ -10032,7 +10043,10 @@ async function _retellListenForKid() {
         }
       }
     } else if (retell.vadState === "speech") {
-      if (energy < retell.energyThreshold) {
+      // #T43 — end the turn only when energy falls below the LOWER sustain
+      // threshold (hysteresis), so a soft/quiet stretch mid-speech isn't
+      // mistaken for the kid finishing.
+      if (energy < (retell.silenceThreshold ?? retell.energyThreshold)) {
         if (!retell.silenceStartAt) retell.silenceStartAt = now;
         if (now - retell.silenceStartAt > retell.vadSilenceMs) {
           _retellEndTurn();
@@ -10169,6 +10183,7 @@ async function _retellUploadTurn(blob) {
   // Show what Whisper heard (if anything) before the tutor speaks again.
   if (data.studentTranscript) {
     retell._emptyTurns = 0;       // heard real speech
+    retell._retryTurns = 0;       // #T42 — a real transcript clears the retry-loop cap
     retell._micLostShown = false; // mic is clearly working again
     _retellAppendTranscript("student", data.studentTranscript);
   }
@@ -10202,7 +10217,21 @@ async function _retellUploadTurn(blob) {
   if (data.done) {
     _retellShowResult(data);
   } else if (data.retry) {
-    // Whisper couldn't make it out — re-listen on the same turn.
+    // Whisper couldn't make it out (empty/garbled audio). #T42 — cap consecutive
+    // retries so a device whose RECORDING is empty (EQ bars move but the blob is
+    // silent) can't loop forever re-prompting with no feedback. The speech-
+    // detected reset of _emptyTurns doesn't catch this (speech IS detected — only
+    // the recording is empty), so this is a separate counter, reset on any real
+    // transcript.
+    retell._retryTurns = (retell._retryTurns || 0) + 1;
+    if (retell._retryTurns >= 3) {
+      retell._retryTurns = 0;
+      _retellRenderRecovery(
+        "I'm having trouble hearing your recording. Check your microphone, then tap Try again — or Skip to save your XP.",
+        _retellRestartListening
+      );
+      return;
+    }
     await _retellListenForKid();
   } else {
     await _retellListenForKid();
@@ -10331,6 +10360,11 @@ function _retellShowResult(data) {
       state.session.currentlyReading = me.currentlyReading || null;
       try { renderStats(); } catch {}
       try { renderRows(); } catch {}
+      // #T45 — re-render the open book modal AFTER currentlyReading is cleared,
+      // so its "📖 Reading" / "Take the Quiz" buttons flip to "✅ Done"
+      // immediately instead of staying stale (purple/non-clickable) until the
+      // next modal open.
+      try { if (typeof activeBookId !== "undefined" && activeBookId) refreshInteractiveBits(); } catch {}
       // Also re-render the hero so the "Continue reading" billboard
       // drops the just-finished book instead of lingering until a
       // page reload (QC: post-retell hero staleness).
