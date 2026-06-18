@@ -33,6 +33,9 @@ import {
   setReadingSessionQuizOutcome,
   getReadingSession,
   recordQuizOutcomeDurable,
+  getQuizOutcomeDurable,
+  isRetellDone,
+  getQuizAttemptCount,
   redis,
   FRAUD_RATIO_HOLD,
   FRAUD_RATIO_SOFT,
@@ -542,6 +545,32 @@ export default async function handler(req, res) {
     // the EFFECTIVE admin bit — an operator in Student Mode loses the bypass,
     // so the real 2-attempt cap applies (the whole point of Student Mode).
     const isAdminUser = isEffectiveAdmin(session.email, profile);
+    // #T41 — a SETTLED quiz (already passed, OR both attempts used) that hasn't
+    // been retold can't be retaken: short-circuit to the retell instead of
+    // re-grading. Enforces "no re-quiz once settled" cross-device and after the
+    // 7-day reading session expires (the client's rec.passed is localStorage-
+    // only, so it can't enforce this alone). Admins/testers are exempt.
+    if (!isAdminUser) {
+      try {
+        const [durableOutcome, retellDone, priorAttempts] = await Promise.all([
+          getQuizOutcomeDurable(session.email, bookId),
+          isRetellDone(session.email, bookId),
+          getQuizAttemptCount(session.email, bookId),
+        ]);
+        const settledPass = durableOutcome === "p1" || durableOutcome === "p2";
+        const failedOut = (Number(priorAttempts) || 0) >= QUIZ_DAILY_ATTEMPT_LIMIT;
+        if (!retellDone && (settledPass || failedOut)) {
+          res.statusCode = 200;
+          return res.end(JSON.stringify({
+            ok: true,
+            alreadySettled: true,
+            retellRequired: true,
+            quizOutcome: durableOutcome || "fF",
+            message: "You've already done this quiz — let's do the talk!",
+          }));
+        }
+      } catch {}
+    }
     const serverAttempt = isAdminUser
       ? attemptNum // trust the client value for admin (no INCR side effect)
       : await recordQuizAttempt(session.email, bookId, submissionId);

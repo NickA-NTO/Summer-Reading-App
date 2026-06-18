@@ -25,7 +25,7 @@ import { normalizeGrade, stallAlarmDays, estimatedMinutes } from "../../lib/xp.j
 import { resolveVisibleTracks, TRACK_ORDER, trackForBook } from "../../lib/tracks.js";
 import { getBook } from "../../lib/books.js";
 import { ACHIEVEMENTS } from "../../lib/achievements.js";
-import { QUIZ_SCHEMA_VERSION, getAvailableQuestionBookIds } from "../quiz.js";
+import { QUIZ_SCHEMA_VERSION, getAvailableQuestionBookIds, QUIZ_BOOKS } from "../quiz.js";
 
 // Load the user's profile row from Redis (returns null on miss or error).
 async function loadProfile(email) {
@@ -202,7 +202,11 @@ export default async function handler(req, res) {
     getReadBookIds(session.email).catch(() => []),
     getRetellDoneIds(session.email).catch(() => []),
   ]);
-  const quizBookSet = new Set(getAvailableQuestionBookIds());
+  // #T41 — use the FULL quiz-gated set (QUIZ_BOOKS), not just books with a
+  // shipped bank, as the "is this a quiz book" oracle. Otherwise a quiz-gated
+  // book without a bank would be treated as a non-quiz manual read and shown
+  // Done with no retell owed.
+  const quizBookSet = new Set(Object.keys(QUIZ_BOOKS));
   const retellDoneSet = new Set(retellDoneIds);
   const doneBookIds = Array.from(new Set([
     ...retellDoneIds,

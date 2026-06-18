@@ -43,6 +43,7 @@ import {
   appendRetellLog,
   flagTutorSafety,
   markRetellDone,
+  getQuizOutcomeDurable,
 } from "../lib/store.js";
 import { containsProfanity, containsPII, containsSelfHarm } from "../lib/moderation.js";
 import { resolveVisibleTracks, trackForBook } from "../lib/tracks.js";
@@ -928,7 +929,17 @@ async function finalizeAndGrade(res, tutorSession, book, opts = {}) {
   // passes. retellRequired=true on quiz_submit means a happy-path kid
   // should always have a reading session present when we land here.
   const readingSession = await getReadingSession(email, tutorSession.bookId);
-  const quizOutcome = readingSession?.quizOutcome || "fF";
+  // #T41 — the 7-day reading session carries quizOutcome into the XP math, but a
+  // kid who passed the quiz and returns >7 days later for the retell has an
+  // expired session → "fF" → underpaid. Floor the outcome with the DURABLE best
+  // quiz outcome (365d) so a genuine pass always pays its full tier.
+  let quizOutcome = readingSession?.quizOutcome || null;
+  try {
+    const durable = await getQuizOutcomeDurable(email, tutorSession.bookId);
+    const _RANK = { fF: 0, p2: 1, p1: 2 };
+    if (durable && (_RANK[durable] ?? -1) > (_RANK[quizOutcome] ?? -1)) quizOutcome = durable;
+  } catch {}
+  if (!quizOutcome) quizOutcome = "fF";
   const quizAttempt = readingSession?.quizAttempt || 2;
 
   // Map the rubric total → retell outcome tier. NO HOLDS: the rubric total

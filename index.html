@@ -6818,6 +6818,18 @@ async function finishQuiz() {
     return;
   }
 
+  // #T41 — server says this quiz is already SETTLED (passed earlier, or both
+  // attempts used) and not yet retold → go straight to the retell, don't show a
+  // quiz result. Enforces "no re-quiz once settled" cross-device / after the
+  // reading session expires.
+  if (serverResp && serverResp.alreadySettled) {
+    _markRetellPending(quizState.bookId);
+    const _bid = quizState.bookId;
+    closeQuiz();
+    openRetell(_bid);
+    return;
+  }
+
   // Any OTHER definitive server error (the two no-penalty cases above
   // already returned) — e.g. 429 too_many_attempts / rate-limit, 410
   // account_deleted, 403 track_locked / not_currently_reading, 5xx. The
