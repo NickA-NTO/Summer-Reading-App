@@ -2048,7 +2048,6 @@
             style="display:none">
       <option value="nova">🌟 Nova (warm, energetic)</option>
       <option value="shimmer">✨ Shimmer (gentle)</option>
-      <option value="coral">🪸 Coral (very warm)</option>
       <option value="ash">🌳 Ash (warm male)</option>
       <option value="fable">📖 Fable (read-aloud)</option>
     </select>
@@ -2061,10 +2060,6 @@
       <button class="tts-voice-option" data-voice="shimmer">
         <span class="v-emoji">✨</span><span class="v-name">Shimmer</span>
         <span class="v-desc">gentle</span>
-      </button>
-      <button class="tts-voice-option" data-voice="coral">
-        <span class="v-emoji">🪸</span><span class="v-name">Coral</span>
-        <span class="v-desc">very warm</span>
       </button>
       <button class="tts-voice-option" data-voice="ash">
         <span class="v-emoji">🌳</span><span class="v-name">Ash</span>
@@ -3392,7 +3387,6 @@ const voicePicker = document.getElementById("voicePicker");
 const VOICE_LABELS = {
   nova:    "Nova",
   shimmer: "Shimmer",
-  coral:   "Coral",
   ash:     "Ash",
   fable:   "Fable",
 };
@@ -5861,6 +5855,12 @@ function showStartedReadingOverlay(bookTitle) {
   body.textContent = bodyText;
   overlay.classList.add("open");
   const ttsText = `You're reading ${safeTitle}! ${bodyText}`;
+  // #T32 — warm this exact string on open so the tap resolves instantly inside
+  // the gesture window (a cold synth made audio.play() miss the gesture → the
+  // "Read this" button did nothing). Every WORKING speaker prewarms; these two
+  // tap-only dynamic strings (here + the quiz fail screen) were the only ones
+  // that didn't.
+  prewarmTts(ttsText);
   // Tap-only: no auto-speak on open; the "🔊 Read this" button (a gesture)
   // plays it in the chosen voice.
   const speakBtn = document.getElementById("startedReadingSpeak");
@@ -6469,8 +6469,11 @@ function renderQuizQuestion() {
   document.querySelectorAll("#qOpts .quiz-option").forEach((btn) => {
     const optIdx = Number(btn.dataset.i);
     btn.addEventListener("click", () => answerQuestion(optIdx));
-    // Warm each option so its speaker button plays instantly on tap.
-    prewarmTts(q.options[optIdx]);
+    // Warm each option so its speaker button plays instantly on tap. #T33 —
+    // wrap in a carrier ("Option A: …") so tts-1 has prosodic context and stops
+    // slurring bare fragments ("A red bow tie" → "Buh Hai"). MUST match the
+    // speak() string below exactly or the tap is a cold synth.
+    prewarmTts("Option " + (["A","B","C","D"][optIdx] || "") + ": " + q.options[optIdx] + ".");
   });
   // Per-option speaker button — a SEPARATE sibling beside the answer (not
   // nested inside it), so a kid reaching for the speaker can't misclick the
@@ -6487,7 +6490,9 @@ function renderQuizQuestion() {
       // speak() resolves on audio end, on cancel (a newer tap / advance), or
       // on fallback. Safety timeout covers the rare no-end-event case.
       const safety = setTimeout(clear, 15000);
-      Promise.resolve(speak(q.options[optIdx], { force: true }))
+      // #T33 — carrier-wrapped (matches the prewarm) so tts-1 reads the option
+      // cleanly instead of garbling the bare fragment.
+      Promise.resolve(speak("Option " + (["A","B","C","D"][optIdx] || "") + ": " + q.options[optIdx] + ".", { force: true }))
         .catch(() => {})
         .then(() => { clearTimeout(safety); clear(); });
     });
@@ -6910,6 +6915,9 @@ async function finishQuiz() {
     const passTts =
       `You nailed it! You got ${score} out of ${total} right. ` +
       `One more thing — let's talk about it!`;
+    // #T34 — warm the dynamic congrats string so the pass-screen "🔊 Read this"
+    // plays instantly (was a cold synth that missed the gesture → did nothing).
+    prewarmTts(passTts);
     // Warm the retell intro line now so it plays promptly once we advance
     // (must match the exact string openRetell speaks).
     prewarmTts("Tell me about the book. Talk into the mic — I'll know when you're done.");
@@ -6979,6 +6987,9 @@ async function finishQuiz() {
   const failTts =
     `${canRetry ? "Almost there!" : "Nice try."} ` +
     `You got ${score} out of ${total} right. ${message}`;
+  // #T34 — warm the dynamic fail string so the fail-screen "🔊 Read this" plays
+  // instantly (was a cold synth that missed the gesture → did nothing).
+  prewarmTts(failTts);
 
   // Admin-only debug panel: ALWAYS shown for admin so we can see what
   // happened on every quiz_submit. If serverResp.adminDebug is missing,
@@ -8491,7 +8502,6 @@ function friendlyDate(ts) {
 const ONB_VOICES = [
   { id: "nova",    emoji: "🌟", label: "Nova"    },
   { id: "shimmer", emoji: "✨", label: "Shimmer" },
-  { id: "coral",   emoji: "🪸", label: "Coral"   },
   { id: "fable",   emoji: "📖", label: "Fable"   },
   { id: "ash",     emoji: "🌳", label: "Ash"     },
 ];
@@ -8523,6 +8533,13 @@ function startOnboarding() {
       <div class="v-status" data-role="status">Tap to hear</div>
     </button>
   `).join("");
+
+  // #T27 — warm every voice sample on open so tapping a voice plays instantly
+  // instead of a ~5s cold synth. MUST match onbHandleVoiceClick's exact string
+  // ("Hi, my name is <label>.") + per-voice id so the server cache key matches.
+  try {
+    ONB_VOICES.forEach((v) => prewarmTts(`Hi, my name is ${v.label}.`, v.id));
+  } catch {}
 
   // Pre-select current preference if one exists. Remap legacy Polly IDs to
   // their OpenAI analogue so a returning kid keeps a sensible selection.
@@ -8725,7 +8742,7 @@ const TOUR_STEPS = [
     // Polish v1: stats now show XP + currently-reading only.
     selector: "#statsRow",
     title: "Your XP",
-    body: "Read books to earn XP. The book you're working on shows here too.",
+    body: "Read books to earn XP. Watch your XP grow here every time you finish one.",
   },
   {
     // Polish v1: was two visible dropdowns; now a single Filter button
@@ -8796,8 +8813,8 @@ const TOUR_STEPS = [
         null
       );
     },
-    title: "Tap the green Start button",
-    body: "Tap the green Start button. Read the book. Then tap Quiz to earn XP!",
+    title: "Start reading",
+    body: "Tap the green Start button to open your book. Once you've read it, tap Quiz to show what you learned and earn XP.",
     // Modal opens with an async cover-image load that can shift layout;
     // bump the per-step settle so the button rect is stable before we
     // measure for the spotlight.
@@ -9374,6 +9391,9 @@ async function closeRetell({ confirmed = false } = {}) {
   retell.active = false;
   retell.overlay.classList.remove("open");
   _retellTearDownAudio();
+  // #T38 — refresh the book modal underneath so its buttons reflect current
+  // state immediately on close (no stale "Take Quiz" / "Reading").
+  try { if (modal?.classList.contains("open") && activeBookId) refreshInteractiveBits(); } catch {}
   // No XP awarded on a mid-session close — server reading session
   // expires on its 30-min TTL. (Tech-fault path above does award via
   // /api/tutor?action=grade before reaching this point.)
@@ -9674,6 +9694,11 @@ async function _retellStartSession() {
 // persistent <audio> element inside the "Start the talk" user gesture marks the
 // element as user-activated, so later programmatic .play() calls (tutor turns 2
 // and 3) are allowed instead of being autoplay-blocked into silence.
+// #T37 — single loudness target for BOTH retell audio paths (the cloud <audio>
+// and the browser-TTS fallback). The fallback used to play at the OS default,
+// which was much louder than the cloud clip → the jarring volume jump on turns
+// that fell back (2nd prompt / closing line). Tunable in one place.
+const RETELL_TTS_VOLUME = 1.0;
 const RETELL_SILENT_WAV =
   "data:audio/wav;base64,UklGRmQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YUAAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA";
 
@@ -9691,6 +9716,7 @@ function _retellUnlockAudio() {
     }
     const el = retell.persistentAudio;
     el.muted = false;          // unlock UNMUTED so real clips can play unmuted
+    el.volume = RETELL_TTS_VOLUME;
     el.src = RETELL_SILENT_WAV;
     el.currentTime = 0;
     const p = el.play();
@@ -9719,7 +9745,7 @@ async function _retellPlayTutor(audioUrl, fallbackText) {
         resolve(ok);
       };
       try { a.pause(); } catch {}
-      try { a.muted = false; a.src = audioUrl; a.currentTime = 0; } catch {}
+      try { a.muted = false; a.volume = RETELL_TTS_VOLUME; a.src = audioUrl; a.currentTime = 0; } catch {}
       retell.tutorAudio = a;
       a.onended = () => done(true);
       a.onerror = (ev) => {
@@ -9762,7 +9788,7 @@ async function _retellPlayTutor(audioUrl, fallbackText) {
         if (!chosenVoice) refreshChosenVoice();
         if (chosenVoice) { u.voice = chosenVoice; u.lang = chosenVoice.lang; }
       } catch {}
-      u.rate = 0.95; u.pitch = 1.05;
+      u.rate = 0.95; u.pitch = 1.05; u.volume = RETELL_TTS_VOLUME;
       u.onend = resolve;
       u.onerror = resolve;
       window.speechSynthesis.speak(u);
@@ -10303,6 +10329,11 @@ function _retellShowResult(data) {
       // was the missing call after a retell completed (user saw
       // their XP not update without a page refresh).
       try { refreshMyRank(); } catch {}
+      // #T38 — re-render the book modal sitting UNDERNEATH the result screen so
+      // its buttons immediately reflect the finished state ("✅ Done") instead
+      // of a stale "Take Quiz" (purple/ready) + green "Reading" until the kid
+      // taps something. activeBookId stays set to the just-finished book.
+      try { if (typeof activeBookId !== "undefined" && activeBookId) refreshInteractiveBits(); } catch {}
     })
     .catch(() => {});
 }
