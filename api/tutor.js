@@ -286,6 +286,13 @@ async function actionStart(req, res, sessionAuth) {
           .reverse()
           .find((t) => t && t.role === "tutor" && String(t.text || "").trim());
         if (lastTutorTurn) {
+          // #QC5 — reconcile the voice with the kid's CURRENT preference. The
+          // session froze voiceId at creation; if they changed voice since (e.g.
+          // ash→shimmer), the resume must honor the new pick, not replay the
+          // stale one. saveTutorSession below persists it so later turns match.
+          // (synthTutorTts coerces unknown/unset → DEFAULT_VOICE.)
+          const desiredVoice = profile?.preferredVoiceId || prior.voiceId;
+          if (desiredVoice && desiredVoice !== prior.voiceId) prior.voiceId = desiredVoice;
           const welcome =
             `Welcome back! Let's pick up where we left off. ${lastTutorTurn.text}`;
           let welcomeAudioUrl = null;
