@@ -17,12 +17,15 @@ import {
   getReadingSession,
   getQuizAttemptCount,
   QUIZ_DAILY_ATTEMPT_LIMIT,
+  getReadBookIds,
+  getRetellDoneIds,
+  getQuizOutcomeDurable,
 } from "../../lib/store.js";
 import { normalizeGrade, stallAlarmDays, estimatedMinutes } from "../../lib/xp.js";
 import { resolveVisibleTracks, TRACK_ORDER, trackForBook } from "../../lib/tracks.js";
 import { getBook } from "../../lib/books.js";
 import { ACHIEVEMENTS } from "../../lib/achievements.js";
-import { QUIZ_SCHEMA_VERSION, getAvailableQuestionBookIds } from "../quiz.js";
+import { QUIZ_SCHEMA_VERSION, getAvailableQuestionBookIds, QUIZ_BOOKS } from "../quiz.js";
 
 // Load the user's profile row from Redis (returns null on miss or error).
 async function loadProfile(email) {
@@ -190,6 +193,25 @@ export default async function handler(req, res) {
   // gate — catalog see-all, the response's `isAdmin` flag, the
   // currentlyReading track-lock bypass — treats them as an ordinary kid.
   const isAdminUser = isEffectiveAdmin(session.email, profile);
+  // #redo / #T41 — the set of FULLY-DONE books, the source of truth for "done"
+  // so a finished book can't be redone for 0 XP after a localStorage reset /
+  // new device / deploy. "Fully done" = the retell finalized (quiz books) OR a
+  // non-quiz manual read. A quiz book in the read-set whose retell NEVER
+  // finalized (pre-#9 quiz-pass) is NOT done — it still owes a retell.
+  const [readSet, retellDoneIds] = await Promise.all([
+    getReadBookIds(session.email).catch(() => []),
+    getRetellDoneIds(session.email).catch(() => []),
+  ]);
+  // #T41 — use the FULL quiz-gated set (QUIZ_BOOKS), not just books with a
+  // shipped bank, as the "is this a quiz book" oracle. Otherwise a quiz-gated
+  // book without a bank would be treated as a non-quiz manual read and shown
+  // Done with no retell owed.
+  const quizBookSet = new Set(Object.keys(QUIZ_BOOKS));
+  const retellDoneSet = new Set(retellDoneIds);
+  const doneBookIds = Array.from(new Set([
+    ...retellDoneIds,
+    ...readSet.filter((id) => !quizBookSet.has(id)),
+  ]));
   const visibleTracks = isAdminUser
     ? [...TRACK_ORDER]
     : resolveVisibleTracks(grade, trackOverrides);
@@ -262,15 +284,23 @@ export default async function handler(req, res) {
           const rs = await getReadingSession(session.email, currentlyReading.bookId);
           const attemptsUsed =
             Number(await getQuizAttemptCount(session.email, currentlyReading.bookId)) || 0;
-          const quizOutcome = rs?.quizOutcome || null;
+          // #T41 — use the DURABLE quiz outcome (365d) as well as the short-lived
+          // reading session, so a pass still routes to the retell (never a
+          // re-quiz) long after the session expires.
+          const durableOutcome = await getQuizOutcomeDurable(session.email, currentlyReading.bookId).catch(() => null);
+          const quizOutcome = rs?.quizOutcome || durableOutcome || null;
           const quizPassed = quizOutcome === "p1" || quizOutcome === "p2";
+          const retellDone = retellDoneSet.has(currentlyReading.bookId);
           currentlyReading.progress = {
             quizOutcome,
             quizPassed,
             attemptsUsed,
-            // The retell is the next step once the quiz is settled: either the
-            // student passed, or they used up both attempts (base-XP retell).
-            retellPending: quizPassed || attemptsUsed >= QUIZ_DAILY_ATTEMPT_LIMIT,
+            // The quiz is "settled" once the student passed OR used both attempts
+            // — a settled quiz can never be retaken (#T41).
+            quizSettled: quizPassed || attemptsUsed >= QUIZ_DAILY_ATTEMPT_LIMIT,
+            // The retell is the next step when the quiz is settled AND the retell
+            // isn't done yet. Once the retell finalizes the book is fully done.
+            retellPending: !retellDone && (quizPassed || attemptsUsed >= QUIZ_DAILY_ATTEMPT_LIMIT),
           };
         } catch {}
       }
@@ -303,6 +333,10 @@ export default async function handler(req, res) {
       // toggle so the operator can switch back.
       trueAdmin,
       studentMode,
+      // #redo / #T41 — books the kid has FULLY FINISHED (retell done, or a
+      // non-quiz read). Client marks these Done so they can't be redone for 0
+      // XP. A quiz-passed-but-retell-pending book is intentionally NOT here.
+      doneBookIds,
       grade,
       visibleTracks,
       currentlyReading,
