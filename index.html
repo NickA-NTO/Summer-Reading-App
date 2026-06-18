@@ -2446,7 +2446,7 @@
       <!-- Manual "I'm done" — ends the turn immediately. The VAD ends a turn by
            detecting SILENCE, which can't fire in a noisy room (background noise
            keeps the mic above threshold), so the kid would talk-then-wait
-           forever. Hidden by default; surfaces only after 15s of an un-ended
+           forever. Hidden by default; surfaces only after 7s of an un-ended
            turn (see _retellSetState) so it never shows in normal conditions. -->
       <button id="retellDoneBtn" type="button" style="
         display:none;margin:2px auto 6px;background:linear-gradient(135deg,#34d399,#10b981);
@@ -9605,7 +9605,7 @@ function _retellSetState(s) {
       if (retell.eqLevels) retell.eqLevels.fill(0);
     }
   }
-  // Manual "I'm done" — stays HIDDEN and only surfaces 15s into a turn if the
+  // Manual "I'm done" — stays HIDDEN and only surfaces 7s into a turn if the
   // automatic silence-detection still hasn't ended it (noisy room or a kid who
   // keeps going). In normal quiet conditions the turn ends first and the button
   // never appears. Any non-listening state clears the timer + hides it.
@@ -9619,7 +9619,7 @@ function _retellSetState(s) {
         if (st === "warming" || st === "silenceCountdown" || st === "speech") {
           retell.doneBtn.style.display = "inline-block";
         }
-      }, 15000);
+      }, 7000);
     }
   }
   if (s === "listening") {
