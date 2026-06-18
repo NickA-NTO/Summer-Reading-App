@@ -507,6 +507,10 @@ async function actionTurn(req, res, sessionAuth, url) {
   // context. The child keeps their quiz pass; they simply don't progress on
   // this utterance. The already-stored audio (audioUrl) is referenced on the
   // flag so a safeguarding concern can be heard, not just read.
+  // #demo — by DEFAULT a safety flag is LOGGED for admins but does NOT block or
+  // redirect the retell. Set RETELL_SAFETY_BLOCK=1 to restore the gentle
+  // redirect-and-retry behavior (e.g. for a stricter production posture).
+  const SAFETY_BLOCKS_RETELL = process.env.RETELL_SAFETY_BLOCK === "1";
   const _selfHarm = containsSelfHarm(transcript);
   const _profane = _selfHarm || containsProfanity(transcript);
   const _pii = containsPII(transcript);
@@ -558,22 +562,34 @@ async function actionTurn(req, res, sessionAuth, url) {
         }
       }
     }
-    const redirect = "Let's keep talking about the book. What happened in the story?";
-    let redirectAudioUrl = null;
-    try {
-      const tts = await synthTutorTts(redirect, tutorSession.voiceId);
-      redirectAudioUrl = tts.url;
-    } catch {}
-    trackEvent("tutor_input_flagged", { bookId: tutorSession.bookId });
-    return json(res, 200, {
-      ok: true,
-      sessionId: tutorSession.sessionId,
-      turnIndex: tutorSession.turnIndex,
-      tutorMessage: redirect,
-      tutorAudioUrl: redirectAudioUrl,
-      retry: true,
-      done: false,
+    trackEvent("tutor_input_flagged", {
+      bookId: tutorSession.bookId,
+      reason: _reason,
+      blockedRetell: SAFETY_BLOCKS_RETELL,
     });
+    // Only INTERRUPT the child when blocking is explicitly enabled. By default
+    // the flag is captured for admin review (above) and, for self-harm,
+    // escalated via the webhook (above) — but the retell continues normally, so
+    // a false positive (or a real flag) can't derail the talk during the demo.
+    if (SAFETY_BLOCKS_RETELL) {
+      const redirect = "Let's keep talking about the book. What happened in the story?";
+      let redirectAudioUrl = null;
+      try {
+        const tts = await synthTutorTts(redirect, tutorSession.voiceId);
+        redirectAudioUrl = tts.url;
+      } catch {}
+      return json(res, 200, {
+        ok: true,
+        sessionId: tutorSession.sessionId,
+        turnIndex: tutorSession.turnIndex,
+        tutorMessage: redirect,
+        tutorAudioUrl: redirectAudioUrl,
+        retry: true,
+        done: false,
+      });
+    }
+    // else: fall through — the turn is graded/continued normally below, so a
+    // safety flag never blocks the retell.
   }
 
   // Topic moderation. Off-topic responses count as a turn but the tutor
