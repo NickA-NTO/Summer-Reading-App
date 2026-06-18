@@ -6469,11 +6469,13 @@ function renderQuizQuestion() {
   document.querySelectorAll("#qOpts .quiz-option").forEach((btn) => {
     const optIdx = Number(btn.dataset.i);
     btn.addEventListener("click", () => answerQuestion(optIdx));
-    // Warm each option so its speaker button plays instantly on tap. #T33 —
-    // wrap in a carrier ("Option A: …") so tts-1 has prosodic context and stops
-    // slurring bare fragments ("A red bow tie" → "Buh Hai"). MUST match the
-    // speak() string below exactly or the tap is a cold synth.
-    prewarmTts("Option " + (["A","B","C","D"][optIdx] || "") + ": " + q.options[optIdx] + ".");
+    // Warm each option so its speaker button plays instantly on tap. Speak the
+    // bare option text (+ trailing period for prosody). The old "Option A:"
+    // carrier (#T33) was a workaround for 0.85-speed garbling — unnecessary at
+    // 0.95 and dropped per QC (kids don't need "Option A" read aloud). Also
+    // changes the cache key, sidestepping any stale mis-voiced clip (#QC3). MUST
+    // match the speak() string below exactly or the tap is a cold synth.
+    prewarmTts(q.options[optIdx] + ".");
   });
   // Per-option speaker button — a SEPARATE sibling beside the answer (not
   // nested inside it), so a kid reaching for the speaker can't misclick the
@@ -6490,9 +6492,9 @@ function renderQuizQuestion() {
       // speak() resolves on audio end, on cancel (a newer tap / advance), or
       // on fallback. Safety timeout covers the rare no-end-event case.
       const safety = setTimeout(clear, 15000);
-      // #T33 — carrier-wrapped (matches the prewarm) so tts-1 reads the option
-      // cleanly instead of garbling the bare fragment.
-      Promise.resolve(speak("Option " + (["A","B","C","D"][optIdx] || "") + ": " + q.options[optIdx] + ".", { force: true }))
+      // Bare option text (matches the prewarm above) — see note there on the
+      // dropped "Option A:" carrier.
+      Promise.resolve(speak(q.options[optIdx] + ".", { force: true }))
         .catch(() => {})
         .then(() => { clearTimeout(safety); clear(); });
     });
@@ -6987,10 +6989,9 @@ async function finishQuiz() {
       ? `<button class="icon-btn" id="quizRetry">Try again (${attemptsLeft} left)</button>`
       : "";
   // 2 attempts ever per book — no daily/weekly reset.
-  // When canRetry is false, the retell auto-launches in 2.4 s (see
-  // below) so the kid still has a path to base XP via "pass 1 of 2".
-  // The message reflects that — DON'T tell them to "move on" when
-  // they've actually got more to do in this session.
+  // When canRetry is false, the kid taps a green "Next" to reach the
+  // retell (base XP via "pass 1 of 2"). The message reflects that —
+  // DON'T tell them to "move on" when they've actually got more to do.
   const message = isAdminUser
     ? `Admin: unlimited retries while testing.`
     : canRetry
@@ -7046,6 +7047,12 @@ async function finishQuiz() {
       ${adminDebugHtml}
       <div class="actions">
         ${retryButton}
+        ${!canRetry ? `<button id="quizFailNext" type="button" style="
+          background:linear-gradient(135deg,#34d399,#10b981);color:#052e1c;
+          border:none;border-radius:14px;padding:13px 28px;font-weight:800;
+          font-size:16px;cursor:pointer;font-family:inherit">
+          Next → Tell me about it
+        </button>` : ""}
         <button class="icon-btn" id="quizLater">Close</button>
       </div>
     </div>`;
@@ -7058,17 +7065,20 @@ async function finishQuiz() {
     });
     document.getElementById("quizLater").addEventListener("click", closeQuiz);
   } else {
-    // No retries left — quiz outcome is locked as "fF". Auto-launch
-    // the retell so the kid still has a chance at base XP via the
-    // "pass 1 of 2" path. They keep the Close button as an escape
-    // hatch but the primary flow is forward.
+    // No retries left — quiz outcome is locked as "fF". The kid taps a
+    // green "Next" to reach the retell (base XP via "pass 1 of 2"),
+    // instead of the old 2.4s auto-advance that tore down the fail
+    // screen before they could read their result or tap 🔊 "Read this"
+    // (#QC4). Close stays as an escape hatch; #6/#7 recovery re-routes
+    // them via "Tell me about it" if they leave.
     document.getElementById("quizLater").addEventListener("click", closeQuiz);
-    setTimeout(() => {
+    const failNext = document.getElementById("quizFailNext");
+    if (failNext) failNext.addEventListener("click", () => {
       if (!quizState.bookId) return;
       const bid = quizState.bookId;
       closeQuiz();
       openRetell(bid);
-    }, 2400);
+    });
   }
   wireQuizResultTTS("quizResultSpeak", failTts);
 }
@@ -8768,8 +8778,8 @@ const TOUR_STEPS = [
     // the old header. Now a kid-friendly speaker icon + a small chevron
     // for changing voices.
     selector: "#ttsSwitch",
-    title: "Read aloud",
-    body: "Tap the speaker to hear words read. Tap the tiny arrow next to it to pick a different voice.",
+    title: "Read-aloud switch",
+    body: "Tap the speaker to turn read-aloud on or off. When it's on, words are read to you around the app. Tap the tiny arrow next to it to pick a different voice.",
   },
   {
     selector: "#navLeaderboard",
@@ -10079,6 +10089,11 @@ function _retellEndTurn() {
     if (!retell._closed) _retellUploadTurn(blob).catch((e) => console.warn(e));
     return;
   }
+  // #QC6 — flush the last partial-second chunk before stopping. On a laggy
+  // device (e.g. the Alpha Chromebook) the final timeslice chunk can otherwise
+  // be dropped, delivering a thin/near-empty blob that Whisper reads as silence
+  // → a wrongful "didn't catch that" re-prompt despite a full spoken retell.
+  try { mr.requestData(); } catch (e) { /* not all impls support requestData */ }
   try { mr.stop(); } catch (e) { console.warn("[retell] recorder.stop threw", e); }
   _retellArmThinkingWatchdog();
 }
