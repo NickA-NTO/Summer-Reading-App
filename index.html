@@ -9918,6 +9918,7 @@ async function _retellListenForKid() {
   retell.vadState = "warming";
   retell.speechStartAt = 0;
   retell.silenceStartAt = 0;
+  retell.warmMinEnergy = Infinity; // #QC — ambient floor tracked across warming
   retell.recordedChunks = [];
 
   // Spin up a fresh MediaRecorder per turn so we get one tidy chunk.
@@ -10012,14 +10013,23 @@ async function _retellListenForKid() {
     }
 
     if (retell.vadState === "warming") {
-      // First ~500 ms: just calibrate background floor + ignore.
+      // Track the QUIETEST energy seen during warming = the true ambient floor.
+      retell.warmMinEnergy = Math.min(retell.warmMinEnergy, energy);
+      // First ~700 ms: just calibrate background floor + ignore.
       if (now - startTime > 700) {
         // #T43 — hysteresis: a HIGHER onset threshold to START detecting speech,
         // a LOWER sustain threshold to END it. With one threshold a kid speaking
         // softly hovered right at it and flickered speech↔silence → cut off
         // mid-sentence (the EQ bar "went flat" though they were still talking).
         // The lower sustain level keeps the turn alive through quiet patches.
-        const base = Math.max(0.016, energy * 1.5);
+        // #QC — calibrate off the ambient FLOOR (min over warming), not the
+        // instantaneous energy at 700 ms. On turn 1 an eager kid is often
+        // already talking at the calibration instant; using that sample
+        // inflated the threshold off their OWN voice, so their normal speech
+        // then read as silence and cut them off (fine on turn 2 where they
+        // pause after the question). The floor is unaffected by early speech.
+        const ambient = Number.isFinite(retell.warmMinEnergy) ? retell.warmMinEnergy : energy;
+        const base = Math.max(0.016, ambient * 1.5);
         retell.energyThreshold = base;                          // onset
         retell.silenceThreshold = Math.max(0.009, base * 0.5);  // sustain (lower)
         retell.vadState = "silenceCountdown";
