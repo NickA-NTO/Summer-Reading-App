@@ -2443,6 +2443,17 @@
         <div class="retell-eq-bar"></div>
         <div class="retell-eq-bar"></div>
       </div>
+      <!-- Manual "I'm done" — ends the turn immediately. The VAD ends a turn by
+           detecting SILENCE, which can't fire in a noisy room (background noise
+           keeps the mic above threshold), so the kid would talk-then-wait
+           forever. This button lets them signal they've finished. Shown only
+           while listening. -->
+      <button id="retellDoneBtn" type="button" style="
+        display:none;margin:2px auto 6px;background:linear-gradient(135deg,#34d399,#10b981);
+        color:#052e1c;border:none;border-radius:14px;padding:11px 26px;font-weight:800;
+        font-size:15px;cursor:pointer;font-family:inherit">
+        ✓ I'm done
+      </button>
       <!-- Polish: dropped the "Question 1 of 3" label. The retell now
            reads as an open conversation ("tell me about the book") with
            the tutor asking follow-ups as needed, not a multi-step quiz.
@@ -9304,6 +9315,20 @@ function _retellGrabRefs() {
   retell.resultMsg      = document.getElementById("retellResultMsg");
   retell.resultXp       = document.getElementById("retellResultXp");
   retell.resultRetryBtn = document.getElementById("retellResultRetry");
+  retell.doneBtn        = document.getElementById("retellDoneBtn");
+  if (retell.doneBtn) {
+    retell.doneBtn.addEventListener("click", () => {
+      // Manual end-of-turn — only while actively listening (warming/onset/speech).
+      // Lets a kid in a noisy room finish when the VAD's silence detection can't
+      // fire (background noise keeps the mic above threshold). Same path the VAD
+      // uses: stop the recorder and upload what we have.
+      const s = retell.vadState;
+      if (s === "warming" || s === "silenceCountdown" || s === "speech") {
+        retell.doneBtn.style.display = "none";
+        _retellEndTurn();
+      }
+    });
+  }
 }
 
 function openRetell(bookId) {
@@ -9579,6 +9604,8 @@ function _retellSetState(s) {
       if (retell.eqLevels) retell.eqLevels.fill(0);
     }
   }
+  // Manual "I'm done" — only offered while the mic is hot (listening).
+  if (retell.doneBtn) retell.doneBtn.style.display = s === "listening" ? "inline-block" : "none";
   if (s === "listening") {
     // Big bold prompt so a K kid SEES that it's their turn. The EQ
     // bars + avatar pulse alone were apparently too subtle. Also
@@ -10082,6 +10109,7 @@ async function _retellListenForKid() {
 }
 
 function _retellEndTurn() {
+  if (retell.vadState === "idle") return; // guard double-end (manual button + VAD race)
   retell.vadState = "idle";
   cancelAnimationFrame(retell.rafId);
   retell.rafId = null;
