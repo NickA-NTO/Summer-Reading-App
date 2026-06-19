@@ -3504,6 +3504,16 @@ let _ttsAbortController = null;
 // is assigned, the response is stale and dropped.
 let _ttsSeq = 0;
 
+// Never-silent watchdog window. If the cloud path (/api/tts → Blob →
+// <audio>) hasn't produced AUDIBLE audio within this many ms — cold
+// serverless function, slow Blob buffer, or a user-gesture window that
+// expired mid-fetch without rejecting — speak() falls back to the browser
+// voice so the child is NEVER left in silence (the "6s of dead air while
+// tapping option speakers" bug from cold-start QC). Tuned to give a warm
+// Blob hit (~300-600ms to audible) comfortable headroom while still
+// rescuing a cold synth fast. Browser voice beats silence.
+const TTS_BROWSER_FALLBACK_MS = 2000;
+
 /* Polly-first speak with browser fallback. Order of attempts:
    1. /api/tts (AWS Polly Neural via our cached endpoint) — best quality
    2. Web Speech API with our voice picker — free fallback
@@ -3570,10 +3580,29 @@ async function speak(text, opts = {}) {
   try {
     // Reuse the prewarm's in-flight promise via the client cache so we
     // never double-fire /api/tts for the same (voice, text).
-    const url = await _fetchTtsUrl(voice, t);
+    //
+    // NEVER-SILENT RULE: race the cloud fetch against a watchdog. On a
+    // warm Blob hit this resolves in ~300-600ms and the cloud voice wins.
+    // On a cold serverless /api/tts (function spin-up + Blob buffer) it can
+    // take several seconds — that's the dead-air a child saw while tapping
+    // option speakers. Rather than wait, at TTS_BROWSER_FALLBACK_MS we stop
+    // waiting and speak via the browser voice. The cloud fetch keeps running
+    // in the background and populates _ttsClientCache, so the NEXT tap of the
+    // same clip is an instant warm cloud-voice hit. Browser voice > silence.
+    const TIMEOUT = Symbol("tts-timeout");
+    let watchdog;
+    const url = await Promise.race([
+      _fetchTtsUrl(voice, t),
+      new Promise((r) => { watchdog = setTimeout(() => r(TIMEOUT), TTS_BROWSER_FALLBACK_MS); }),
+    ]);
+    clearTimeout(watchdog);
     const fetchMs = Date.now() - startedAt;
-    console.log(`${tag} url ${url ? "ok" : "null"} in ${fetchMs}ms (cache reuse: ${_ttsClientCache.has(`${voice}|${t}`)})`);
     if (mySeq !== _ttsSeq) { console.log(`${tag} superseded during fetch`); return; }
+    if (url === TIMEOUT) {
+      console.warn(`${tag} cloud fetch slow (>${TTS_BROWSER_FALLBACK_MS}ms, still running) — browser voice now so we're never silent`);
+      return browserFallback();
+    }
+    console.log(`${tag} url ${url ? "ok" : "null"} in ${fetchMs}ms (cache reuse: ${_ttsClientCache.has(`${voice}|${t}`)})`);
     if (!url) {
       console.warn(`${tag} /api/tts returned null — falling back to browser`);
       if (mySeq !== _ttsSeq) return;
