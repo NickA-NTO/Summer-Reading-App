@@ -23,4 +23,6 @@ caliper-sample-event*.json
 # RAG experiment artifacts (raw text + generated outputs — re-generatable)
 scripts/.peter-rabbit-raw.txt
 scripts/rag-experiment-output.*
+# TTS pre-warm resume index (regeneratable — just a list of warmed Blob clips)
+prewarm.progress
 package-lock.json

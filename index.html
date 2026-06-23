@@ -3449,6 +3449,65 @@ voicePicker.addEventListener("change", () => {
 let currentTtsAudio = null;
 let ttsBudgetReached = false;
 
+// ── Persistent, pre-unlocked <audio> for speak() ────────────────────────────
+// WHY: browsers only let audio.play() make sound if it fires inside the brief
+// window right after a user tap. speak() taps → awaits /api/tts (async) → only
+// THEN does new Audio(url).play() — by which point the gesture has expired and
+// play() is silently blocked (NotAllowedError). That, not a missing clip, is
+// why prewarmed option speakers played no sound in the QC video.
+//
+// FIX (same trick retell already uses via _retellUnlockAudio): keep ONE <audio>
+// element and "unlock" it once by playing a silent WAV during a real gesture.
+// After that the element stays privileged for its lifetime, so setting .src and
+// calling .play() works even seconds after an async fetch — the CLOUD voice
+// plays reliably on cold synths and rapid taps. Browser voice is then a true
+// last resort (genuine /api/tts failure), never a latency crutch.
+let _speakAudio = null;
+let _speakAudioUnlocked = false;
+// Tiny silent WAV (reuse retell's constant if present, else inline the same).
+const _SPEAK_SILENT_WAV =
+  "data:audio/wav;base64,UklGRmQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YUAAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA";
+function _getSpeakAudio() {
+  if (!_speakAudio) {
+    const el = new Audio();
+    el.preload = "auto";
+    el.playsInline = true;
+    el.setAttribute("playsinline", ""); // iOS: inline, no fullscreen takeover
+    _speakAudio = el;
+  }
+  return _speakAudio;
+}
+// Unlock MUST run synchronously inside a user gesture. Idempotent: re-running
+// after success is a cheap no-op. We mark unlocked optimistically the instant
+// the silent play() resolves.
+function _unlockSpeakAudio() {
+  try {
+    const el = _getSpeakAudio();
+    el.muted = false;
+    el.volume = 1.0;
+    el.src = _SPEAK_SILENT_WAV;
+    el.currentTime = 0;
+    const p = el.play();
+    if (p && typeof p.then === "function") {
+      p.then(() => {
+        _speakAudioUnlocked = true;
+        try { el.pause(); el.currentTime = 0; } catch {}
+      }).catch(() => { /* stays locked; first real gesture-tap will still play */ });
+    } else {
+      _speakAudioUnlocked = true;
+    }
+  } catch {}
+}
+// Unlock on the FIRST user interaction anywhere — guarantees the element is
+// privileged long before any option-speaker / "Hear it" tap. Capture phase so
+// it runs ahead of app handlers; { once } per event so it self-removes.
+(function armSpeakAudioUnlock() {
+  const arm = () => { _unlockSpeakAudio(); };
+  for (const ev of ["pointerdown", "touchstart", "keydown", "click"]) {
+    window.addEventListener(ev, arm, { capture: true, once: true, passive: true });
+  }
+})();
+
 ttsSwitch.addEventListener("click", () => {
   ttsOn = !ttsOn;
   ttsSwitch.setAttribute("aria-checked", ttsOn ? "true" : "false");
@@ -3570,6 +3629,16 @@ async function speak(text, opts = {}) {
   try {
     // Reuse the prewarm's in-flight promise via the client cache so we
     // never double-fire /api/tts for the same (voice, text).
+    //
+    // CLOUD-VOICE-FIRST: we now play through a persistent, pre-unlocked
+    // <audio> element (see _getSpeakAudio), so audio.play() is NOT blocked
+    // by the autoplay policy even when it fires seconds after this async
+    // fetch. That means we can wait for the real cloud voice instead of
+    // bailing to the browser voice on latency — a cold synth just plays a
+    // little later in the CHOSEN voice. _fetchTtsUrl has its own 10s hard
+    // timeout; if that elapses (or the request errors) it resolves null and
+    // we fall back to the browser voice as a TRUE last resort — genuine
+    // /api/tts failure only, never just because the synth was slow.
     const url = await _fetchTtsUrl(voice, t);
     const fetchMs = Date.now() - startedAt;
     console.log(`${tag} url ${url ? "ok" : "null"} in ${fetchMs}ms (cache reuse: ${_ttsClientCache.has(`${voice}|${t}`)})`);
@@ -3581,7 +3650,9 @@ async function speak(text, opts = {}) {
     }
     const data = { url, voice, cached: true };
 
-    const audio = new Audio(data.url);
+    // Play through the SHARED, pre-unlocked element (not new Audio()) so the
+    // gesture privilege earned at first-tap carries the cloud voice through.
+    const audio = _getSpeakAudio();
     currentTtsAudio = audio;
     // Build the "done" promise BEFORE attempting play() so we capture
     // both the natural `ended` event and any play() rejection in a
@@ -3589,36 +3660,45 @@ async function speak(text, opts = {}) {
     // resolve the promise so awaiting callers don't hang.
     const donePromise = new Promise((resolve) => {
       let settled = false;
-      const settle = () => {
-        if (settled) return;
-        settled = true;
-        if (currentTtsAudio === audio) currentTtsAudio = null;
-        resolve();
-      };
-      audio.addEventListener("ended", settle);
-      // `pause` fires when cancelSpeech() calls audio.pause() OR at the
-      // very end of natural playback (which also fires `ended`). Either
-      // way we want to settle — the speak() promise is "this clip is
-      // no longer playing", regardless of why.
-      audio.addEventListener("pause", settle);
-      audio.addEventListener("error", (ev) => {
+      // Reusing one element across calls means listeners must be removed on
+      // settle, or they'd stack and an old clip's `ended` could settle a new
+      // one. Keep references and detach in settle().
+      const onEnded = () => settle();
+      const onPause = () => settle();
+      const onError = (ev) => {
         console.warn("[tts] audio element error — falling back to browser", ev);
         if (mySeq !== _ttsSeq) { settle(); return; }
         speakBrowser(t);
-        // Give the fallback time to play, then resolve.
         setTimeout(settle, estimateMs());
-      });
-      // Safety-net cancellation watch for the edge case where
-      // cancelSpeech() runs BEFORE audio.play() has started (so the
-      // pause event doesn't fire). Self-cleans on settle.
-      const cancelPoll = setInterval(() => {
+      };
+      let cancelPoll;
+      const settle = () => {
+        if (settled) return;
+        settled = true;
+        audio.removeEventListener("ended", onEnded);
+        audio.removeEventListener("pause", onPause);
+        audio.removeEventListener("error", onError);
+        if (cancelPoll) clearInterval(cancelPoll);
+        if (currentTtsAudio === audio) currentTtsAudio = null;
+        resolve();
+      };
+      audio.addEventListener("ended", onEnded);
+      // `pause` fires when cancelSpeech() calls audio.pause() OR at the very
+      // end of natural playback (which also fires `ended`). Either way the
+      // clip is no longer playing, so settle.
+      audio.addEventListener("pause", onPause);
+      audio.addEventListener("error", onError);
+      // Safety-net cancellation watch for the edge case where cancelSpeech()
+      // runs BEFORE audio.play() has started (so the pause event doesn't
+      // fire). Self-cleans on settle.
+      cancelPoll = setInterval(() => {
         if (settled) { clearInterval(cancelPoll); return; }
-        if (mySeq !== _ttsSeq) {
-          clearInterval(cancelPoll);
-          settle();
-        }
+        if (mySeq !== _ttsSeq) { clearInterval(cancelPoll); settle(); }
       }, 200);
     });
+    // Point the shared element at this clip and restart from 0.
+    audio.src = data.url;
+    audio.currentTime = 0;
     try {
       await audio.play();
       const playMs = Date.now() - startedAt;
