@@ -3658,13 +3658,32 @@ async function speak(text, opts = {}) {
     // both the natural `ended` event and any play() rejection in a
     // single resolution point. NEVER rejects — fallback paths still
     // resolve the promise so awaiting callers don't hang.
+    // Point the shared element at this clip BEFORE wiring listeners. Reusing
+    // one element means it may be sitting at `ended` (currentTime === duration)
+    // from a prior clip; assigning .src + load() resets it to a clean state.
+    // Two regressions this ordering fixes (root cause of the intermittent
+    // "play() ok but silent" option-speaker bug, confirmed from a live trace):
+    //   1. Setting .src on an element playing/loaded fires an implicit `pause`
+    //      as part of the media load algorithm. If the pause listener is
+    //      attached first, that pause settles + nulls the NEW clip before it
+    //      ever plays — dead-on-arrival silence.
+    //   2. After a clip ends the element is at currentTime===duration;
+    //      `currentTime = 0` before load() is dropped (readyState 0), so
+    //      play() runs from the end → instant `ended`, no audio.
+    // load() forces a fresh fetch/decode so playback always starts at 0.
+    audio.src = data.url;
+    try { audio.load(); } catch {}
+    let playStarted = false;
     const donePromise = new Promise((resolve) => {
       let settled = false;
       // Reusing one element across calls means listeners must be removed on
       // settle, or they'd stack and an old clip's `ended` could settle a new
       // one. Keep references and detach in settle().
       const onEnded = () => settle();
-      const onPause = () => settle();
+      // Only treat a `pause` as "done" once real playback has begun — a pause
+      // emitted before play() starts (e.g. a late load artifact) must not
+      // settle the clip prematurely.
+      const onPause = () => { if (playStarted) settle(); };
       const onError = (ev) => {
         console.warn("[tts] audio element error — falling back to browser", ev);
         if (mySeq !== _ttsSeq) { settle(); return; }
@@ -3685,7 +3704,7 @@ async function speak(text, opts = {}) {
       audio.addEventListener("ended", onEnded);
       // `pause` fires when cancelSpeech() calls audio.pause() OR at the very
       // end of natural playback (which also fires `ended`). Either way the
-      // clip is no longer playing, so settle.
+      // clip is no longer playing, so settle — but only after play started.
       audio.addEventListener("pause", onPause);
       audio.addEventListener("error", onError);
       // Safety-net cancellation watch for the edge case where cancelSpeech()
@@ -3696,10 +3715,11 @@ async function speak(text, opts = {}) {
         if (mySeq !== _ttsSeq) { clearInterval(cancelPoll); settle(); }
       }, 200);
     });
-    // Point the shared element at this clip and restart from 0.
-    audio.src = data.url;
-    audio.currentTime = 0;
     try {
+      // Mark BEFORE awaiting: play() begins playback before its promise
+      // resolves, so a very short clip could fire `pause`/`ended` in that
+      // window — the pause guard must already be armed.
+      playStarted = true;
       await audio.play();
       const playMs = Date.now() - startedAt;
       console.log(`${tag} audio.play() ok (total ${playMs}ms from click to playback)`);
