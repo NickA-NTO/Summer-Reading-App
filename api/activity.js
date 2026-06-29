@@ -1273,6 +1273,14 @@ export default async function handler(req, res) {
       // backfill). buildGradeEvent skips emission if neither is present — we
       // never fabricate an id.
       const sourcedId = session.sourcedId || profile?.onerosterUserId || null;
+      // Diagnostic: surfaces WHY an event might not land (no identity) without
+      // exposing the id itself. Remove once real-student emission is confirmed.
+      console.log("[caliper_quiz_emit]", JSON.stringify({
+        hasSessionSourcedId: !!session.sourcedId,
+        hasProfileOneroster: !!profile?.onerosterUserId,
+        willEmit: !!sourcedId,
+        bookId,
+      }));
       const scoreGiven = body.score != null ? Number(body.score) : 5;
       const ctx = { email: session.email, profile };
       const common = {

@@ -84,9 +84,26 @@ export default async function handler(req, res) {
       return redirect(res, `/?auth_error=${encodeURIComponent(String(err?.message || "invalid_id_token"))}`);
     }
     // The bundle: the id_token's `sourcedId` claim IS the student's OneRoster
-    // id. Some Cognito setups namespace custom claims (custom:sourcedId) —
-    // accept either. Without it, the user isn't a rostered TimeBack student.
-    sourcedId = payload.sourcedId || payload["custom:sourcedId"] || null;
+    // id. Cognito may namespace it (custom:sourcedId) or carry it as `sub`.
+    // Check the documented names, then a broad scan for any *sourced*/*oneroster*
+    // claim so an unexpected name doesn't silently break attribution.
+    sourcedId =
+      payload.sourcedId ||
+      payload["custom:sourcedId"] ||
+      payload["custom:sourcedId".toLowerCase()] ||
+      null;
+    if (!sourcedId) {
+      for (const [k, v] of Object.entries(payload)) {
+        if (/sourced|oneroster/i.test(k) && v) { sourcedId = String(v); break; }
+      }
+    }
+    // Diagnostic (keys only, no values) — so we can see in logs exactly which
+    // claims TimeBack returns and whether sourcedId resolved. Remove once the
+    // claim name is confirmed stable.
+    try {
+      console.log("[sso_idtoken] claims=", Object.keys(payload).join(","),
+        "| sourcedIdResolved=", !!sourcedId, "| sub=", payload.sub ? "present" : "absent");
+    } catch {}
   } else {
     // ── Legacy Google OAuth (client-secret exchange) ──────────────────────
     const clientId = process.env.GOOGLE_CLIENT_ID;
