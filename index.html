@@ -4926,6 +4926,38 @@ window.addEventListener("hashchange", () => {
   try { cancelSpeech(); } catch {}
 });
 
+/* ---------- Time-on-task heartbeat ----------
+   Pings /api/heartbeat every ~60s while the app is OPEN and the student is
+   ACTIVE, so TimeBack accrues active-minutes for the day. The server is the
+   one that holds the M2M secret + decides whether to forward (it no-ops when
+   emission is off or the user has no sourcedId), so this client side is
+   deliberately dumb + safe to always run. Activity-gated so an idle open tab
+   doesn't inflate time. */
+(function timeHeartbeat() {
+  const PING_MS = 60_000;          // beat cadence
+  const ACTIVE_WINDOW_MS = 90_000; // count as active if input within this window
+  let lastActivity = Date.now();
+  const bump = () => { lastActivity = Date.now(); };
+  for (const ev of ["pointerdown", "keydown", "click", "touchstart", "scroll"]) {
+    window.addEventListener(ev, bump, { passive: true, capture: true });
+  }
+  const beat = () => {
+    if (document.hidden) return;                         // tab not visible
+    if (Date.now() - lastActivity > ACTIVE_WINDOW_MS) return; // idle
+    // Fire-and-forget; server no-ops unless enabled + identity known.
+    try { fetch("/api/heartbeat", { method: "POST", credentials: "same-origin", keepalive: true }).catch(() => {}); } catch {}
+  };
+  // First beat shortly after load (captures a short visit), then steady.
+  setTimeout(beat, 5_000);
+  setInterval(beat, PING_MS);
+  // Resume promptly when the kid returns to the tab (don't wait a full cycle).
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) { bump(); beat(); } });
+  // Best-effort close beat so the open session lapses cleanly on the server.
+  window.addEventListener("pagehide", () => {
+    try { navigator.sendBeacon && navigator.sendBeacon("/api/heartbeat?close=1"); } catch {}
+  });
+})();
+
 /* ---------- 11. Interactions ---------- */
 document.getElementById("readToggle").addEventListener("click", async () => {
   if (!activeBookId) return;
@@ -5941,9 +5973,13 @@ function showTooSoonWarning(gapMs, onProceed) {
   // wrong (browser) voice; a tap is a gesture, so the chosen voice plays.
   const speakBtn = document.getElementById("tooSoonSpeak");
   const onSpeak = () => {
-    if (typeof speak === "function") {
-      // force:true — an explicit tap must play even when the global TTS
-      // toggle is off (older/admin/test accounts default it off).
+    // force:true — an explicit tap must play even when the global TTS
+    // toggle is off (older/admin/test accounts default it off). Route
+    // through speakWithFeedback so the button shows Loading/Playing state
+    // instead of looking dead on tap.
+    if (typeof speakWithFeedback === "function" && speakBtn) {
+      try { speakWithFeedback(speakBtn, ttsText, { force: true }); } catch {}
+    } else if (typeof speak === "function") {
       try { speak(ttsText, { force: true }); } catch {}
     }
   };
@@ -5992,7 +6028,17 @@ function showStartedReadingOverlay(bookTitle) {
   // plays it in the chosen voice.
   const speakBtn = document.getElementById("startedReadingSpeak");
   const closeBtn = document.getElementById("startedReadingClose");
-  const onSpeak = () => { if (typeof speak === "function") { try { speak(ttsText, { force: true }); } catch {} } };
+  // Route through speakWithFeedback so the button shows Loading/Playing state
+  // (it captures the original label itself and restores it on finish). A bare
+  // speak() gave the kid zero visual feedback — the button looked dead on tap
+  // (#started-reading-speak).
+  const onSpeak = () => {
+    if (typeof speakWithFeedback === "function" && speakBtn) {
+      try { speakWithFeedback(speakBtn, ttsText, { force: true }); } catch {}
+    } else if (typeof speak === "function") {
+      try { speak(ttsText, { force: true }); } catch {}
+    }
+  };
   const cleanup = () => {
     try { cancelSpeech(); } catch {}
     overlay.classList.remove("open");
@@ -9725,7 +9771,7 @@ function _retellSetState(s) {
       if (retell.eqLevels) retell.eqLevels.fill(0);
     }
   }
-  // Manual "I'm done" — stays HIDDEN and only surfaces 7s into a turn if the
+  // Manual "I'm done" — stays HIDDEN and only surfaces 12s into a turn if the
   // automatic silence-detection still hasn't ended it (noisy room or a kid who
   // keeps going). In normal quiet conditions the turn ends first and the button
   // never appears. Any non-listening state clears the timer + hides it.
@@ -9739,7 +9785,7 @@ function _retellSetState(s) {
         if (st === "warming" || st === "silenceCountdown" || st === "speech") {
           retell.doneBtn.style.display = "inline-block";
         }
-      }, 7000);
+      }, 12000);
     }
   }
   if (s === "listening") {

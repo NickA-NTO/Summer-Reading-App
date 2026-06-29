@@ -54,7 +54,7 @@ import {
 import { sanitizeTrackOverrides, TRACK_ORDER } from "../../lib/tracks.js";
 import { getStats as getObsStats } from "../../lib/observability.js";
 import { syncWorkingGradesFromTimeBack, TIMEBACK_SYNC_ENDPOINT } from "../../lib/timeback-sync.js";
-import { listPendingComments, resolvePendingComment } from "../../lib/store.js";
+import { listPendingComments, resolvePendingComment, getUserProfile } from "../../lib/store.js";
 import {
   APP_CAP_CHARS,
   APP_CAP_USD,
@@ -515,6 +515,12 @@ export default async function handler(req, res) {
     if (a === "approve" && result.entry && Number(result.entry.points) > 0) {
       try {
         const e = result.entry;
+        // Resolve the student's OneRoster id from their profile (set at SSO
+        // login). Without it the builder skips emission — an approval can't
+        // fabricate identity.
+        const heldProfile = await getUserProfile(e.email).catch(() => null);
+        const sourcedId = e.sourcedId || heldProfile?.onerosterUserId || null;
+        const ctx = { email: e.email, profile: heldProfile };
         let envelope;
         if (e.tutorRubric) {
           const rb = e.tutorRubric;
@@ -526,6 +532,7 @@ export default async function handler(req, res) {
           const retellOutcome = retellOutcomeFromRubric(rubricTotal);
           envelope = buildRetellEventEnvelope({
             email: e.email,
+            sourcedId,
             bookId: e.bookId,
             bookTitle: e.bookTitle || e.bookId,
             attemptNum: 1,
@@ -544,6 +551,7 @@ export default async function handler(req, res) {
         } else {
           envelope = buildQuizEventEnvelope({
             email: e.email,
+            sourcedId,
             bookId: e.bookId,
             bookTitle: e.bookTitle || e.bookId,
             attemptNum: 1,
@@ -555,7 +563,7 @@ export default async function handler(req, res) {
             eventNonce: id,
           });
         }
-        sendCaliperEnvelopeAsync(envelope);
+        sendCaliperEnvelopeAsync(envelope, ctx);
       } catch (err) {
         console.warn("[held_xp_caliper_emit_failed]", String(err?.message || err));
       }

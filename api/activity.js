@@ -48,7 +48,7 @@ import {
 } from "../lib/store.js";
 import { getBook } from "../lib/books.js";
 import { pointsForBook, normalizeGrade, WCPM_BY_GRADE } from "../lib/xp.js";
-import { buildQuizEventEnvelope } from "../lib/caliper.js";
+import { buildQuizEventEnvelope, buildQuizAccuracyEnvelope } from "../lib/caliper.js";
 import { sendCaliperEnvelopeAsync } from "../lib/timeback.js";
 // QUIZ_BOOKS = full set of quiz-enabled book ids. Imported so we can
 // reject `kind:"read"` calls for quiz-enabled books — the only legitimate
@@ -1268,21 +1268,32 @@ export default async function handler(req, res) {
   // -----------------------------------------------------------------------
   if (attemptNum != null && book && result.recorded) {
     try {
-      const envelope = buildQuizEventEnvelope({
-        email: session.email,
-        studentId: session.studentId || null, // populated once TimeBack id mapping ships
-        studentName: session.name,
-        bookId,
-        bookTitle: book.title || bookId,
-        attemptNum,
-        scoreGiven: body.score != null ? Number(body.score) : 5, // pass = 4-5; default 5 if not supplied
-        maxScore: 5,
-        bookGradeLevel: book.grade,
-        studentGrade: grade,
+      // Student identity: prefer the session's sourcedId (set at TimeBack SSO
+      // login); fall back to the profile's stored onerosterUserId (grade-sync
+      // backfill). buildGradeEvent skips emission if neither is present — we
+      // never fabricate an id.
+      const sourcedId = session.sourcedId || profile?.onerosterUserId || null;
+      const scoreGiven = body.score != null ? Number(body.score) : 5;
+      const ctx = { email: session.email, profile };
+      const common = {
+        email: session.email, sourcedId,
+        bookId, bookTitle: book.title || bookId,
+        attemptNum, studentGrade: grade,
+      };
+      // XP (GradeEvent)
+      const xpEnv = buildQuizEventEnvelope({
+        ...common,
+        scoreGiven, maxScore: 5,
         xpAwarded: finalPoints,
         fraudFlag: fraudStatus,
       });
-      sendCaliperEnvelopeAsync(envelope);
+      sendCaliperEnvelopeAsync(xpEnv, ctx);
+      // Accuracy (AssessmentEvent) — correct/total, fired alongside XP.
+      const accEnv = buildQuizAccuracyEnvelope({
+        ...common,
+        scoreGiven, maxScore: 5,
+      });
+      sendCaliperEnvelopeAsync(accEnv, ctx);
     } catch (err) {
       // Never let Caliper emission break the student-facing response.
       console.warn("[caliper_emit_failed]", String(err?.message || err));
