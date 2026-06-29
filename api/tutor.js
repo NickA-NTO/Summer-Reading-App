@@ -352,6 +352,10 @@ async function actionStart(req, res, sessionAuth) {
     ageGrade,
     workingGrade,
     voiceId,
+    // Capture the TimeBack OneRoster id at session start (SSO session, or the
+    // profile backfill) so the retell's Caliper event can attribute XP to the
+    // real student. Falls back to profile.onerosterUserId at emit time too.
+    sourcedId: sessionAuth.sourcedId || profile?.onerosterUserId || null,
   });
 
   const firstQuestion = buildFirstQuestion(book);
@@ -1177,9 +1181,14 @@ async function finalizeAndGrade(res, tutorSession, book, opts = {}) {
     // with retellOutcomeCode. (Was hardcoded 10/7, which disagreed with the
     // 9/5 thresholds — e.g. 9/12 = p1 but showed "marginal".)
     const tier = retellOutcome === "p1" ? "clear_pass" : retellOutcome === "p2" ? "marginal" : "fail";
+    // Student identity: the tutor session captured sourcedId at start (from
+    // the SSO session); fall back to the profile's stored onerosterUserId.
+    // buildGradeEvent skips emission if neither is present (never fabricate).
+    const emitProfile = await loadProfile(email).catch(() => null);
+    const sourcedId = tutorSession.sourcedId || emitProfile?.onerosterUserId || null;
     const envelope = buildRetellEventEnvelope({
       email,
-      studentId: null, // populated once TimeBack id mapping ships
+      sourcedId,
       studentName: displayName(tutorSession.name || tutorSession.email),
       bookId: tutorSession.bookId,
       bookTitle: book.title || tutorSession.bookId,
@@ -1206,7 +1215,7 @@ async function finalizeAndGrade(res, tutorSession, book, opts = {}) {
       // deduped away. Network retries replay the same built envelope. (#4)
       eventNonce: tutorSession.sessionId,
     });
-    sendCaliperEnvelopeAsync(envelope);
+    sendCaliperEnvelopeAsync(envelope, { email, profile: emitProfile });
   } catch (err) {
     console.warn("[caliper_retell_emit_failed]", String(err?.message || err));
     trackError("caliper_retell_emit_failed", { err: String(err?.message || err) });
