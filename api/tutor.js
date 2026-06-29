@@ -819,7 +819,7 @@ async function finalizeAndGrade(res, tutorSession, book, opts = {}) {
     // grader (an empty transcript would be a wasted, unreliable call) and
     // resolve the retell to a clean fF: zero rubric, no bonus. A passed
     // quiz still earns its base XP via the p1_fF / p2_fF ratio below; a
-    // failed quiz stays fF_fF (0 XP, retryable), same as before.
+    // failed quiz stays fF_fF (0 XP, terminal — no post-grade retry).
     grade = {
       retell_quality: 0,
       character_recall: 0,
@@ -1101,23 +1101,25 @@ async function finalizeAndGrade(res, tutorSession, book, opts = {}) {
   // here would strand them: their quiz attempts may be exhausted (2/day cap),
   // so they couldn't re-submit the quiz to become eligible again — a hard
   // lockout at 0 XP recoverable only by an admin reset.
-  const terminal = retellHeld || fraudHeld || awardXp > 0;
-  if (terminal) {
-    try {
-      const active = await getCurrentlyReading(email);
-      if (active && active.bookId === tutorSession.bookId) {
-        await clearCurrentlyReading(email);
-        response.clearedCurrentlyReading = true;
-      }
-    } catch (err) {
-      trackError("tutor_clear_current_failed", { err: String(err?.message || err) });
+  // Policy: a COMPLETED retell is ALWAYS terminal — including a 0-XP fail.
+  // The kid already got their in-session second chance (the follow-up turn,
+  // "Can you tell me more about the book?"). If the final graded retell still
+  // fails, that's the end — no post-grade do-over. (Previously a 0-XP result
+  // set retryable=true and offered an unlimited "Try the talk again" restart,
+  // which was never approved.) Held/fraud-held still clear too (pending
+  // review), exactly as before.
+  const terminal = true;
+  try {
+    const active = await getCurrentlyReading(email);
+    if (active && active.bookId === tutorSession.bookId) {
+      await clearCurrentlyReading(email);
+      response.clearedCurrentlyReading = true;
     }
-    await clearReadingSession(email, tutorSession.bookId);
-  } else {
-    // 0 XP — leave currentlyReading + the reading session intact so the kid
-    // can re-open and retry the retell without re-taking the quiz. (#6)
-    response.retryable = true;
+  } catch (err) {
+    trackError("tutor_clear_current_failed", { err: String(err?.message || err) });
   }
+  await clearReadingSession(email, tutorSession.bookId);
+  void terminal;
 
   // #94 — persist the retell rubric + transcript so admin can audit
   // how the kid was graded. Per-user Redis LIST, capped at 50 entries,
