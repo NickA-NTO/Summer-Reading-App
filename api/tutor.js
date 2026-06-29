@@ -1101,25 +1101,37 @@ async function finalizeAndGrade(res, tutorSession, book, opts = {}) {
   // here would strand them: their quiz attempts may be exhausted (2/day cap),
   // so they couldn't re-submit the quiz to become eligible again — a hard
   // lockout at 0 XP recoverable only by an admin reset.
-  // Policy: a COMPLETED retell is ALWAYS terminal — including a 0-XP fail.
-  // The kid already got their in-session second chance (the follow-up turn,
-  // "Can you tell me more about the book?"). If the final graded retell still
-  // fails, that's the end — no post-grade do-over. (Previously a 0-XP result
-  // set retryable=true and offered an unlimited "Try the talk again" restart,
-  // which was never approved.) Held/fraud-held still clear too (pending
-  // review), exactly as before.
-  const terminal = true;
-  try {
-    const active = await getCurrentlyReading(email);
-    if (active && active.bookId === tutorSession.bookId) {
-      await clearCurrentlyReading(email);
-      response.clearedCurrentlyReading = true;
+  // Policy: a retell the kid actually ATTEMPTED is terminal — including a
+  // 0-XP fail. Their second chance is the in-session follow-up turn ("Can you
+  // tell me more about the book?"); once graded, a fail ends it (no post-grade
+  // do-over — that unlimited "Try the talk again" was never approved).
+  //
+  // EXCEPTION — technical difficulty: if the retell couldn't happen because
+  // there was no working mic (allowNoSpeech finalize with ZERO spoken turns),
+  // the kid never got to tell us about the book at all. That's not a fail on
+  // their part, so we keep the session alive and mark it retryable — they can
+  // try again once the mic works. A kid who DID speak (spokenTurns > 0) and
+  // scored 0 is a genuine fail: terminal.
+  const techNoSpeech = !!opts.allowNoSpeech && spokenTurns === 0 && awardXp === 0
+    && !retellHeld && !fraudHeld;
+  const terminal = !techNoSpeech;
+  if (terminal) {
+    try {
+      const active = await getCurrentlyReading(email);
+      if (active && active.bookId === tutorSession.bookId) {
+        await clearCurrentlyReading(email);
+        response.clearedCurrentlyReading = true;
+      }
+    } catch (err) {
+      trackError("tutor_clear_current_failed", { err: String(err?.message || err) });
     }
-  } catch (err) {
-    trackError("tutor_clear_current_failed", { err: String(err?.message || err) });
+    await clearReadingSession(email, tutorSession.bookId);
+  } else {
+    // No-mic / tech difficulty — preserve the session so the kid can retry the
+    // retell once their device works. This is the ONLY retryable path now.
+    response.retryable = true;
+    response.retryReason = "no_mic";
   }
-  await clearReadingSession(email, tutorSession.bookId);
-  void terminal;
 
   // #94 — persist the retell rubric + transcript so admin can audit
   // how the kid was graded. Per-user Redis LIST, capped at 50 entries,
