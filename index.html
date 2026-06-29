@@ -3464,9 +3464,24 @@ let ttsBudgetReached = false;
 // last resort (genuine /api/tts failure), never a latency crutch.
 let _speakAudio = null;
 let _speakAudioUnlocked = false;
-// Tiny silent WAV (reuse retell's constant if present, else inline the same).
-const _SPEAK_SILENT_WAV =
-  "data:audio/wav;base64,UklGRmQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YUAAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA";
+// Silent unlock clip. MUST be a blob: URL, NOT a data: URI — our CSP
+// media-src is "'self' blob: https://*.public.blob.vercel-storage.com", which
+// does NOT include data:, so a data:audio/wav unlock was silently blocked by
+// CSP (MediaError code 4) and the persistent <audio> element never actually
+// unlocked — the real cause of the intermittent "play() ok but no sound" on
+// option speakers (cached clip landing outside the gesture window played
+// inaudibly). Build the blob once from the base64 WAV; blob: is CSP-allowed.
+const _SILENT_WAV_B64 =
+  "UklGRmQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YUAAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA";
+function _silentWavBlobUrl() {
+  try {
+    const bin = atob(_SILENT_WAV_B64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return URL.createObjectURL(new Blob([bytes], { type: "audio/wav" }));
+  } catch { return null; }
+}
+const _SPEAK_SILENT_WAV = _silentWavBlobUrl();
 function _getSpeakAudio() {
   if (!_speakAudio) {
     const el = new Audio();
@@ -3482,6 +3497,7 @@ function _getSpeakAudio() {
 // the silent play() resolves.
 function _unlockSpeakAudio() {
   try {
+    if (!_SPEAK_SILENT_WAV) return; // blob build failed — can't unlock
     const el = _getSpeakAudio();
     el.muted = false;
     el.volume = 1.0;
@@ -9864,8 +9880,9 @@ async function _retellStartSession() {
 // which was much louder than the cloud clip → the jarring volume jump on turns
 // that fell back (2nd prompt / closing line). Tunable in one place.
 const RETELL_TTS_VOLUME = 1.0;
-const RETELL_SILENT_WAV =
-  "data:audio/wav;base64,UklGRmQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YUAAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA";
+// Same CSP fix as _SPEAK_SILENT_WAV: a data: URI is blocked by media-src, so
+// the retell unlock silently failed too. Reuse the blob: URL built above.
+const RETELL_SILENT_WAV = _SPEAK_SILENT_WAV;
 
 // Create (once) + unlock the persistent tutor-audio element. MUST be called
 // synchronously from a user gesture (the Start tap) — the first real clip is
@@ -9880,6 +9897,7 @@ function _retellUnlockAudio() {
       retell.persistentAudio = el;
     }
     const el = retell.persistentAudio;
+    if (!RETELL_SILENT_WAV) return; // blob build failed — skip unlock
     el.muted = false;          // unlock UNMUTED so real clips can play unmuted
     el.volume = RETELL_TTS_VOLUME;
     el.src = RETELL_SILENT_WAV;
