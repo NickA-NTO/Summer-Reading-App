@@ -1101,20 +1101,18 @@ async function finalizeAndGrade(res, tutorSession, book, opts = {}) {
   // here would strand them: their quiz attempts may be exhausted (2/day cap),
   // so they couldn't re-submit the quiz to become eligible again — a hard
   // lockout at 0 XP recoverable only by an admin reset.
-  // Policy: a retell the kid actually ATTEMPTED is terminal — including a
-  // 0-XP fail. Their second chance is the in-session follow-up turn ("Can you
-  // tell me more about the book?"); once graded, a fail ends it (no post-grade
-  // do-over — that unlimited "Try the talk again" was never approved).
+  // Policy: a retell that was actually HEARD is terminal — including a fail.
+  // Their second chance is the in-session follow-up turn ("Can you tell me
+  // more about the book?"); once graded, a fail ends it (no post-grade do-over
+  // — that unlimited "Try the talk again" was never approved).
   //
-  // EXCEPTION — technical difficulty: if the retell couldn't happen because
-  // there was no working mic (allowNoSpeech finalize with ZERO spoken turns),
-  // the kid never got to tell us about the book at all. That's not a fail on
-  // their part, so we keep the session alive and mark it retryable — they can
-  // try again once the mic works. A kid who DID speak (spokenTurns > 0) and
-  // scored 0 is a genuine fail: terminal.
-  const techNoSpeech = !!opts.allowNoSpeech && spokenTurns === 0 && awardXp === 0
-    && !retellHeld && !fraudHeld;
-  const terminal = !techNoSpeech;
+  // EXCEPTION — nothing was heard: a rubric total of 0/12 means the grader got
+  // NOTHING usable (silence, no mic, an empty/failed capture). The kid never
+  // actually told us about the book, so that's not a fail on their part —
+  // preserve the session and let them retry. A rubric of 1+ that still fell
+  // short of the bonus bar IS a genuine attempt: terminal, no redo.
+  const nothingHeard = rubricTotal === 0 && !retellHeld && !fraudHeld && awardXp === 0;
+  const terminal = !nothingHeard;
   if (terminal) {
     try {
       const active = await getCurrentlyReading(email);
@@ -1127,10 +1125,10 @@ async function finalizeAndGrade(res, tutorSession, book, opts = {}) {
     }
     await clearReadingSession(email, tutorSession.bookId);
   } else {
-    // No-mic / tech difficulty — preserve the session so the kid can retry the
-    // retell once their device works. This is the ONLY retryable path now.
+    // Nothing heard (rubric 0/12) — preserve the session so the kid can retry
+    // the retell. This is the ONLY retryable path now.
     response.retryable = true;
-    response.retryReason = "no_mic";
+    response.retryReason = "nothing_heard";
   }
 
   // #94 — persist the retell rubric + transcript so admin can audit
