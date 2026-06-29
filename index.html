@@ -9027,6 +9027,20 @@ let _tourLastEnteredIdx = -1; // tracks which step's onExit still owes us
 function startTour() {
   _tourIdx = 0;
   _tourLastEnteredIdx = -1;
+  // The onboarding tour runs for brand-new students who have 0 XP — but
+  // refreshMyRank() hides the XP stat (#statPointsWrap) until points > 0, so
+  // the "Your XP" step would spotlight an empty #statsRow (nothing). Force the
+  // XP stat visible for the tour, showing "0 XP" — which is exactly the point
+  // of that step ("watch your XP grow"). refreshMyRank re-evaluates normally
+  // afterward.
+  try {
+    const pw = document.getElementById("statPointsWrap");
+    if (pw) {
+      pw.style.display = "flex";
+      const pv = document.getElementById("statPoints");
+      if (pv && !pv.textContent.trim()) pv.textContent = "0";
+    }
+  } catch {}
   document.getElementById("tourLayer").classList.add("open");
   document.getElementById("tourSkip").onclick = endTour;
   document.getElementById("tourBack").onclick = () => {
