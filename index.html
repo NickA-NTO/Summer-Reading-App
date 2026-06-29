@@ -3299,7 +3299,7 @@ document.getElementById("signout").addEventListener("click", () => {
           got ? ` — you tried ${got}` : ""
         }.`
     : err === "email_unverified"
-      ? "Your Google email isn't verified. Please verify it and try again."
+      ? "Your email isn't verified. Please verify it and try again."
     : err === "state_mismatch"
       ? "Login session expired. Please try signing in again."
     : `Sign-in failed (${err}). Please try again.`;
@@ -9303,7 +9303,7 @@ function renderWelcomeScreen() {
                   border-radius:12px;padding:14px 16px;margin:0 0 20px;color:#fbd38d;
                   font-size:14px;text-align:left">
         <strong style="color:#fff;display:block;margin-bottom:4px">Email not verified</strong>
-        Verify your Google email and try again.
+        Verify your email and try again.
       </div>`;
     errorTts = "Your email isn't verified yet. ";
   }
@@ -9334,7 +9334,7 @@ function renderWelcomeScreen() {
         cursor:pointer;display:flex;align-items:center;justify-content:center;
         gap:10px;box-shadow:0 8px 24px rgba(37,99,235,.45);
         font-family:inherit">
-        <span>Sign in with Google</span>
+        <span>Sign in with TimeBack</span>
         <span style="font-size:22px">→</span>
       </button>
       <button id="welcomeSpeak" style="
