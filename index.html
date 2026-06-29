@@ -10437,17 +10437,14 @@ function _retellShowResult(data) {
   const xp = data.points || 0;
   retell.resultXp.style.display = "";
   retell.resultXp.textContent = `+${xp} XP`;
-  // A 0-XP, non-held result is NOT terminal: the server preserves the
-  // reading session + sets retryable=true (failed quiz + weak retell),
-  // and the anti-skip path returns {done:false, retry:true}. Offer the
-  // retry so the kid has a forward path — the old screen dead-ended with
-  // "read again" and a hidden quiz button (attempts already spent).
-  // A COMPLETED retell is terminal — no post-grade "try the talk again".
-  // The kid's second chance is the in-session follow-up turn; once the retell
-  // is graded, a 0-XP result ends it. (Server no longer sets retryable on a
-  // graded fail; this client guard makes the policy explicit even if a stale
-  // retry/done flag is present on a graded payload.)
-  const canRetryTalk = false;
+  // A retell the kid ATTEMPTED is terminal — no post-grade "try the talk
+  // again". Their second chance is the in-session follow-up turn; once graded,
+  // a 0-XP result ends it. The ONLY retryable case is a TECHNICAL one: the
+  // server sets retryReason="no_mic" when the retell couldn't happen because
+  // there was no working microphone (it preserves the session). Then — and
+  // only then — we offer the retry so a device problem doesn't cost the kid
+  // their XP.
+  const canRetryTalk = data.retryReason === "no_mic";
   // #return — the RETELL is the authoritative "done" signal for quiz books
   // (NOT the quiz pass; see markBookAsRead). Mark the book read for every
   // TERMINAL outcome — passed, held, earned XP, or a final 0-XP result — but
@@ -10470,21 +10467,33 @@ function _retellShowResult(data) {
   } else if (xp > 0) {
     retell.resultIcon.textContent = "👍";
     retell.resultTitle.textContent = "Nice work!";
+  } else if (canRetryTalk) {
+    // TECHNICAL retry only (no working mic). Not a fail — the kid never got to
+    // talk — so invite them to try again once their device works.
+    retell.resultIcon.textContent = "🎤";
+    retell.resultTitle.textContent = "Let's try the talk again!";
+    retell.resultXp.style.display = "none";
   } else {
-    // Terminal 0-XP fail. No retry — the in-session follow-up was the second
-    // chance. Keep it warm/encouraging, not a dead-end "read again" prompt
-    // that implies an action they no longer have.
+    // Terminal 0-XP fail (kid spoke, scored 0). No retry — the in-session
+    // follow-up was the second chance. Keep it warm, not a dead-end prompt.
     retell.resultIcon.textContent = "📚";
     retell.resultTitle.textContent = "Thanks for telling me about it!";
     retell.resultXp.style.display = "none";
   }
-  retell.resultMsg.textContent =
-    (data.gradeResult?.feedback) || "Thanks for telling me about the book!";
-  // A graded retell is terminal — the "Try the talk again" retry was removed
-  // (the in-session follow-up is the only second chance). Always hide it.
+  retell.resultMsg.textContent = canRetryTalk
+    ? "It looks like your microphone wasn't working — you can still earn your XP. Tap “Try the talk again” once it's ready."
+    : ((data.gradeResult?.feedback) || "Thanks for telling me about the book!");
+  // Retry button shows ONLY for the technical no-mic case (canRetryTalk). A
+  // genuine graded fail is terminal — button stays hidden.
   if (retell.resultRetryBtn) {
-    retell.resultRetryBtn.style.display = "none";
-    retell.resultRetryBtn.onclick = null;
+    if (canRetryTalk) {
+      const _retryBookId = retell.bookId;
+      retell.resultRetryBtn.style.display = "inline-block";
+      retell.resultRetryBtn.onclick = () => { openRetell(_retryBookId); };
+    } else {
+      retell.resultRetryBtn.style.display = "none";
+      retell.resultRetryBtn.onclick = null;
+    }
   }
 
   // Admin debug — show the full rubric breakdown so admins can audit
