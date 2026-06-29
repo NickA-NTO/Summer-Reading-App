@@ -6422,6 +6422,12 @@ function quizCanHover() {
 function closeQuiz() {
   document.getElementById("quizOverlay").classList.remove("open");
   document.body.style.overflow = "";
+  // Stop BOTH audio paths: the cloud <audio> (cancelSpeech) AND the browser
+  // fallback (speechSynthesis). Previously only speechSynthesis was cancelled,
+  // so the result-screen "Read this" cloud clip kept playing into the next
+  // screen (the retell) — the overlapping-TTS bug. cancelSpeech() handles the
+  // shared persistent element + aborts any in-flight fetch.
+  try { cancelSpeech(); } catch {}
   if (window.speechSynthesis) speechSynthesis.cancel();
 }
 
@@ -7180,7 +7186,7 @@ async function finishQuiz() {
           font-size:16px;cursor:pointer;font-family:inherit">
           Next → Tell me about it
         </button>` : ""}
-        <button class="icon-btn" id="quizLater">Close</button>
+        ${canRetry ? `<button class="icon-btn" id="quizLater">Close</button>` : ""}
       </div>
     </div>`;
   if (canRetry) {
@@ -7192,13 +7198,11 @@ async function finishQuiz() {
     });
     document.getElementById("quizLater").addEventListener("click", closeQuiz);
   } else {
-    // No retries left — quiz outcome is locked as "fF". The kid taps a
-    // green "Next" to reach the retell (base XP via "pass 1 of 2"),
-    // instead of the old 2.4s auto-advance that tore down the fail
-    // screen before they could read their result or tap 🔊 "Read this"
-    // (#QC4). Close stays as an escape hatch; #6/#7 recovery re-routes
-    // them via "Tell me about it" if they leave.
-    document.getElementById("quizLater").addEventListener("click", closeQuiz);
+    // No retries left — quiz outcome is locked as "fF". There is NO "Close"
+    // escape here: every student MUST proceed to the retell (the only path to
+    // XP now), so the screen offers a single green "Next → Tell me about it".
+    // (#QC4 kept the no-auto-advance behaviour so they can read their score +
+    // tap 🔊 "Read this" first.)
     const failNext = document.getElementById("quizFailNext");
     if (failNext) failNext.addEventListener("click", () => {
       if (!quizState.bookId) return;
@@ -10438,9 +10442,12 @@ function _retellShowResult(data) {
   // and the anti-skip path returns {done:false, retry:true}. Offer the
   // retry so the kid has a forward path — the old screen dead-ended with
   // "read again" and a hidden quiz button (attempts already spent).
-  const canRetryTalk =
-    !data.passed && !data.held && xp === 0 &&
-    (data.retryable || data.retry || data.done === false);
+  // A COMPLETED retell is terminal — no post-grade "try the talk again".
+  // The kid's second chance is the in-session follow-up turn; once the retell
+  // is graded, a 0-XP result ends it. (Server no longer sets retryable on a
+  // graded fail; this client guard makes the policy explicit even if a stale
+  // retry/done flag is present on a graded payload.)
+  const canRetryTalk = false;
   // #return — the RETELL is the authoritative "done" signal for quiz books
   // (NOT the quiz pass; see markBookAsRead). Mark the book read for every
   // TERMINAL outcome — passed, held, earned XP, or a final 0-XP result — but
@@ -10463,30 +10470,21 @@ function _retellShowResult(data) {
   } else if (xp > 0) {
     retell.resultIcon.textContent = "👍";
     retell.resultTitle.textContent = "Nice work!";
-  } else if (canRetryTalk) {
-    retell.resultIcon.textContent = "🎤";
-    retell.resultTitle.textContent = "Let's try the talk again!";
-    retell.resultXp.style.display = "none";
   } else {
+    // Terminal 0-XP fail. No retry — the in-session follow-up was the second
+    // chance. Keep it warm/encouraging, not a dead-end "read again" prompt
+    // that implies an action they no longer have.
     retell.resultIcon.textContent = "📚";
-    retell.resultTitle.textContent = "Read again and give it another shot.";
+    retell.resultTitle.textContent = "Thanks for telling me about it!";
     retell.resultXp.style.display = "none";
   }
-  retell.resultMsg.textContent = canRetryTalk
-    ? "You can still earn your XP — tap “Try the talk again” to tell me about the book."
-    : ((data.gradeResult?.feedback) || "Thanks for telling me about the book!");
-  // Show/hide the retry button and wire it to re-enter the talk. The
-  // server kept the session alive, so openRetell starts a fresh talk on
-  // the same book (currentlyReading + reading session are preserved).
+  retell.resultMsg.textContent =
+    (data.gradeResult?.feedback) || "Thanks for telling me about the book!";
+  // A graded retell is terminal — the "Try the talk again" retry was removed
+  // (the in-session follow-up is the only second chance). Always hide it.
   if (retell.resultRetryBtn) {
-    if (canRetryTalk) {
-      const _retryBookId = retell.bookId;
-      retell.resultRetryBtn.style.display = "inline-block";
-      retell.resultRetryBtn.onclick = () => { openRetell(_retryBookId); };
-    } else {
-      retell.resultRetryBtn.style.display = "none";
-      retell.resultRetryBtn.onclick = null;
-    }
+    retell.resultRetryBtn.style.display = "none";
+    retell.resultRetryBtn.onclick = null;
   }
 
   // Admin debug — show the full rubric breakdown so admins can audit
