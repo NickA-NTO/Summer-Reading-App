@@ -4910,6 +4910,38 @@ window.addEventListener("hashchange", () => {
   try { cancelSpeech(); } catch {}
 });
 
+/* ---------- Time-on-task heartbeat ----------
+   Pings /api/heartbeat every ~60s while the app is OPEN and the student is
+   ACTIVE, so TimeBack accrues active-minutes for the day. The server is the
+   one that holds the M2M secret + decides whether to forward (it no-ops when
+   emission is off or the user has no sourcedId), so this client side is
+   deliberately dumb + safe to always run. Activity-gated so an idle open tab
+   doesn't inflate time. */
+(function timeHeartbeat() {
+  const PING_MS = 60_000;          // beat cadence
+  const ACTIVE_WINDOW_MS = 90_000; // count as active if input within this window
+  let lastActivity = Date.now();
+  const bump = () => { lastActivity = Date.now(); };
+  for (const ev of ["pointerdown", "keydown", "click", "touchstart", "scroll"]) {
+    window.addEventListener(ev, bump, { passive: true, capture: true });
+  }
+  const beat = () => {
+    if (document.hidden) return;                         // tab not visible
+    if (Date.now() - lastActivity > ACTIVE_WINDOW_MS) return; // idle
+    // Fire-and-forget; server no-ops unless enabled + identity known.
+    try { fetch("/api/heartbeat", { method: "POST", credentials: "same-origin", keepalive: true }).catch(() => {}); } catch {}
+  };
+  // First beat shortly after load (captures a short visit), then steady.
+  setTimeout(beat, 5_000);
+  setInterval(beat, PING_MS);
+  // Resume promptly when the kid returns to the tab (don't wait a full cycle).
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) { bump(); beat(); } });
+  // Best-effort close beat so the open session lapses cleanly on the server.
+  window.addEventListener("pagehide", () => {
+    try { navigator.sendBeacon && navigator.sendBeacon("/api/heartbeat?close=1"); } catch {}
+  });
+})();
+
 /* ---------- 11. Interactions ---------- */
 document.getElementById("readToggle").addEventListener("click", async () => {
   if (!activeBookId) return;
