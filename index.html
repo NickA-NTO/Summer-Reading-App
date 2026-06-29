@@ -5905,9 +5905,13 @@ function showTooSoonWarning(gapMs, onProceed) {
   // wrong (browser) voice; a tap is a gesture, so the chosen voice plays.
   const speakBtn = document.getElementById("tooSoonSpeak");
   const onSpeak = () => {
-    if (typeof speak === "function") {
-      // force:true — an explicit tap must play even when the global TTS
-      // toggle is off (older/admin/test accounts default it off).
+    // force:true — an explicit tap must play even when the global TTS
+    // toggle is off (older/admin/test accounts default it off). Route
+    // through speakWithFeedback so the button shows Loading/Playing state
+    // instead of looking dead on tap.
+    if (typeof speakWithFeedback === "function" && speakBtn) {
+      try { speakWithFeedback(speakBtn, ttsText, { force: true }); } catch {}
+    } else if (typeof speak === "function") {
       try { speak(ttsText, { force: true }); } catch {}
     }
   };
@@ -5956,7 +5960,17 @@ function showStartedReadingOverlay(bookTitle) {
   // plays it in the chosen voice.
   const speakBtn = document.getElementById("startedReadingSpeak");
   const closeBtn = document.getElementById("startedReadingClose");
-  const onSpeak = () => { if (typeof speak === "function") { try { speak(ttsText, { force: true }); } catch {} } };
+  // Route through speakWithFeedback so the button shows Loading/Playing state
+  // (it captures the original label itself and restores it on finish). A bare
+  // speak() gave the kid zero visual feedback — the button looked dead on tap
+  // (#started-reading-speak).
+  const onSpeak = () => {
+    if (typeof speakWithFeedback === "function" && speakBtn) {
+      try { speakWithFeedback(speakBtn, ttsText, { force: true }); } catch {}
+    } else if (typeof speak === "function") {
+      try { speak(ttsText, { force: true }); } catch {}
+    }
+  };
   const cleanup = () => {
     try { cancelSpeech(); } catch {}
     overlay.classList.remove("open");
@@ -9685,7 +9699,7 @@ function _retellSetState(s) {
       if (retell.eqLevels) retell.eqLevels.fill(0);
     }
   }
-  // Manual "I'm done" — stays HIDDEN and only surfaces 7s into a turn if the
+  // Manual "I'm done" — stays HIDDEN and only surfaces 12s into a turn if the
   // automatic silence-detection still hasn't ended it (noisy room or a kid who
   // keeps going). In normal quiet conditions the turn ends first and the button
   // never appears. Any non-listening state clears the timer + hides it.
@@ -9699,7 +9713,7 @@ function _retellSetState(s) {
         if (st === "warming" || st === "silenceCountdown" || st === "speech") {
           retell.doneBtn.style.display = "inline-block";
         }
-      }, 7000);
+      }, 12000);
     }
   }
   if (s === "listening") {
