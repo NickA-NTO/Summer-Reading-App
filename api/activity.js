@@ -1266,6 +1266,19 @@ export default async function handler(req, res) {
   // No await: response returns before the HTTPS round-trip to TimeBack.
   // If TimeBack is unreachable, sendCaliperEnvelopeAsync queues to Redis.
   // -----------------------------------------------------------------------
+  // DIAGNOSTIC (unconditional): logs the emit-gate values for EVERY activity
+  // POST so we can see why a quiz might not emit. Remove once confirmed.
+  try {
+    console.log("[caliper_quiz_gate]", JSON.stringify({
+      action: body?.action || null,
+      attemptNum: attemptNum ?? null,
+      hasBook: !!book,
+      recorded: !!result?.recorded,
+      willEnterEmit: (attemptNum != null && !!book && !!result?.recorded),
+      hasSessionSourcedId: !!session.sourcedId,
+      hasProfileOneroster: !!profile?.onerosterUserId,
+    }));
+  } catch {}
   if (attemptNum != null && book && result.recorded) {
     try {
       // Student identity: prefer the session's sourcedId (set at TimeBack SSO

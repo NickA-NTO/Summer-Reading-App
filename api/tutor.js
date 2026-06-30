@@ -1171,6 +1171,19 @@ async function finalizeAndGrade(res, tutorSession, book, opts = {}) {
   // emitted at approval time instead — see api/admin/index.js held-xp
   // approve handler, which rebuilds the envelope with a unique eventNonce
   // (the heldId) so the correction reaches TimeBack and isn't deduped. (#2)
+  // DIAGNOSTIC (unconditional): why a retell might not emit. Remove once
+  // confirmed. spokenTurns/grade let us see if grading even ran.
+  try {
+    const emitProfileDiag = await loadProfile(email).catch(() => null);
+    console.log("[caliper_retell_gate]", JSON.stringify({
+      held: !!response.held,
+      points: response.points ?? null,
+      hasGrade: !!grade,
+      hasTutorSourcedId: !!tutorSession.sourcedId,
+      hasProfileOneroster: !!emitProfileDiag?.onerosterUserId,
+      willEmit: !response.held,
+    }));
+  } catch {}
   if (!response.held) try {
     const rubricTotal =
       (Number(grade.retell_quality)   || 0) +
