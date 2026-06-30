@@ -28,3 +28,4 @@ prewarm.progress
 package-lock.json
 .env.prod.local
 repair-tts.report*.txt
+resynth.progress
