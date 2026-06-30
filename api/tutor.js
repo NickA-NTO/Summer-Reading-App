@@ -49,7 +49,7 @@ import { containsProfanity, containsPII, containsSelfHarm } from "../lib/moderat
 import { resolveVisibleTracks, trackForBook } from "../lib/tracks.js";
 import { getBook } from "../lib/books.js";
 import { getBookSummary } from "./quiz.js";
-import { buildRetellEventEnvelope, buildQuizAccuracyEnvelope } from "../lib/caliper.js";
+import { buildRetellEventEnvelope, buildQuizAccuracyEnvelope, buildRetellAccuracyEnvelope } from "../lib/caliper.js";
 import { sendCaliperEnvelopeAsync } from "../lib/timeback.js";
 import { normalizeGrade, pointsForBook, xpForReadingSession, retellOutcomeFromRubric } from "../lib/xp.js";
 import { trackError, trackEvent } from "../lib/observability.js";
@@ -1256,6 +1256,27 @@ async function finalizeAndGrade(res, tutorSession, book, opts = {}) {
       });
       sendCaliperEnvelopeAsync(accEnv, { email, profile: emitProfile });
     }
+
+    // Retell accuracy — one QUESTION_RESULT per rubric dimension (0–3 / 3) so
+    // the oral retell's performance also rolls into the lesson's accuracy, not
+    // just the quiz. `grade` carries the four rubric scores.
+    const retellAccEnv = buildRetellAccuracyEnvelope({
+      email,
+      sourcedId,
+      bookId: tutorSession.bookId,
+      bookTitle: book.title || tutorSession.bookId,
+      attemptNum: 1,
+      rubric: {
+        retell_quality:   grade.retell_quality,
+        character_recall: grade.character_recall,
+        event_recall:     grade.event_recall,
+        stayed_on_topic:  grade.stayed_on_topic,
+      },
+      studentGrade: tutorSession.workingGrade,
+      courseId: tutorSession.courseId,
+      eventNonce: tutorSession.sessionId,
+    });
+    if (retellAccEnv) sendCaliperEnvelopeAsync(retellAccEnv, { email, profile: emitProfile });
   } catch (err) {
     console.warn("[caliper_retell_emit_failed]", String(err?.message || err));
     trackError("caliper_retell_emit_failed", { err: String(err?.message || err) });
