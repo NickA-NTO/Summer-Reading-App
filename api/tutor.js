@@ -49,7 +49,7 @@ import { containsProfanity, containsPII, containsSelfHarm } from "../lib/moderat
 import { resolveVisibleTracks, trackForBook } from "../lib/tracks.js";
 import { getBook } from "../lib/books.js";
 import { getBookSummary } from "./quiz.js";
-import { buildRetellEventEnvelope } from "../lib/caliper.js";
+import { buildRetellEventEnvelope, buildQuizAccuracyEnvelope } from "../lib/caliper.js";
 import { sendCaliperEnvelopeAsync } from "../lib/timeback.js";
 import { normalizeGrade, pointsForBook, xpForReadingSession, retellOutcomeFromRubric } from "../lib/xp.js";
 import { trackError, trackEvent } from "../lib/observability.js";
@@ -1233,6 +1233,27 @@ async function finalizeAndGrade(res, tutorSession, book, opts = {}) {
       eventNonce: tutorSession.sessionId,
     });
     sendCaliperEnvelopeAsync(envelope, { email, profile: emitProfile });
+
+    // Accuracy (AssessmentEvent) — emit the quiz correct/total captured at
+    // quiz_submit (on the reading session) so TimeBack gets the accuracy
+    // signal, not just XP. Quiz-enabled books only flow through here, so this
+    // is the sole accuracy emit point for them. Skip when the count is absent
+    // (legacy session, or an emergent book with no scored quiz).
+    const totalQ = Number(readingSession?.totalQuestions) || 0;
+    if (totalQ > 0) {
+      const accEnv = buildQuizAccuracyEnvelope({
+        email,
+        sourcedId,
+        bookId: tutorSession.bookId,
+        bookTitle: book.title || tutorSession.bookId,
+        attemptNum: 1,
+        scoreGiven: Number(readingSession?.correctQuestions) || 0,
+        maxScore: totalQ,
+        studentGrade: tutorSession.workingGrade,
+        eventNonce: tutorSession.sessionId,
+      });
+      sendCaliperEnvelopeAsync(accEnv, { email, profile: emitProfile });
+    }
   } catch (err) {
     console.warn("[caliper_retell_emit_failed]", String(err?.message || err));
     trackError("caliper_retell_emit_failed", { err: String(err?.message || err) });
