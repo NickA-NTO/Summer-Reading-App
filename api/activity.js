@@ -825,10 +825,12 @@ export default async function handler(req, res) {
         quizAttempt: attemptNum,
         fraudStatus: fraudVerdict.status,
         fraudReason: fraudVerdict.heldReason,
-        // Carry raw quiz accuracy to the retell finalize so it can emit the
-        // accuracy AssessmentEvent to TimeBack (correct/total of 5).
+        // Carry quiz accuracy to the retell finalize so it can emit per-question
+        // QUESTION_RESULT events to TimeBack. correctFlags is the per-question
+        // truth; correctCount/5 is the summary.
         correctQuestions: correctCount,
         totalQuestions: 5,
+        correctFlags,
       });
       // #T41 — also persist the best quiz outcome durably (365d) so "passed /
       // settled" survives the reading-session window: drives the cross-device

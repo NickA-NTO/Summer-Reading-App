@@ -1237,19 +1237,21 @@ async function finalizeAndGrade(res, tutorSession, book, opts = {}) {
     // Accuracy (AssessmentEvent) — emit the quiz correct/total captured at
     // quiz_submit (on the reading session) so TimeBack gets the accuracy
     // signal, not just XP. Quiz-enabled books only flow through here, so this
-    // is the sole accuracy emit point for them. Skip when the count is absent
-    // (legacy session, or an emergent book with no scored quiz).
-    const totalQ = Number(readingSession?.totalQuestions) || 0;
-    if (totalQ > 0) {
+    // is the sole accuracy emit point for them. Emits one QUESTION_RESULT
+    // GradeEvent per question (correctFlags from the quiz). Skip when flags are
+    // absent (legacy session, or an emergent book with no scored quiz).
+    const correctFlags = Array.isArray(readingSession?.correctFlags)
+      ? readingSession.correctFlags : null;
+    if (correctFlags && correctFlags.length) {
       const accEnv = buildQuizAccuracyEnvelope({
         email,
         sourcedId,
         bookId: tutorSession.bookId,
         bookTitle: book.title || tutorSession.bookId,
         attemptNum: 1,
-        scoreGiven: Number(readingSession?.correctQuestions) || 0,
-        maxScore: totalQ,
+        correctFlags,
         studentGrade: tutorSession.workingGrade,
+        courseId: tutorSession.courseId,
         eventNonce: tutorSession.sessionId,
       });
       sendCaliperEnvelopeAsync(accEnv, { email, profile: emitProfile });
