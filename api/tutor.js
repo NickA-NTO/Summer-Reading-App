@@ -1014,6 +1014,10 @@ async function finalizeAndGrade(res, tutorSession, book, opts = {}) {
       const flagResult = await applyFraudFlag(email);
       const heldResult = await addHeldXpEntry({
         email,
+        // Capture the TimeBack identity at hold time (see activity.js note):
+        // the tutor session carries sourcedId from SSO login; fall back to
+        // the stored profile id. Approval reuses e.sourcedId first.
+        sourcedId: tutorSession.sourcedId || (await loadProfile(email).catch(() => null))?.onerosterUserId || null,
         // #35 — redacted display name; full email kept in `email`.
         name: displayName(tutorSession.name || tutorSession.email),
         bookId: tutorSession.bookId,

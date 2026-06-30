@@ -1130,6 +1130,11 @@ export default async function handler(req, res) {
       const flagResult = await applyFraudFlag(session.email);
       const heldResult = await addHeldXpEntry({
         email: session.email,
+        // Capture the TimeBack identity NOW, at hold time, so an admin
+        // approval later can emit the GradeEvent even if the profile
+        // backfill hasn't run. Approval falls back to profile.onerosterUserId
+        // only if this is absent.
+        sourcedId: session.sourcedId || profile?.onerosterUserId || null,
         // #35 — store the redacted display name, not the raw email
         // local-part. The full email is kept in the `email` field for
         // admin identification; the name field shouldn't duplicate raw
