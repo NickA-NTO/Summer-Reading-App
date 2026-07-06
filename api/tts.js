@@ -12,6 +12,7 @@ import { verifySession, parseCookies } from "../lib/session.js";
 import {
   getCachedTtsUrl,
   setCachedTtsUrl,
+  delCachedTtsUrl,
   addTtsUsage,
   getTtsUsage,
 } from "../lib/store.js";
@@ -67,6 +68,11 @@ export default async function handler(req, res) {
   const text = (url.searchParams.get("text") || "").trim();
   let voice = url.searchParams.get("voice") || DEFAULT_VOICE;
   if (!VOICES[voice]) voice = DEFAULT_VOICE;
+  // heal=1 — the client hit an audio error on a URL it got from us, so the
+  // Redis-cached URL likely points at a deleted/broken blob. Evict the cache
+  // entry so we DON'T short-circuit on it below; the blob-existence check then
+  // re-synths if the file is truly gone. Repairs "cached URL → 404 forever".
+  const heal = url.searchParams.get("heal") === "1";
 
   if (!text) {
     res.statusCode = 400;
@@ -84,6 +90,12 @@ export default async function handler(req, res) {
   }
 
   const key = await cacheKey(voice, text);
+
+  // heal=1 → drop the (possibly stale) Redis-cached URL BEFORE the hot path so
+  // step 1 misses and we re-verify against the blob (re-synthing if it's gone).
+  if (heal) {
+    await delCachedTtsUrl(key);
+  }
 
   // 1. Hot path: Redis-cached URL
   const cachedUrl = await getCachedTtsUrl(key);

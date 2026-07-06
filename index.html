@@ -3636,123 +3636,218 @@ async function speak(text, opts = {}) {
     return sleep(estimateMs());
   };
 
-  // Skip API call if we already know the budget is gone — go straight to browser
-  if (ttsBudgetReached) {
-    return browserFallback();
-  }
-
   const voice = chosenPollyVoice || "nova";
-  try {
-    // Reuse the prewarm's in-flight promise via the client cache so we
-    // never double-fire /api/tts for the same (voice, text).
-    //
-    // CLOUD-VOICE-FIRST: we now play through a persistent, pre-unlocked
-    // <audio> element (see _getSpeakAudio), so audio.play() is NOT blocked
-    // by the autoplay policy even when it fires seconds after this async
-    // fetch. That means we can wait for the real cloud voice instead of
-    // bailing to the browser voice on latency — a cold synth just plays a
-    // little later in the CHOSEN voice. _fetchTtsUrl has its own 10s hard
-    // timeout; if that elapses (or the request errors) it resolves null and
-    // we fall back to the browser voice as a TRUE last resort — genuine
-    // /api/tts failure only, never just because the synth was slow.
-    const url = await _fetchTtsUrl(voice, t);
-    const fetchMs = Date.now() - startedAt;
-    console.log(`${tag} url ${url ? "ok" : "null"} in ${fetchMs}ms (cache reuse: ${_ttsClientCache.has(`${voice}|${t}`)})`);
-    if (mySeq !== _ttsSeq) { console.log(`${tag} superseded during fetch`); return; }
-    if (!url) {
-      console.warn(`${tag} /api/tts returned null — falling back to browser`);
-      if (mySeq !== _ttsSeq) return;
-      return browserFallback();
-    }
-    const data = { url, voice, cached: true };
 
-    // Play through the SHARED, pre-unlocked element (not new Audio()) so the
-    // gesture privilege earned at first-tap carries the cloud voice through.
-    const audio = _getSpeakAudio();
-    currentTtsAudio = audio;
-    // Build the "done" promise BEFORE attempting play() so we capture
-    // both the natural `ended` event and any play() rejection in a
-    // single resolution point. NEVER rejects — fallback paths still
-    // resolve the promise so awaiting callers don't hang.
-    // Point the shared element at this clip BEFORE wiring listeners. Reusing
-    // one element means it may be sitting at `ended` (currentTime === duration)
-    // from a prior clip; assigning .src + load() resets it to a clean state.
-    // Two regressions this ordering fixes (root cause of the intermittent
-    // "play() ok but silent" option-speaker bug, confirmed from a live trace):
-    //   1. Setting .src on an element playing/loaded fires an implicit `pause`
-    //      as part of the media load algorithm. If the pause listener is
-    //      attached first, that pause settles + nulls the NEW clip before it
-    //      ever plays — dead-on-arrival silence.
-    //   2. After a clip ends the element is at currentTime===duration;
-    //      `currentTime = 0` before load() is dropped (readyState 0), so
-    //      play() runs from the end → instant `ended`, no audio.
-    // load() forces a fresh fetch/decode so playback always starts at 0.
-    audio.src = data.url;
-    try { audio.load(); } catch {}
-    let playStarted = false;
-    const donePromise = new Promise((resolve) => {
-      let settled = false;
-      // Reusing one element across calls means listeners must be removed on
-      // settle, or they'd stack and an old clip's `ended` could settle a new
-      // one. Keep references and detach in settle().
-      const onEnded = () => settle();
-      // Only treat a `pause` as "done" once real playback has begun — a pause
-      // emitted before play() starts (e.g. a late load artifact) must not
-      // settle the clip prematurely.
-      const onPause = () => { if (playStarted) settle(); };
-      const onError = (ev) => {
-        console.warn("[tts] audio element error — falling back to browser", ev);
-        if (mySeq !== _ttsSeq) { settle(); return; }
-        speakBrowser(t);
-        setTimeout(settle, estimateMs());
-      };
-      let cancelPoll;
-      const settle = () => {
-        if (settled) return;
-        settled = true;
-        audio.removeEventListener("ended", onEnded);
-        audio.removeEventListener("pause", onPause);
-        audio.removeEventListener("error", onError);
-        if (cancelPoll) clearInterval(cancelPoll);
-        if (currentTtsAudio === audio) currentTtsAudio = null;
-        resolve();
-      };
-      audio.addEventListener("ended", onEnded);
-      // `pause` fires when cancelSpeech() calls audio.pause() OR at the very
-      // end of natural playback (which also fires `ended`). Either way the
-      // clip is no longer playing, so settle — but only after play started.
-      audio.addEventListener("pause", onPause);
-      audio.addEventListener("error", onError);
-      // Safety-net cancellation watch for the edge case where cancelSpeech()
-      // runs BEFORE audio.play() has started (so the pause event doesn't
-      // fire). Self-cleans on settle.
-      cancelPoll = setInterval(() => {
-        if (settled) { clearInterval(cancelPoll); return; }
-        if (mySeq !== _ttsSeq) { clearInterval(cancelPoll); settle(); }
-      }, 200);
+  // ── Attempt to play ONE resolved clip URL through the shared element ───────
+  // Returns a Promise resolving to a result object:
+  //   { outcome: "ok", donePromise }  — playback started; await donePromise for
+  //                                     natural end/cancel. (The success path.)
+  //   { outcome: "error" }            — audio element error OR play() rejection;
+  //                                     caller should advance to the next
+  //                                     candidate (do NOT fall to browser yet).
+  //   { outcome: "superseded" }       — a newer speak() replaced us mid-attempt.
+  // NOTE: all the hard-won ordering + listener-lifecycle fixes below are
+  // preserved verbatim; the only change is that an `error` no longer calls
+  // speakBrowser() itself — it hands control back so the caller can try the
+  // NEXT candidate (e.g. CDN error → /api/tts → heal → browser).
+  const tryPlayUrl = (url) =>
+    new Promise((resolveAttempt) => {
+      // Play through the SHARED, pre-unlocked element (not new Audio()) so the
+      // gesture privilege earned at first-tap carries the cloud voice through.
+      const audio = _getSpeakAudio();
+      currentTtsAudio = audio;
+      // Point the shared element at this clip BEFORE wiring listeners. Reusing
+      // one element means it may be sitting at `ended` (currentTime === duration)
+      // from a prior clip; assigning .src + load() resets it to a clean state.
+      // Two regressions this ordering fixes (root cause of the intermittent
+      // "play() ok but silent" option-speaker bug, confirmed from a live trace):
+      //   1. Setting .src on an element playing/loaded fires an implicit `pause`
+      //      as part of the media load algorithm. If the pause listener is
+      //      attached first, that pause settles + nulls the NEW clip before it
+      //      ever plays — dead-on-arrival silence.
+      //   2. After a clip ends the element is at currentTime===duration;
+      //      `currentTime = 0` before load() is dropped (readyState 0), so
+      //      play() runs from the end → instant `ended`, no audio.
+      // load() forces a fresh fetch/decode so playback always starts at 0.
+      audio.src = url;
+      try { audio.load(); } catch {}
+      let playStarted = false;
+      let attemptResolved = false;
+      // The donePromise settles when THIS clip's playback ends / is cancelled.
+      // Built BEFORE play() so a very short clip's ended/pause is captured.
+      const donePromise = new Promise((resolveDone) => {
+        let settled = false;
+        // Reusing one element across calls means listeners must be removed on
+        // settle, or they'd stack and an old clip's `ended` could settle a new
+        // one. Keep references and detach in settle().
+        const onEnded = () => settle();
+        // Only treat a `pause` as "done" once real playback has begun — a pause
+        // emitted before play() starts (e.g. a late load artifact) must not
+        // settle the clip prematurely.
+        const onPause = () => { if (playStarted) settle(); };
+        const onError = (ev) => {
+          // An <audio> element error (e.g. a 404 on a computed CDN URL that was
+          // never synthed) — hand back "error" so the caller advances to the
+          // next candidate instead of dropping straight to the browser voice.
+          console.warn(`${tag} audio element error on candidate — advancing`, ev);
+          detach();
+          if (currentTtsAudio === audio) currentTtsAudio = null;
+          resolveDone(); // unblock any awaiter of donePromise (belt-and-braces)
+          if (!attemptResolved) {
+            attemptResolved = true;
+            resolveAttempt({ outcome: mySeq !== _ttsSeq ? "superseded" : "error" });
+          }
+        };
+        let cancelPoll;
+        const detach = () => {
+          audio.removeEventListener("ended", onEnded);
+          audio.removeEventListener("pause", onPause);
+          audio.removeEventListener("error", onError);
+          if (cancelPoll) clearInterval(cancelPoll);
+        };
+        const settle = () => {
+          if (settled) return;
+          settled = true;
+          detach();
+          if (currentTtsAudio === audio) currentTtsAudio = null;
+          resolveDone();
+        };
+        audio.addEventListener("ended", onEnded);
+        // `pause` fires when cancelSpeech() calls audio.pause() OR at the very
+        // end of natural playback (which also fires `ended`). Either way the
+        // clip is no longer playing, so settle — but only after play started.
+        audio.addEventListener("pause", onPause);
+        audio.addEventListener("error", onError);
+        // Safety-net cancellation watch for the edge case where cancelSpeech()
+        // runs BEFORE audio.play() has started (so the pause event doesn't
+        // fire). Self-cleans on settle.
+        cancelPoll = setInterval(() => {
+          if (settled) { clearInterval(cancelPoll); return; }
+          if (mySeq !== _ttsSeq) { clearInterval(cancelPoll); settle(); }
+        }, 200);
+      });
+      (async () => {
+        try {
+          // Mark BEFORE awaiting: play() begins playback before its promise
+          // resolves, so a very short clip could fire `pause`/`ended` in that
+          // window — the pause guard must already be armed.
+          playStarted = true;
+          await audio.play();
+          const playMs = Date.now() - startedAt;
+          console.log(`${tag} audio.play() ok (total ${playMs}ms from click to playback)`);
+          // Mark that audio actually started playing. The quiz "Hear it"
+          // click handler checks this flag after speak() resolves to
+          // detect silent failures.
+          _ttsAudibleSinceLastReset = true;
+          if (!attemptResolved) {
+            attemptResolved = true;
+            resolveAttempt({ outcome: "ok", donePromise });
+          }
+        } catch (err) {
+          // Most common: NotAllowedError when the user-gesture window expired.
+          // Treat as an error → advance to the next candidate (the final one
+          // is the browser voice, so a genuinely blocked element still speaks).
+          console.warn(`${tag} audio.play() rejected (${err?.name || "error"}: ${err?.message || ""}) — advancing`);
+          if (currentTtsAudio === audio) currentTtsAudio = null;
+          if (!attemptResolved) {
+            attemptResolved = true;
+            resolveAttempt({ outcome: mySeq !== _ttsSeq ? "superseded" : "error" });
+          }
+        }
+      })();
     });
-    try {
-      // Mark BEFORE awaiting: play() begins playback before its promise
-      // resolves, so a very short clip could fire `pause`/`ended` in that
-      // window — the pause guard must already be armed.
-      playStarted = true;
-      await audio.play();
-      const playMs = Date.now() - startedAt;
-      console.log(`${tag} audio.play() ok (total ${playMs}ms from click to playback)`);
-      // Mark that audio actually started playing. The quiz "Hear it"
-      // click handler checks this flag after speak() resolves to
-      // detect silent failures — if speakQuizQuestion completes but
-      // this flag is false, surface a "tap to retry" hint.
-      _ttsAudibleSinceLastReset = true;
-    } catch (err) {
-      // Most common: NotAllowedError when the user-gesture window expired
-      // during the async fetch above. Browser TTS still works in that case.
-      console.warn(`${tag} audio.play() rejected (${err?.name || "error"}: ${err?.message || ""}) — falling back to browser`);
-      if (currentTtsAudio === audio) currentTtsAudio = null;
-      if (mySeq !== _ttsSeq) return;
-      return browserFallback();
+
+  // ── Ordered candidate resolution ───────────────────────────────────────────
+  // a. in-memory _ttsClientCache URL (preserves existing prewarm-sharing).
+  // b. the computed CDN URL (zero round-trip — this is the whole point).
+  // c. /api/tts (existing _fetchTtsUrl — synths a missing clip).       (skipped
+  // d. /api/tts?heal=1 — evicts a stale Redis URL then re-verifies.     under
+  //                      Only ONE heal attempt, only after an API URL      the
+  //                      errored on playback.)                       budget cap)
+  // e. browser speechSynthesis (final resort).
+  // We ADVANCE past a candidate only when its <audio> playback ERRORS; a null
+  // URL just means "skip this source". A cold synth still plays the CLOUD voice
+  // (just a beat later) rather than the robotic browser voice.
+  try {
+    const cachedKey = `${voice}|${t}`;
+    const cachedEntry = _ttsClientCache.get(cachedKey);
+    // Resolve the cached promise (if any) to a URL up front. It may be a
+    // still-in-flight prewarm/fetch; awaiting it here is the existing behavior.
+    let cachedUrl = null;
+    if (cachedEntry) {
+      try { cachedUrl = await cachedEntry; } catch { cachedUrl = null; }
+      if (mySeq !== _ttsSeq) { console.log(`${tag} superseded during cache resolve`); return; }
     }
-    return donePromise;
+
+    const cdnUrl = await _computeCdnTtsUrl(voice, t);
+    if (mySeq !== _ttsSeq) { console.log(`${tag} superseded during cdn compute`); return; }
+
+    // Whether a given URL originated from /api/tts (vs. cache/CDN) — only an
+    // API URL is worth a heal=1 retry, and only API candidates are budget-gated.
+    let healUsed = false;
+
+    // Build the ordered candidate list. Each entry: { url, fromApi }.
+    // `url` may be a thunk (async) for the API candidate so we don't fire the
+    // /api/tts request unless we actually reach it.
+    const candidates = [];
+    if (cachedUrl) candidates.push({ url: cachedUrl, fromApi: false, label: "cache" });
+    // Skip the CDN candidate when the cache already holds that exact URL (the
+    // common case after a prior CDN play seeded the cache) — no point trying
+    // the identical src twice.
+    if (cdnUrl && cdnUrl !== cachedUrl) candidates.push({ url: cdnUrl, fromApi: false, label: "cdn" });
+    // API candidates only when budget allows (a 429 would just waste latency +
+    // the per-email rate limit; existing clips above remain free to play).
+    if (!ttsBudgetReached) {
+      candidates.push({ url: () => _fetchTtsUrl(voice, t), fromApi: true, label: "api" });
+    }
+
+    let i = 0;
+    while (i < candidates.length) {
+      const cand = candidates[i];
+      i++;
+      let url = cand.url;
+      if (typeof url === "function") {
+        url = await url();
+        if (mySeq !== _ttsSeq) { console.log(`${tag} superseded during ${cand.label} fetch`); return; }
+      }
+      if (!url) {
+        console.log(`${tag} candidate ${cand.label} → no url, skipping`);
+        continue;
+      }
+      console.log(`${tag} trying candidate ${cand.label}: ${url.slice(0, 80)}`);
+      const res = await tryPlayUrl(url);
+      if (res.outcome === "superseded") return;
+      if (res.outcome === "ok") {
+        // On a successful CDN-direct play, seed _ttsClientCache so later plays
+        // skip the recompute + go straight to the known-good URL.
+        if (cand.label === "cdn" && !_ttsClientCache.has(cachedKey)) {
+          _ttsClientCache.set(cachedKey, Promise.resolve(url));
+        }
+        return res.donePromise;
+      }
+      // res.outcome === "error" → this candidate's clip wouldn't play.
+      // If it came from the API, evict the (now-suspect) cache entry and try
+      // ONE heal=1 re-fetch before advancing to the browser voice. Guard
+      // against loops: at most one heal per speak() call.
+      if (cand.fromApi && !healUsed && !ttsBudgetReached) {
+        healUsed = true;
+        _ttsClientCache.delete(cachedKey);
+        console.log(`${tag} api candidate errored — trying heal=1`);
+        const healUrl = await _fetchTtsUrlHeal(voice, t);
+        if (mySeq !== _ttsSeq) { console.log(`${tag} superseded during heal fetch`); return; }
+        if (healUrl) {
+          const healRes = await tryPlayUrl(healUrl);
+          if (healRes.outcome === "superseded") return;
+          if (healRes.outcome === "ok") return healRes.donePromise;
+        }
+      }
+    }
+
+    // Every clip candidate failed (or none existed) → browser voice, the true
+    // last resort. A genuinely-broken cloud path, never a latency crutch.
+    if (mySeq !== _ttsSeq) return;
+    console.warn(`${tag} all clip candidates exhausted — browser fallback`);
+    return browserFallback();
   } catch (err) {
     console.warn(`${tag} outer failure — falling back to browser:`, err?.name || err);
     if (mySeq !== _ttsSeq) return;
@@ -3781,6 +3876,37 @@ async function speak(text, opts = {}) {
 // for the same text, doubling OpenAI synth load and causing the long
 // "20+ second" silences user reported between Q1 narration parts.
 const _ttsClientCache = new Map();
+
+// ── CDN-first clip URL, computed CLIENT-SIDE ────────────────────────────────
+// Every quiz string is pre-synthed and lives at a DETERMINISTIC public URL on
+// the Vercel Blob CDN. We can derive that URL locally (same sha256 key the
+// server uses in lib/tts.js cacheKey: "v6|"+voice+"|"+text) and try playing it
+// DIRECTLY, skipping the /api/tts round-trip entirely. That round-trip is what
+// dumped kids to the robotic browser voice on rate-limit 429s, serverless cold
+// starts, and stale Redis-cached URLs — none of which affect a static CDN GET.
+// /api/tts is then only needed to SYNTH a clip that doesn't exist yet.
+//
+// Host is hardcoded: it's the public Blob store bucket, already exposed in the
+// `url` field of every /api/tts response (https://<id>.public.blob.vercel-
+// storage.com/tts/<key>.mp3). CSP media-src already allows *.public.blob.
+// vercel-storage.com. Cache prefix MUST stay in lockstep with lib/tts.js
+// CACHE_PREFIX (currently "v6") — bump both together on any output change.
+const _TTS_BLOB_HOST = "https://xtgwxabghozs637w.public.blob.vercel-storage.com";
+const _TTS_CACHE_PREFIX = "v6";
+async function _computeCdnTtsUrl(voice, text) {
+  try {
+    if (!(crypto && crypto.subtle && crypto.subtle.digest)) return null;
+    const enc = new TextEncoder().encode(`${_TTS_CACHE_PREFIX}|${voice}|${text}`);
+    const hashBuf = await crypto.subtle.digest("SHA-256", enc);
+    const hex = Array.from(new Uint8Array(hashBuf))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+    return `${_TTS_BLOB_HOST}/tts/${hex}.mp3`;
+  } catch {
+    return null;
+  }
+}
+
 function _fetchTtsUrl(voice, text) {
   const key = `${voice}|${text}`;
   const existing = _ttsClientCache.get(key);
@@ -3826,6 +3952,38 @@ function _fetchTtsUrl(voice, text) {
     if (!url) _ttsClientCache.delete(key);
   });
   return p;
+}
+// Heal variant of _fetchTtsUrl: hits /api/tts?heal=1, which evicts the stale
+// Redis-cached URL server-side then re-verifies the blob (re-synthing if the
+// file was deleted). Used ONCE per speak() after an API-sourced clip errored
+// on playback — repairs the "Redis URL → deleted blob → phrase broken forever"
+// case. NOT cached in _ttsClientCache: a heal is a one-shot repair, and on
+// success the returned URL flows through the normal play path; the next speak()
+// re-computes the CDN URL (now valid) or re-fetches fresh.
+function _fetchTtsUrlHeal(voice, text) {
+  const signal =
+    (typeof AbortSignal !== "undefined" && AbortSignal.timeout)
+      ? AbortSignal.timeout(10000)
+      : undefined;
+  return fetch(
+    `/api/tts?heal=1&voice=${encodeURIComponent(voice)}&text=${encodeURIComponent(text)}`,
+    { credentials: "same-origin", signal }
+  )
+    .then(async (r) => {
+      if (r.ok) return r.json();
+      if (r.status === 429) {
+        try {
+          const j = await r.json();
+          if (j && j.error === "tts_budget_reached" && !ttsBudgetReached) {
+            ttsBudgetReached = true;
+            try { showBudgetBanner(j); } catch {}
+          }
+        } catch {}
+      }
+      return null;
+    })
+    .then((data) => (data && data.url ? data.url : null))
+    .catch(() => null);
 }
 function prewarmTts(text, voice) {
   if (!text || !text.trim()) return;
@@ -6214,9 +6372,30 @@ async function openQuiz(bookId) {
     if (resumed.adminMode === undefined) {
       quizState.adminMode = !!state.session?.isAdmin;
     }
+    // #race reconcile — heal a blob saved mid-feedback-window (by this
+    // client or an OLD build that saved idx BEFORE incrementing it), where
+    // answers.length > idx. Re-rendering `idx` in that state would show an
+    // ALREADY-ANSWERED question again; answering it a second time appends a
+    // duplicate entry and the server 400s (invalid_answers) after burning an
+    // attempt. answers.length is always the correct "next question" pointer
+    // (see saveQuizProgress), so snap idx forward to it — clamped so it can
+    // never exceed the slate length.
+    const slateLen = Array.isArray(quizState.questions) ? quizState.questions.length : 0;
+    const ansLen = Array.isArray(quizState.answers) ? quizState.answers.length : 0;
+    if (ansLen > quizState.idx) {
+      quizState.idx = Math.min(ansLen, slateLen);
+    }
     document.getElementById("quizBookTitle").textContent = `Quiz · ${book.title}`;
     document.getElementById("quizOverlay").classList.add("open");
     document.body.style.overflow = "hidden";
+    if (ansLen >= slateLen && slateLen > 0) {
+      // Every question already has an answer on file (the close happened
+      // after the LAST question's feedback window, before finishQuiz ran) —
+      // go straight to submit instead of indexing past the end of the slate.
+      setQuizProgress(slateLen);
+      finishQuiz();
+      return;
+    }
     setQuizProgress(quizState.idx);
     renderQuizQuestion();
     return;
@@ -6842,11 +7021,26 @@ function saveQuizProgress() {
   // re-roll (the old "fresh = don't save" rule let a kid fish for questions
   // they recognised by reopening). A NEW attempt still re-rolls because
   // clearQuizProgress() runs on submit. (#quiz-freeze)
+  //
+  // #race — answerQuestion() pushes the new answer and calls this BEFORE
+  // idx++ (there's a ~700ms feedback window first). If the kid closes the
+  // tab in that window, a save keyed on the stale quizState.idx would write
+  // answers.length > idx — on resume, renderQuizQuestion() would re-render
+  // the ALREADY-ANSWERED question, and answering it again appends a
+  // DUPLICATE entry (6 answers for a 5-question quiz), which the server
+  // 400s as invalid_answers AFTER burning an attempt. answers.length is
+  // always the correct "next question to show" index (answers are pushed
+  // one at a time, in order), so derive idx from it here instead of trusting
+  // quizState.idx — this makes every save atomically self-consistent and
+  // makes the in-memory idx++ timing irrelevant to what's persisted.
+  const effectiveIdx = Array.isArray(quizState.answers)
+    ? quizState.answers.length
+    : quizState.idx;
   try {
     localStorage.setItem(_quizProgressKey(quizState.bookId), JSON.stringify({
       bookId:     quizState.bookId,
       style:      quizState.style,
-      idx:        quizState.idx,
+      idx:        effectiveIdx,
       score:      quizState.score,
       answers:    quizState.answers,
       questions:  quizState.questions, // includes shuffled options + poolIdx
@@ -6892,11 +7086,22 @@ function loadQuizProgress(bookId) {
     const saved = JSON.parse(raw);
     if (saved?.bookId !== bookId) return null;
     if (!Array.isArray(saved.questions) || !saved.questions.length) return null;
-    if (typeof saved.idx !== "number" || saved.idx >= saved.questions.length) {
-      // Already at the end → no resume; treat as stale.
+    const _answeredAll =
+      Array.isArray(saved.answers) && saved.answers.length >= saved.questions.length;
+    if (typeof saved.idx !== "number" || (saved.idx >= saved.questions.length && !_answeredAll)) {
+      // idx run off the end with an INCOMPLETE answers array — genuinely
+      // stale/corrupt, not just "answered the last question and hasn't
+      // submitted yet". Treat as stale.
       clearQuizProgress(bookId);
       return null;
     }
+    // #race — a fully-answered blob (idx === questions.length, saved during
+    // the last question's feedback window, right before finishQuiz's own
+    // clearQuizProgress would have run) is NOT stale — it's a legitimate
+    // "answered everything, never got to submit" resume. Let it through so
+    // openQuiz's reconcile step routes straight to finishQuiz() instead of
+    // silently discarding 5 correct-but-unsubmitted answers and re-rolling
+    // a brand new attempt.
     // Stale-after-24h guard so a kid who comes back a day later
     // doesn't get a creaky resume instead of a fresh attempt.
     if (typeof saved.ts === "number" && Date.now() - saved.ts > 86_400_000) {
@@ -7065,7 +7270,20 @@ async function finishQuiz() {
     let title = "Something went wrong";
     let msg = "We couldn't check your answers just now. Try again in a moment — this won't count against you.";
     let allowRetry = true;
-    if (err === "account_deleted") {
+    // #signin — session expired mid-quiz (401 from api/activity). Re-submitting
+    // ("Try again") would just 401 again forever — the kid needs to sign in
+    // again first. NOTE: by this point clearQuizProgress() has ALREADY run
+    // (top of finishQuiz, before the fetch), so the saved question/answer
+    // blob for THIS attempt is gone — don't claim "your answers are saved",
+    // that would be a lie. The quiz itself is cheap to retake (no attempt
+    // was burned server-side; the 401 fired before grading), so tell them
+    // that instead of promising a resume that can't happen.
+    let signInAgain = false;
+    if (err === "unauthenticated") {
+      icon = "🔑"; title = "Time to sign in again"; allowRetry = false;
+      signInAgain = true;
+      msg = "You got signed out. This try didn't count against you — sign in again and retake the quiz.";
+    } else if (err === "account_deleted") {
       icon = "👋"; title = "Account removed"; allowRetry = false;
       msg = "This account was removed. Please refresh the page and sign in again.";
     } else if (err === "cooldown") {
@@ -7096,10 +7314,20 @@ async function finishQuiz() {
         <h3>${title}</h3>
         <p style="font-size:15px;color:var(--muted);margin:12px 0">${msg}</p>
         <div class="actions">
+          ${signInAgain ? '<button class="icon-btn" id="quizSignIn">Sign in</button>' : ""}
           ${allowRetry ? '<button class="icon-btn" id="quizRetry">Try again</button>' : ""}
           <button class="icon-btn" id="quizLater">Close</button>
         </div>
       </div>`;
+    if (signInAgain) {
+      // Actually DO the reload (unlike the account_deleted case above, which
+      // just tells the kid to refresh) — a K-3 reader shouldn't have to
+      // figure out "refresh the page" on their own. Reloading drops them
+      // back at the login screen; re-authenticating restores the server-
+      // durable state (attempt count wasn't burned) and they can retake.
+      const _sb = document.getElementById("quizSignIn");
+      if (_sb) _sb.addEventListener("click", () => location.reload());
+    }
     if (allowRetry) {
       const _rb = document.getElementById("quizRetry");
       if (_rb) _rb.addEventListener("click", () => finishQuiz());
@@ -10038,13 +10266,54 @@ async function _retellPlayTutor(audioUrl, fallbackText) {
       // the persistent element was never created (defensive).
       const a = retell.persistentAudio || new Audio();
       let settled = false;
-      let stallTimer = null;
+      // #B2 — INACTIVITY watchdog, not an absolute ceiling. The old 15s cap cut
+      // tutor clips longer than 15s mid-sentence, then the browser voice
+      // re-read the WHOLE line from the start (jarring double-read). Now we
+      // reset the timer on every playback-progress event (timeupdate/playing)
+      // and only fire after ~6s with NO progress — a true stall. A generous
+      // absolute ceiling stays purely as belt-and-braces against a pathological
+      // loop that keeps emitting timeupdate without ever ending.
+      const INACTIVITY_MS = 6000;
+      const ABSOLUTE_CEILING_MS = 90000;
+      let inactivityTimer = null;
+      let absoluteTimer = null;
+      const clearTimers = () => {
+        if (inactivityTimer) { clearTimeout(inactivityTimer); inactivityTimer = null; }
+        if (absoluteTimer) { clearTimeout(absoluteTimer); absoluteTimer = null; }
+      };
+      const detach = () => {
+        clearTimers();
+        a.onended = null;
+        a.onerror = null;
+        a.removeEventListener("timeupdate", onProgress);
+        a.removeEventListener("playing", onProgress);
+      };
       const done = (ok) => {
         if (settled) return;
         settled = true;
-        if (stallTimer) { clearTimeout(stallTimer); stallTimer = null; }
+        detach();
         resolve(ok);
       };
+      const armInactivity = () => {
+        if (inactivityTimer) clearTimeout(inactivityTimer);
+        inactivityTimer = setTimeout(() => {
+          // No playback progress for INACTIVITY_MS. If the clip already played
+          // MEANINGFULLY (currentTime > 2s), treat the line as DELIVERED — the
+          // kid heard it; a browser re-read from the start would be worse. Only
+          // fall back to the browser voice when the clip never really started.
+          const t = Number(a.currentTime) || 0;
+          if (t > 2) {
+            console.warn(`[retell] tutor audio stalled after ${t.toFixed(1)}s — treating as delivered`);
+            try { a.pause(); } catch {}
+            done(true);
+          } else {
+            console.warn("[retell] tutor audio stalled before real start — falling back");
+            try { a.pause(); } catch {}
+            done(false);
+          }
+        }, INACTIVITY_MS);
+      };
+      const onProgress = () => { if (!settled) armInactivity(); };
       try { a.pause(); } catch {}
       try { a.muted = false; a.volume = RETELL_TTS_VOLUME; a.src = audioUrl; a.currentTime = 0; } catch {}
       retell.tutorAudio = a;
@@ -10053,15 +10322,21 @@ async function _retellPlayTutor(audioUrl, fallbackText) {
         console.warn("[retell] tutor audio onerror", ev);
         done(false);
       };
-      // #B — tutor lines are short (a few seconds). If the clip hasn't ENDED in
-      // 15s it has STALLED (never started, or buffered mid-clip with no
-      // onended/onerror) — the bug that froze the result/turn screen + mic.
-      // Resolve false so we fall through to browser TTS / proceed.
-      stallTimer = setTimeout(() => {
-        console.warn("[retell] tutor audio stalled — falling back");
+      // Reset the inactivity timer whenever playback makes progress.
+      a.addEventListener("timeupdate", onProgress);
+      a.addEventListener("playing", onProgress);
+      // Belt-and-braces: hard stop well past any real tutor line so a
+      // pathological loop can't hang the modal forever. Same "delivered if it
+      // played meaningfully" rule as the inactivity path.
+      absoluteTimer = setTimeout(() => {
+        const t = Number(a.currentTime) || 0;
+        console.warn(`[retell] tutor audio hit absolute ceiling at ${t.toFixed(1)}s`);
         try { a.pause(); } catch {}
-        done(false);
-      }, 15000);
+        done(t > 2);
+      }, ABSOLUTE_CEILING_MS);
+      // Arm the inactivity timer immediately so a clip that NEVER starts (no
+      // timeupdate/playing ever fires) still resolves after INACTIVITY_MS.
+      armInactivity();
       const p = a.play();
       if (p && typeof p.then === "function") {
         p.catch((err) => {
@@ -10409,7 +10684,11 @@ async function _retellUploadTurn(blob) {
       }
     );
     data = await r.json();
-    if (!r.ok) throw new Error(data.error || "turn_failed");
+    if (!r.ok) {
+      const e = new Error(data.error || "turn_failed");
+      e.status = r.status;
+      throw e;
+    }
   } catch (err) {
     clearTimeout(timeoutId);
     const wasTimeout = err?.name === "AbortError";
@@ -10427,6 +10706,30 @@ async function _retellUploadTurn(blob) {
     // the server round-trip broke.
     retell.lastFailedBlob = blob;
     console.error("[retell] turn upload failed", retell.lastTurnError);
+    // #signin — session expired mid-retell (401 from api/tutor?action=turn).
+    // The generic "Try again" below just re-POSTs the SAME blob into a dead
+    // session forever — every retry 401s again. Sign-in-again is the only
+    // way out. The claim here MUST stay accurate: a passed quiz is recorded
+    // server-side at quiz_submit time (recordRead), and retellPending is
+    // stamped on the server-durable currentlyReading session — both survive
+    // reload + re-login. So "your quiz is saved" is true; what's lost is
+    // just the in-progress talk (this session's turns/audio), which the kid
+    // restarts fresh after signing in (openRetell launches a new session —
+    // the book modal routes them straight back via "🎙️ Tell me about it").
+    if (err?.status === 401 || err?.message === "unauthenticated") {
+      retell.statusEl.innerHTML =
+        `<div style="margin-bottom:10px">You got signed out. Your quiz is saved! Sign in again to finish the talk.</div>` +
+        `<button id="retellSignInBtn" type="button" style="` +
+          `background:linear-gradient(135deg,#34d399,#10b981);color:#052e1c;` +
+          `border:none;border-radius:12px;padding:10px 18px;font-weight:800;` +
+          `font-size:14px;cursor:pointer;font-family:inherit">` +
+          `🔑 Sign in` +
+        `</button>`;
+      _retellSetState("idle");
+      const signInEl = document.getElementById("retellSignInBtn");
+      if (signInEl) signInEl.addEventListener("click", () => location.reload());
+      return;
+    }
     const msgLine = wasTimeout
       ? "The reading buddy took too long to answer."
       : "Hmm, that didn't work.";
