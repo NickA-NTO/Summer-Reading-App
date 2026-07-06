@@ -530,6 +530,32 @@ export default async function handler(req, res) {
         message: "This book doesn't have a quiz.",
       }));
     }
+    // ---- Pure body-shape validation — MUST run before recordQuizAttempt's
+    // INCR below. A malformed slate (wrong length, or a `chosen` outside
+    // 0-3) can never be graded, so rejecting it here means it never burns
+    // an attempt. This depends ONLY on `body.answers` — no grading state
+    // (staticBank/pool/seen) is needed yet, so it's safe to hoist ahead of
+    // the attempt counter. The per-question dedup + pool-idx-bounds checks
+    // stay below (after grading state is set up) since they need `hasQText`
+    // / `pool`, which the answers.length check below doesn't. (#quiz-incr)
+    const answers = Array.isArray(body.answers) ? body.answers : [];
+    if (answers.length !== 5) {
+      res.statusCode = 400;
+      return res.end(JSON.stringify({
+        error: "invalid_answers",
+        message: "Need exactly 5 answers.",
+      }));
+    }
+    if (answers.some((a) => {
+      const chosen = Number(a?.chosen);
+      return !Number.isInteger(chosen) || chosen < 0 || chosen > 3;
+    })) {
+      res.statusCode = 400;
+      return res.end(JSON.stringify({
+        error: "invalid_answer_entry",
+        message: "Each answer needs a chosen index between 0 and 3.",
+      }));
+    }
     // #40: server-authoritative attempt counter. Previously the client sent
     // `attemptNum` from localStorage, so a kid could clear storage between
     // failed attempts and reset to attemptNum=1 (= full XP, no retake
@@ -608,14 +634,8 @@ export default async function handler(req, res) {
     // We still fetch the cached pool as a SOFT compatibility path for
     // older clients that don't yet have answerToken in their saved
     // localStorage; if neither path works, we 409 as before.
-    const answers = Array.isArray(body.answers) ? body.answers : [];
-    if (answers.length !== 5) {
-      res.statusCode = 400;
-      return res.end(JSON.stringify({
-        error: "invalid_answers",
-        message: "Need exactly 5 answers.",
-      }));
-    }
+    // (`answers` length + per-entry `chosen` range were already validated
+    // above, before recordQuizAttempt's INCR — see #quiz-incr.)
     // ---- Grade each answer -------------------------------------------
     // Source-of-truth priority — designed so a correct answer can NEVER
     // score 0/5 from a stale token / missing cache, and an ungradable
@@ -653,14 +673,10 @@ export default async function handler(req, res) {
     let ungradable = false;
 
     for (const a of answers) {
+      // Range already validated pre-INCR above; re-derive the number here
+      // (cheap) without re-checking — a malformed entry would have 400'd
+      // before recordQuizAttempt ran.
       const chosen = Number(a?.chosen);
-      if (!Number.isInteger(chosen) || chosen < 0 || chosen > 3) {
-        res.statusCode = 400;
-        return res.end(JSON.stringify({
-          error: "invalid_answer_entry",
-          message: "Each answer needs a chosen index between 0 and 3.",
-        }));
-      }
 
       let isCorrect = null; // null = not yet graded by any method
       let gradedVia = null;

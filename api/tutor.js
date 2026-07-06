@@ -44,6 +44,7 @@ import {
   flagTutorSafety,
   markRetellDone,
   getQuizOutcomeDurable,
+  isRetellDone,
 } from "../lib/store.js";
 import { containsProfanity, containsPII, containsSelfHarm } from "../lib/moderation.js";
 import { resolveVisibleTracks, trackForBook } from "../lib/tracks.js";
@@ -268,6 +269,30 @@ async function actionStart(req, res, sessionAuth) {
     });
   }
 
+  // #T41 — refuse to OPEN a new retell for a book already marked retell-done.
+  // Without this, a kid whose retell finalized (even at 0 XP — see the
+  // markRetellDone call in the zero-XP terminal branch of finalizeAndGrade)
+  // could still POST action=start again (e.g. after a localStorage wipe or on
+  // a device that never saw the client-side `read` flag) and redo the WHOLE
+  // retell for fF_pX XP, because the durable quiz outcome alone is fF and
+  // nothing server-side stopped a fresh session from opening. Admins exempt —
+  // they're the ones testing.
+  if (!isEffectiveAdmin(sessionAuth.email, profile)) {
+    try {
+      const alreadyDone = await isRetellDone(sessionAuth.email, bookId);
+      if (alreadyDone) {
+        return json(res, 409, {
+          error: "retell_already_done",
+          bookId,
+          message: "You already finished this one! Great job.",
+        });
+      }
+    } catch (err) {
+      trackError("tutor_retelldone_check_failed", { bookId, err: String(err?.message || err) });
+      // Fail open — a Redis hiccup here must never block a legitimate retell.
+    }
+  }
+
   // #resume (Item 4) — if the kid has an in-flight, un-graded retell for this
   // book, pick it up where they left off instead of restarting. Covers the
   // "quit mid-retell and come back" case: the Reading Buddy says "Welcome
@@ -453,9 +478,18 @@ async function actionTurn(req, res, sessionAuth, url) {
     _ct.includes("mpeg") || _ct.includes("mp3") ? "mp3" :
     _ct.includes("wav")                        ? "wav" :
                                                  "webm";
+  // Plumb the ACTUAL upload Content-Type down to the OpenAI.toFile() call so
+  // the declared MIME agrees with the bytes (previously hardcoded
+  // "audio/webm" even for Safari's mp4/aac upload, which just happened to
+  // work because Whisper mostly sniffs by filename extension — but a
+  // mismatched declared type is still a latent decode risk). Strip codec
+  // params (e.g. "audio/webm;codecs=opus") since OpenAI's SDK expects a bare
+  // MIME type. Falls back to the "audio/webm" default when no content-type
+  // header was sent at all.
+  const _mimeType = _ct ? _ct.split(";")[0].trim() : "";
   let transcript = "";
   try {
-    transcript = await transcribeAudio(audioBytes, `turn.${_ext}`, { book });
+    transcript = await transcribeAudio(audioBytes, `turn.${_ext}`, { book, mimeType: _mimeType });
   } catch (err) {
     trackError("tutor_whisper_failed", { err: String(err?.message || err) });
     // Couldn't transcribe — ask the kid to repeat. Don't advance the turn.
@@ -1122,6 +1156,20 @@ async function finalizeAndGrade(res, tutorSession, book, opts = {}) {
   const nothingHeard = rubricTotal === 0 && !retellHeld && !fraudHeld && awardXp === 0;
   const terminal = !nothingHeard;
   if (terminal) {
+    // #T41 — a TERMINAL zero-XP outcome (genuine attempt that fell short, not
+    // "nothing heard") must still be marked retell-done. Without this, the
+    // client-only `read[bookId]=true` flag (index.html _retellShowResult) was
+    // the SOLE record of completion: on another device — or after a
+    // localStorage wipe — the book would reappear as not-done, and because
+    // the durable quiz outcome is fF, the WHOLE retell could be redone for
+    // fF_pX XP. The awarded (recordRead) and held branches above already call
+    // markRetellDone; this covers the awardXp===0 branch they don't reach.
+    // Best-effort, same try/catch shape as those calls — never call recordRead
+    // here: a failed book must not count toward XP, books-read stats, or
+    // achievements.
+    if (awardXp === 0 && !retellHeld && !fraudHeld) {
+      try { await markRetellDone(email, tutorSession.bookId); } catch {}
+    }
     try {
       const active = await getCurrentlyReading(email);
       if (active && active.bookId === tutorSession.bookId) {
