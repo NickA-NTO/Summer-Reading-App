@@ -176,7 +176,26 @@ TTS for every changed string synthed + verified (Whisper) to Blob in all 4 voice
 9. **Minor bank polish list** (non-blocking): cross-question stem/option leaks in ~14 banks (only ever *help* the student; client draws 5-of-12 so they inflate scores slightly), a02 Q1 odd-one-out options, b02 Q8 yes/no format, b06 triple-toast redundancy, a08 Q11 pronoun, a10 Q12 through/past, e01 Q2/Q7 weak distractors, k01 Q12 overlap, k07 "dungarees", e04 "Desperate", c02 Q9 M's/N's TTS-confusable, e02 Q4 "neither".
 10. **Stale Redis TTS URL never self-heals** if a blob is manually deleted (client falls back to browser voice for that phrase forever). Only matters after manual blob deletions.
 
-### 8.6 Live-prod checks run
+### 8.6 Round 3 (2026-07-06) — open-issue burn-down + browser-voice elimination
+
+Implemented by model-tiered subagents (Opus: bank editorial pass + audio pipeline; Sonnet: tutor server + quiz flow), each change re-verified line-by-line in a Fable QC pass afterward.
+
+**Browser-voice elimination (the "browser voice sucks" directive):**
+- **CDN-first playback** — the client now computes the clip URL itself (`sha256("v6|voice|text")` on the public Blob host) and plays it directly; `/api/tts` is only consulted to synth a missing clip. Rate-limit 429s, serverless cold starts, and Redis hiccups can no longer dump a kid to the robot voice for a clip that exists. Ordered candidates: cache → CDN → API → heal → browser (true last resort).
+- **Heal path** — `/api/tts?heal=1` evicts a stale Redis URL and re-verifies/re-synths (fixes "deleted blob = that phrase robotic forever"); the client fires one heal per utterance when an API-provided URL errors.
+- **Budget cap** no longer silences the cloud voice: capped sessions still play cache/CDN clips and only skip the synth-triggering API calls.
+- **Retell tutor watchdog** is now inactivity-based (6 s without progress, 90 s absolute ceiling) instead of an absolute 15 s cut; a clip that already played >2 s is treated as delivered rather than re-read robotically from the start.
+
+**Fixed open issues #3–#8 (from §8.5):**
+- Terminal 0-XP retell fail now calls `markRetellDone` server-side (durable, cross-device); tutor `action=start` now refuses a retell-done book (409, admin-exempt) — the redo-for-XP loophole is closed. `doneBookIds` already unioned retellDone, so the client shows Done everywhere.
+- Whisper upload MIME now follows the request Content-Type (Safari mp4/AAC no longer labeled webm).
+- 401 mid-quiz and mid-retell now show "sign in again" with a working Sign-in button (reload) instead of infinite Try-again loops; copy verified truthful (quiz 401 fires before the attempt INCR; retell pass + retellPending are server-durable).
+- Answer-then-close race: saves are now self-consistent (`idx` derived from `answers.length`), resume reconciles/heals old corrupt blobs (fully-answered blobs route straight to submit), and the server validates slate shape BEFORE the attempt INCR so malformed slates never burn an attempt.
+- **Bank polish: all ~33 MINOR items fixed** across 29 banks (cross-question leaks de-leaked, weak/absurd distractors replaced, "neither" phrasing removed, dungarees/Desperate vocabulary simplified, M's/N's and palace/castle sound-alike traps removed, k01 antecedent restored using the book's own "small house" wording). Every changed string verified against its summary; all 516 questions re-validated; TTS synthed + Whisper-verified for every new string in all 4 voices; nova coverage sweep: **0 missing**.
+
+**Still open after round 3:** §8.5 #1 (14 books need authored banks — decision), #2 (server 423 attempt-burn ordering — anti-fraud semantics decision), #6 (dead prewarm strings — cost only, mostly moot now that CDN-first skips the API), plus k04's accepted Q12→Q11 leak.
+
+### 8.7 Live-prod checks run
 
 - `/api/health`: all green (redis, anthropic, polly, tts, auth), quiz schema v11.
 - Blob CDN: 2,190-string coverage sweep + MP3-validity sampling (frame-walk durations + Whisper spot-transcriptions). Probe tools: `scripts/qc-tts-probe.mjs`, `scripts/qc-orange-check.mjs`.
