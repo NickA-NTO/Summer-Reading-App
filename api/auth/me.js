@@ -257,8 +257,19 @@ export default async function handler(req, res) {
     const book = getBook(currentlyReading.bookId);
     if (book) {
       const t = trackForBook(book);
+      // #91 follow-up — treat a book with NO shipped question bank exactly
+      // like a track-locked one. A kid whose active read predates the
+      // bookHasQuiz filter (or whose book's bank failed validation on a
+      // later deploy) would otherwise be steered by "CONTINUE READING"
+      // into a book whose Quiz button 503s — no XP path at all, since
+      // manual reads are quiz_required and the retell needs quiz attempts.
+      const noBank =
+        !isAdminUser &&
+        !getAvailableQuestionBookIds().includes(
+          String(currentlyReading.bookId).toLowerCase()
+        );
       const isHiddenForUser =
-        !isAdminUser && t && !visibleTracks.includes(t);
+        (!isAdminUser && t && !visibleTracks.includes(t)) || noBank;
       if (isHiddenForUser) {
         // #E — don't just MASK it in the response: clear the server row too,
         // else the stale reading:{email} keeps 409-blocking "I'm reading this"
