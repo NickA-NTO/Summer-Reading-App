@@ -3799,7 +3799,24 @@ function _fetchTtsUrl(voice, text) {
     `/api/tts?voice=${encodeURIComponent(voice)}&text=${encodeURIComponent(text)}`,
     { credentials: "same-origin", signal }
   )
-    .then((r) => (r.ok ? r.json() : null))
+    .then(async (r) => {
+      if (r.ok) return r.json();
+      // Budget-cap 429: flip the session-wide flag so every later speak()
+      // goes STRAIGHT to the browser voice (no doomed round-trip burning
+      // latency + the per-email rate limit), and surface the banner so the
+      // voice change doesn't read as "TTS broke". Distinct from the
+      // rate-limit 429 (different error code), which stays a plain null.
+      if (r.status === 429) {
+        try {
+          const j = await r.json();
+          if (j && j.error === "tts_budget_reached" && !ttsBudgetReached) {
+            ttsBudgetReached = true;
+            try { showBudgetBanner(j); } catch {}
+          }
+        } catch {}
+      }
+      return null;
+    })
     .then((data) => (data && data.url ? data.url : null))
     .catch(() => null);
   _ttsClientCache.set(key, p);
@@ -3812,6 +3829,9 @@ function _fetchTtsUrl(voice, text) {
 }
 function prewarmTts(text, voice) {
   if (!text || !text.trim()) return;
+  // Budget gone → every fetch would 429; speak() already goes straight to
+  // the browser voice, so prewarming is pure wasted rate-limit budget.
+  if (ttsBudgetReached) return;
   const v = voice || chosenPollyVoice || "nova";
   // Fire and forget — populates _ttsClientCache so the eventual speak()
   // call hits the cached promise instead of starting a duplicate fetch.
@@ -6138,6 +6158,18 @@ function saveQuizCooldown(until, flagCount) {
     localStorage.setItem("rs_quiz_cooldown", JSON.stringify({ until, flagCount }));
   } catch {}
 }
+// Cooldowns run 2-72h (applyFraudFlag ladder), so "again at 3:41 PM" is
+// wrong-looking whenever the window crosses midnight. Include the day
+// unless the end really is today.
+function fmtCooldownWhen(until) {
+  const d = new Date(until);
+  const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const now = new Date();
+  if (d.toDateString() === now.toDateString()) return `at ${time}`;
+  if (d.toDateString() === new Date(now.getTime() + 86400000).toDateString())
+    return `tomorrow at ${time}`;
+  return `on ${d.toLocaleDateString([], { weekday: "long" })} at ${time}`;
+}
 
 async function openQuiz(bookId) {
   const book = BOOK_BY_ID[bookId];
@@ -6207,14 +6239,11 @@ async function openQuiz(bookId) {
   // 1d.3 — Check client-side cooldown mirror first (avoids a round-trip)
   const cooldown = getQuizCooldown();
   if (cooldown && cooldown.until > Date.now()) {
-    const timeStr = new Date(cooldown.until).toLocaleTimeString([], {
-      hour: "2-digit", minute: "2-digit",
-    });
     document.getElementById("quizContent").innerHTML = `
       <div class="quiz-result">
         <div class="emoji">⏰</div>
         <h3>Take a break and re-read</h3>
-        <div class="score">You can try quizzes again at ${timeStr}</div>
+        <div class="score">You can try quizzes again ${fmtCooldownWhen(cooldown.until)}</div>
         <p style="font-size:13px;color:var(--muted)">Reading is best when you have time to enjoy it. Come back after a little break!</p>
         <div class="actions">
           <button class="icon-btn" id="quizCooldownClose">Close</button>
@@ -7039,6 +7068,21 @@ async function finishQuiz() {
     if (err === "account_deleted") {
       icon = "👋"; title = "Account removed"; allowRetry = false;
       msg = "This account was removed. Please refresh the page and sign in again.";
+    } else if (err === "cooldown") {
+      // 423 — server fraud cooldown fired AT SUBMIT time. The attempt was
+      // already counted server-side, so no "won't count against you" here,
+      // and no retry button (re-submitting hits the same 423 for hours).
+      // Mirror the window locally so the next openQuiz shows the friendly
+      // blocked screen without a round-trip.
+      icon = "⏰"; title = "Take a break and re-read"; allowRetry = false;
+      const until = Number(serverResp.cooldownUntil) || 0;
+      if (until > Date.now()) {
+        saveQuizCooldown(until, getQuizCooldown()?.flagCount || 0);
+        msg = `You can try quizzes again ${fmtCooldownWhen(until)}. ` +
+          "Reading is best when you have time to enjoy it — come back after a break!";
+      } else {
+        msg = "You're on a reading cool-down. Take a break and come back later!";
+      }
     } else if (err === "track_locked" || err === "not_currently_reading") {
       icon = "🔒"; title = "Let's set this up first"; allowRetry = false;
       msg = "Tap “I'm reading this” on the book, then take the quiz.";
@@ -8856,6 +8900,25 @@ async function onbHandleVoiceClick(btn) {
   // is fine if Polly isn't configured — kid still gets a voice sample.
   onbCleanupAudio();
   const mySeq = _onbPreviewSeq;
+  // Browser-TTS fallback — used when the endpoint fails AND when the cloud
+  // clip's play() is rejected. speechSynthesis needs only STICKY activation
+  // (the tap that got us here), unlike audio.play()'s transient window, so
+  // it still speaks after a slow fetch.
+  const speakFallback = () => {
+    if (mySeq !== _onbPreviewSeq) return;
+    const markSelected = () => {
+      const status = btn.querySelector("[data-role=status]");
+      status.textContent = "Selected";
+      status.className = "v-status selected";
+    };
+    try {
+      const u = new SpeechSynthesisUtterance(previewText);
+      window.speechSynthesis.speak(u);
+      u.onend = markSelected;
+    } catch {
+      markSelected();
+    }
+  };
   try {
     const url = `/api/tts?voice=${encodeURIComponent(voice)}&text=${encodeURIComponent(previewText)}`;
     const r = await fetch(url, { credentials: "same-origin" });
@@ -8872,27 +8935,18 @@ async function onbHandleVoiceClick(btn) {
           status.textContent = "Selected";
           status.className = "v-status selected";
         };
-        _onbPreviewAudio.play().catch(() => {});
+        // A cold synth (1-3s) can outlive the tap's gesture window, so
+        // play() rejects NotAllowedError with no error event — previously
+        // swallowed, leaving the label stuck on "Playing…" with no sound
+        // and the kid picking a voice blind. Fall back to the browser
+        // voice so SOMETHING audible always follows the tap.
+        _onbPreviewAudio.play().catch(speakFallback);
         return;
       }
     }
     throw new Error("polly_unavailable");
   } catch {
-    // Browser TTS fallback
-    if (mySeq !== _onbPreviewSeq) return;
-    try {
-      const u = new SpeechSynthesisUtterance(previewText);
-      window.speechSynthesis.speak(u);
-      u.onend = () => {
-        const status = btn.querySelector("[data-role=status]");
-        status.textContent = "Selected";
-        status.className = "v-status selected";
-      };
-    } catch {
-      const status = btn.querySelector("[data-role=status]");
-      status.textContent = "Selected";
-      status.className = "v-status selected";
-    }
+    speakFallback();
   }
 }
 
@@ -10087,20 +10141,16 @@ async function _retellListenForKid() {
         await _retellFinalizeNoDevice();
         return;
       }
-      // Show a retry button so the kid (or their parent) can grant
-      // permission and try again WITHOUT closing + reopening the modal.
-      // On click we FULLY tear down any half-built audio state (closed
+      // Permission denied (or other recoverable failure). Offer Try again —
+      // BUT ALSO Skip: on school-managed devices the mic can be blocked by
+      // policy, so retrying can never succeed and a retry-only screen would
+      // strand a kid who just passed the quiz at 0 XP. Skip banks quiz-tier
+      // XP via the same no-device finalize the hardware-missing path uses.
+      // On retry we FULLY tear down any half-built audio state (closed
       // AudioContext etc.) so the next attempt starts fresh.
-      retell.statusEl.innerHTML =
-        "I couldn't hear you — please allow microphone access." +
-        '<br><button id="retellMicRetry" style="' +
-        "margin-top:14px;background:#2563eb;color:#fff;border:none;" +
-        "padding:10px 22px;border-radius:10px;font-weight:700;" +
-        'cursor:pointer;font-family:inherit;font-size:14px">' +
-        "🎤 Try again</button>";
-      const retryBtn = document.getElementById("retellMicRetry");
-      if (retryBtn) {
-        retryBtn.addEventListener("click", () => {
+      _retellRenderRecovery(
+        "I couldn't hear you — please allow microphone access, or Skip to keep your quiz XP.",
+        () => {
           retell.statusEl.textContent = "Asking again…";
           // Hard-reset everything so retry starts from scratch.
           try { retell.stream?.getTracks().forEach(t => t.stop()); } catch {}
@@ -10109,8 +10159,8 @@ async function _retellListenForKid() {
           retell.audioContext = null;
           retell.analyser = null;
           _retellListenForKid().catch(() => {});
-        });
-      }
+        }
+      );
       return;
     }
     const AC = window.AudioContext || window.webkitAudioContext;
