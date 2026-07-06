@@ -1,6 +1,6 @@
 {
   "bookId": "b08",
-  "version": 4,
+  "version": 5,
   "questions": [
     {
       "q": "What kind of animal is Stellaluna?",
@@ -55,7 +55,7 @@
     {
       "q": "What was against Mother Bird's rules?",
       "options": [
-        "Eat soft fruit",
+        "Eat bugs and worms",
         "Hang by her feet",
         "Fly with the birds",
         "Sleep in the nest"

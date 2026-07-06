@@ -1,6 +1,6 @@
 {
   "bookId": "a09",
-  "version": 3,
+  "version": 4,
   "questions": [
     {
       "q": "What color are the overalls that the teddy bear wears?",
@@ -47,7 +47,7 @@
       "options": [
         "He is missing a button",
         "He is too big",
-        "He costs too much",
+        "He is too small",
         "He is too old"
       ],
       "answer": 0

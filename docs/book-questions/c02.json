@@ -1,6 +1,6 @@
 {
   "bookId": "c02",
-  "version": 3,
+  "version": 4,
   "questions": [
     {
       "q": "What is the name of the bookshop where the signing was supposed to happen?",
@@ -75,7 +75,7 @@
     {
       "q": "What did Josh secretly look at to find a clue at the hotel?",
       "options": [
-        "The guest book",
+        "A letter",
         "The menu",
         "The newspaper",
         "The register"

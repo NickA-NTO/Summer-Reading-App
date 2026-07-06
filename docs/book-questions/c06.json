@@ -1,6 +1,6 @@
 {
   "bookId": "c06",
-  "version": 3,
+  "version": 4,
   "questions": [
     {
       "q": "How tall is Stuart Little?",
@@ -87,7 +87,7 @@
       "options": [
         "A dentist",
         "A teacher",
-        "A doctor",
+        "A sailor",
         "A baker"
       ],
       "answer": 0

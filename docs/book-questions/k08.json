@@ -1,6 +1,6 @@
 {
   "bookId": "k08",
-  "version": 3,
+  "version": 4,
   "questions": [
     {
       "q": "What food does Sam-I-am want the grumpy creature to try?",
@@ -33,7 +33,7 @@
       "answer": 2
     },
     {
-      "q": "What words are written on Sam-I-am's tall red hat?",
+      "q": "What words are on the sign Sam-I-am shows at the start?",
       "options": [
         "Eat with me",
         "Try it please",

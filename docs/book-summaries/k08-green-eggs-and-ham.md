@@ -17,7 +17,7 @@ A bright Dr. Seuss world that keeps changing. Each new place Sam-I-am suggests t
 
 ## Characters
 
-- **Sam-I-am** — small, smiley, polite, and absolutely **persistent**. Always carries a plate of green eggs and ham. Wears a tall red hat with a hat-band that says "Sam I am."
+- **Sam-I-am** — small, smiley, polite, and absolutely **persistent**. Always carries a plate of green eggs and ham. Wears a tall red hat, and at the start rides past showing a sign that says **"I am Sam"**.
 - **The unnamed grumpy character** — a larger Seuss creature with a long face and a long red hat. Never named; he is just "I."
 - **A mouse** — appears in the "in a house, with a mouse" scenes.
 - **A fox** — appears in the "with a fox / in a box" scenes.
@@ -44,7 +44,7 @@ A bright Dr. Seuss world that keeps changing. Each new place Sam-I-am suggests t
 ## Key objects and props
 
 - **The plate of green eggs and ham** — Sam-I-am carries it everywhere.
-- **The "I am Sam" sign / hatband** Sam-I-am wears.
+- **The "I am Sam" sign** Sam-I-am shows at the start.
 - **The box** that the character won't eat in.
 - **The tree** that the character won't eat in.
 - **The train** that races by.

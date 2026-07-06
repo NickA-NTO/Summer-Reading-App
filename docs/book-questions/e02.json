@@ -1,6 +1,6 @@
 {
   "bookId": "e02",
-  "version": 3,
+  "version": 4,
   "questions": [
     {
       "q": "What kind of animal is Piggie?",
@@ -126,7 +126,7 @@
       "q": "Who wrote and drew this book?",
       "options": [
         "Mo Willems",
-        "Mo Williams",
+        "Mo Winters",
         "Mo Wilson",
         "Mo Walker"
       ],

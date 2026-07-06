@@ -1,6 +1,6 @@
 {
   "bookId": "b07",
-  "version": 3,
+  "version": 4,
   "questions": [
     {
       "q": "What does Boggis eat three times a day?",
@@ -86,9 +86,9 @@
       "q": "Which animal joins the foxes underground after being dug out of his home?",
       "options": [
         "Badger",
-        "Rabbit",
-        "Mole",
-        "Weasel"
+        "Squirrel",
+        "Deer",
+        "Owl"
       ],
       "answer": 0
     },

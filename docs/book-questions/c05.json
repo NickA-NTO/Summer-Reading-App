@@ -1,6 +1,6 @@
 {
   "bookId": "c05",
-  "version": 5,
+  "version": 6,
   "questions": [
     {
       "q": "Who saves Wilbur's life when he is born?",
@@ -113,7 +113,7 @@
       "answer": 2
     },
     {
-      "q": "What does Charlotte leave behind at the fairgrounds?",
+      "q": "What does Charlotte make to keep her eggs safe?",
       "options": [
         "Her baby spiders",
         "Her old web",

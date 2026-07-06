@@ -1,6 +1,6 @@
 {
   "bookId": "a11",
-  "version": 3,
+  "version": 4,
   "questions": [
     {
       "q": "Where does the mother duck make her nest?",
@@ -108,7 +108,7 @@
         "A child",
         "A hunter",
         "A peasant",
-        "A farmer"
+        "A fisherman"
       ],
       "answer": 2
     },
