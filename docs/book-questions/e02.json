@@ -1,6 +1,6 @@
 {
   "bookId": "e02",
-  "version": 4,
+  "version": 5,
   "questions": [
     {
       "q": "What kind of animal is Piggie?",
@@ -33,12 +33,12 @@
       "answer": 2
     },
     {
-      "q": "Why does neither friend walk past the rock?",
+      "q": "Why do Gerald and Piggie both keep waiting so long?",
       "options": [
         "Both ran away",
         "Both went home",
         "Both fell asleep",
-        "Both are behind it"
+        "Both are hiding"
       ],
       "answer": 3
     },

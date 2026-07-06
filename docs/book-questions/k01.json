@@ -1,6 +1,6 @@
 {
   "bookId": "k01",
-  "version": 3,
+  "version": 4,
   "questions": [
     {
       "q": "On what day does the caterpillar come out of the egg?",
@@ -83,7 +83,7 @@
       "answer": 3
     },
     {
-      "q": "What does the caterpillar eat to feel better after his stomachache?",
+      "q": "What does the caterpillar eat to feel better?",
       "options": [
         "A nice green leaf",
         "A red apple",
@@ -113,17 +113,17 @@
       "answer": 2
     },
     {
-      "q": "How long does the caterpillar stay inside his cocoon?",
+      "q": "How long does the caterpillar stay inside his small house?",
       "options": [
         "One week",
-        "One month",
+        "Two days",
         "Three days",
         "More than two weeks"
       ],
       "answer": 3
     },
     {
-      "q": "What does the caterpillar turn into when he comes out of the cocoon?",
+      "q": "What does the caterpillar turn into at the end?",
       "options": [
         "A beautiful butterfly",
         "A tiny egg",

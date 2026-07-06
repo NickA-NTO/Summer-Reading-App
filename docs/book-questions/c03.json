@@ -1,6 +1,6 @@
 {
   "bookId": "c03",
-  "version": 3,
+  "version": 4,
   "questions": [
     {
       "q": "Who tells Junie B. that she has to ride the bus to school?",
@@ -83,7 +83,7 @@
       "answer": 3
     },
     {
-      "q": "Which room does Junie B. go to where she eats crackers and uses the phone?",
+      "q": "Which room does Junie B. go to where she eats crackers?",
       "options": [
         "The nurse's office",
         "The cafeteria",
@@ -113,7 +113,7 @@
       "answer": 2
     },
     {
-      "q": "What does Grace tell Junie B. about the chocolate milk story?",
+      "q": "What does Grace tell Junie B. about the scary bus rumour?",
       "options": [
         "It happened to her once",
         "It only happens on Fridays",

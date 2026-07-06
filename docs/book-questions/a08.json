@@ -1,6 +1,6 @@
 {
   "bookId": "a08",
-  "version": 3,
+  "version": 4,
   "questions": [
     {
       "q": "What kind of animal is Ping?",
@@ -105,10 +105,10 @@
     {
       "q": "Why does the little boy want to save Ping?",
       "options": [
-        "He is too small",
-        "He is too old",
-        "He is too beautiful",
-        "He is too fast"
+        "Ping is too small",
+        "Ping is too old",
+        "Ping is too beautiful",
+        "Ping is too fast"
       ],
       "answer": 2
     },

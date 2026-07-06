@@ -1,6 +1,6 @@
 {
   "bookId": "a10",
-  "version": 3,
+  "version": 4,
   "questions": [
     {
       "q": "Where do Trixie and her daddy go on their errand?",
@@ -113,7 +113,7 @@
       "answer": 2
     },
     {
-      "q": "What place do Trixie and Daddy walk through after going down the block?",
+      "q": "Which place do Trixie and Daddy go through on the way?",
       "options": [
         "The school",
         "The library",

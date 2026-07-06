@@ -1,14 +1,14 @@
 {
   "bookId": "a02",
-  "version": 2,
+  "version": 3,
   "questions": [
     {
       "q": "Who knocks on Owl's door in the first story?",
       "options": [
         "Winter",
-        "The Moon",
-        "A friend",
-        "A bird"
+        "Summer",
+        "Spring",
+        "Autumn"
       ],
       "answer": 0
     },

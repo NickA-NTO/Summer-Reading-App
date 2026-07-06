@@ -1,6 +1,6 @@
 {
   "bookId": "a09",
-  "version": 4,
+  "version": 5,
   "questions": [
     {
       "q": "What color are the overalls that the teddy bear wears?",
@@ -13,14 +13,14 @@
       "answer": 0
     },
     {
-      "q": "What is missing from the teddy bear's shoulder strap?",
+      "q": "What does Corduroy think the store upstairs must be?",
       "options": [
-        "A pocket",
-        "A button",
-        "A bow",
-        "A tag"
+        "A palace",
+        "A forest",
+        "A kitchen",
+        "A garden"
       ],
-      "answer": 1
+      "answer": 0
     },
     {
       "q": "Where does the teddy bear live at the start of the story?",

@@ -1,6 +1,6 @@
 {
   "bookId": "e03",
-  "version": 3,
+  "version": 4,
   "questions": [
     {
       "q": "What kind of animal is Gerald?",
@@ -43,7 +43,7 @@
       "answer": 3
     },
     {
-      "q": "What are the worms doing in the puddles?",
+      "q": "What are the little creatures doing in the puddles?",
       "options": [
         "Splashing and playing",
         "Sleeping and resting",
@@ -53,7 +53,7 @@
       "answer": 0
     },
     {
-      "q": "What do Gerald and Piggie do after learning from the worms?",
+      "q": "What do Gerald and Piggie do after they change their minds?",
       "options": [
         "Run home to stay dry",
         "Splash and dance in the rain",
@@ -73,7 +73,7 @@
       "answer": 2
     },
     {
-      "q": "How does Piggie feel when the rain stops?",
+      "q": "How does Piggie feel when the sun returns?",
       "options": [
         "Scared",
         "Sleepy",
@@ -123,7 +123,7 @@
       "answer": 3
     },
     {
-      "q": "How do the worms feel about the rain?",
+      "q": "How do the little creatures feel about the rain?",
       "options": [
         "They love it",
         "They hate it",

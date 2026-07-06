@@ -1,6 +1,6 @@
 {
   "bookId": "a07",
-  "version": 3,
+  "version": 4,
   "questions": [
     {
       "q": "What does Max call the noisy celebration he starts in the story?",
@@ -97,7 +97,7 @@
       "options": [
         "He is scared",
         "He wants to be loved",
-        "He is hungry",
+        "He is bored",
         "He is tired"
       ],
       "answer": 1

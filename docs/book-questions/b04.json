@@ -1,6 +1,6 @@
 {
   "bookId": "b04",
-  "version": 3,
+  "version": 4,
   "questions": [
     {
       "q": "What is Pandora's job at the lighthouse?",
@@ -83,7 +83,7 @@
       "answer": 3
     },
     {
-      "q": "What are the names of the three mice?",
+      "q": "What are the names of the rescued mice?",
       "options": [
         "Lila, Whistler, and Tiny",
         "Pip, Squeak, and Tiny",

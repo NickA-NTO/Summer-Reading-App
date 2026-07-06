@@ -1,6 +1,6 @@
 {
   "bookId": "a06",
-  "version": 3,
+  "version": 4,
   "questions": [
     {
       "q": "How does Vashti feel about drawing at the start of the story?",
@@ -113,7 +113,7 @@
       "answer": 2
     },
     {
-      "q": "What does the boy draw on the paper Vashti gives him?",
+      "q": "What mark does Vashti's new visitor make on the paper?",
       "options": [
         "A small square",
         "A perfect circle",

@@ -1,6 +1,6 @@
 {
   "bookId": "e05",
-  "version": 3,
+  "version": 4,
   "questions": [
     {
       "q": "What is Piggie's ice cream held in?",
@@ -16,7 +16,7 @@
       "q": "What happens to the ice cream while Gerald is thinking?",
       "options": [
         "It falls on the ground",
-        "It melts in the sun",
+        "It slowly melts",
         "It gets bigger",
         "It changes color"
       ],
@@ -43,12 +43,12 @@
       "answer": 3
     },
     {
-      "q": "What is left of Gerald's ice cream when he finally decides to share?",
+      "q": "What treat is Gerald holding at the start of the book?",
       "options": [
-        "Nothing but a puddle",
-        "Half of it",
-        "A tiny bit",
-        "The whole thing"
+        "An ice-cream cone",
+        "A chocolate bar",
+        "A cupcake",
+        "A cookie"
       ],
       "answer": 0
     },

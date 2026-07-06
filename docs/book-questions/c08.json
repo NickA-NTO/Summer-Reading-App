@@ -1,6 +1,6 @@
 {
   "bookId": "c08",
-  "version": 3,
+  "version": 4,
   "questions": [
     {
       "q": "What is Geronimo's job in New Mouse City?",
@@ -93,7 +93,7 @@
       "answer": 0
     },
     {
-      "q": "What shape is the lake when seen from above?",
+      "q": "What shape is the treasure when seen from above?",
       "options": [
         "Like a heart",
         "Like an eye",
@@ -103,7 +103,7 @@
       "answer": 1
     },
     {
-      "q": "What color is the water in the lake?",
+      "q": "What color is the treasure they find?",
       "options": [
         "Deep purple",
         "Bright blue",

@@ -1,6 +1,6 @@
 {
   "bookId": "b06",
-  "version": 3,
+  "version": 4,
   "questions": [
     {
       "q": "What kind of animal is Mercy Watson?",
@@ -113,12 +113,12 @@
       "answer": 2
     },
     {
-      "q": "What does everyone eat together at the end?",
+      "q": "Who makes the food for everyone at the end?",
       "options": [
-        "Hot buttered biscuits",
-        "Hot buttered pancakes",
-        "Hot buttered waffles",
-        "Hot buttered toast"
+        "Mr. Watson",
+        "Eugenia",
+        "Baby",
+        "Mrs. Watson"
       ],
       "answer": 3
     }

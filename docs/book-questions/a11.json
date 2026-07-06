@@ -1,6 +1,6 @@
 {
   "bookId": "a11",
-  "version": 4,
+  "version": 5,
   "questions": [
     {
       "q": "Where does the mother duck make her nest?",
@@ -103,7 +103,7 @@
       "answer": 1
     },
     {
-      "q": "Who saves the duckling when he is stuck in the ice?",
+      "q": "Who rescues the duckling in the winter?",
       "options": [
         "A child",
         "A hunter",

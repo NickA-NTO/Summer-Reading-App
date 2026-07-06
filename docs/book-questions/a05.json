@@ -1,6 +1,6 @@
 {
   "bookId": "a05",
-  "version": 3,
+  "version": 4,
   "questions": [
     {
       "q": "Why does Henry want a dog?",
@@ -93,7 +93,7 @@
       "answer": 0
     },
     {
-      "q": "How does Mudge feel when he is lost?",
+      "q": "How does Mudge feel while he is away from Henry?",
       "options": [
         "Excited",
         "Sad",

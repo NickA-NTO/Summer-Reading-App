@@ -1,6 +1,6 @@
 {
   "bookId": "b03",
-  "version": 3,
+  "version": 4,
   "questions": [
     {
       "q": "Where does the Boy find the Velveteen Rabbit?",
@@ -93,7 +93,7 @@
       "answer": 0
     },
     {
-      "q": "Where is the rabbit left waiting to be burned?",
+      "q": "Where is the rabbit left after the Boy's illness?",
       "options": [
         "Behind the garden shed",
         "Behind the fowl-house",

@@ -1,6 +1,6 @@
 {
   "bookId": "a04",
-  "version": 3,
+  "version": 4,
   "questions": [
     {
       "q": "How does Nate the Great describe himself?",
@@ -118,7 +118,7 @@
         "Fang buried it in the yard",
         "Annie left it at school",
         "Rosamond took it home",
-        "Harry painted over it with red"
+        "Harry painted over it"
       ],
       "answer": 3
     }

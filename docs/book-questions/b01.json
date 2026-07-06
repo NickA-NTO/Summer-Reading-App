@@ -1,6 +1,6 @@
 {
   "bookId": "b01",
-  "version": 4,
+  "version": 5,
   "questions": [
     {
       "q": "Why does the wolf go to his neighbors' houses?",
@@ -93,12 +93,12 @@
       "answer": 0
     },
     {
-      "q": "Why does the brick house stay standing?",
+      "q": "Where is the wolf when he tells his side of the story?",
       "options": [
-        "The wolf stops sneezing",
-        "The bricks hold up",
-        "The pig fixes it",
-        "The police arrive"
+        "In his kitchen",
+        "In prison",
+        "In the woods",
+        "In a shop"
       ],
       "answer": 1
     },

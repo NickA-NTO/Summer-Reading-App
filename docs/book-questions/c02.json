@@ -1,6 +1,6 @@
 {
   "bookId": "c02",
-  "version": 4,
+  "version": 5,
   "questions": [
     {
       "q": "What is the name of the bookshop where the signing was supposed to happen?",
@@ -33,7 +33,7 @@
       "answer": 2
     },
     {
-      "q": "Who owns the Book Nook bookshop?",
+      "q": "Who owns the bookshop?",
       "options": [
         "Dink Duncan",
         "Mr. Linkletter",
@@ -86,7 +86,7 @@
       "q": "What letters on Mavis's scarf are really W's turned upside down?",
       "options": [
         "M's",
-        "N's",
+        "T's",
         "V's",
         "A's"
       ],

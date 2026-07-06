@@ -1,6 +1,6 @@
 {
   "bookId": "b02",
-  "version": 3,
+  "version": 4,
   "questions": [
     {
       "q": "What is the activity Pa and the child go out to do called?",
@@ -73,14 +73,14 @@
       "answer": 2
     },
     {
-      "q": "Does the owl answer Pa's first call?",
+      "q": "What happens after Pa's first owl call?",
       "options": [
-        "Twice",
-        "Yes",
-        "Maybe",
-        "No"
+        "Nothing answers",
+        "An owl flies down",
+        "Pa gives up",
+        "The child talks"
       ],
-      "answer": 3
+      "answer": 0
     },
     {
       "q": "What do the child and Pa leave behind them in the snow?",

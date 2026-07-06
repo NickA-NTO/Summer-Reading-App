@@ -1,6 +1,6 @@
 {
   "bookId": "e04",
-  "version": 3,
+  "version": 4,
   "questions": [
     {
       "q": "Who tells Gerald about the thing on his head?",
@@ -85,7 +85,7 @@
     {
       "q": "How does Gerald feel when there is a bird family on his head?",
       "options": [
-        "Desperate",
+        "Very upset",
         "Happy",
         "Sleepy",
         "Bored"
@@ -113,7 +113,7 @@
       "answer": 2
     },
     {
-      "q": "How does Gerald ask the birds to move?",
+      "q": "How does Gerald speak to the birds in the end?",
       "options": [
         "Quietly",
         "Loudly",

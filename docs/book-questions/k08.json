@@ -1,6 +1,6 @@
 {
   "bookId": "k08",
-  "version": 4,
+  "version": 5,
   "questions": [
     {
       "q": "What food does Sam-I-am want the grumpy creature to try?",
@@ -73,7 +73,7 @@
       "answer": 2
     },
     {
-      "q": "Where does everyone end up after the boat tips over?",
+      "q": "Where does everyone end up at the sea?",
       "options": [
         "In the grass",
         "In the mud",

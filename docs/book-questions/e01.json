@@ -1,6 +1,6 @@
 {
   "bookId": "e01",
-  "version": 3,
+  "version": 4,
   "questions": [
     {
       "q": "What do Gerald and Piggie discover at the start?",
@@ -17,8 +17,8 @@
       "options": [
         "Gerald",
         "Piggie",
-        "The banana",
-        "The page"
+        "The reader",
+        "Both friends"
       ],
       "answer": 1
     },
@@ -68,7 +68,7 @@
         "The reader",
         "Gerald",
         "Piggie",
-        "The banana"
+        "Both friends"
       ],
       "answer": 2
     },
