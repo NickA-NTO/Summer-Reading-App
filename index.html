@@ -6569,25 +6569,19 @@ function startAttempt() {
   // re-rolling a new 5-of-pool. A genuine new attempt re-rolls because
   // clearQuizProgress() runs on submit. (#quiz-freeze)
   saveQuizProgress();
-  // Pre-warm TTS for both parts of every question. Staggered so we
-  // don't fire 10 parallel /api/tts requests at once — OpenAI TTS has
-  // per-second limits and parallel bursts can queue some requests for
-  // multiple seconds. Question 1's parts get priority (immediate), the
-  // rest get spaced out so the kid's "Hear it" click on Q1 hits a
-  // warm cache. Strings must match exactly what speakQuizQuestion plays.
+  // Pre-warm TTS for every question's narration. Staggered so we don't
+  // fire parallel /api/tts bursts — OpenAI TTS has per-second limits.
+  // Q1 gets priority (immediate), the rest trickle in over the next few
+  // seconds — long before the kid finishes Q1. Strings must match
+  // exactly what speakQuizQuestion plays: ONLY parts.question. The old
+  // parts.intro/parts.options prewarms here were dead audio — the quiz
+  // stopped narrating choices when per-option speaker buttons landed
+  // (each option is prewarmed as `option + "."` in renderQuizQuestion),
+  // so ~6 clips per slate were synthed, billed, and never played.
   (function stagger() {
-    const all = [];
-    for (const q of quizState.questions) {
-      const parts = buildQuizSpeakParts(q);
-      all.push(parts.question, parts.intro, parts.options);
-    }
-    // Priority: Q1's three parts fire immediately. Everything else
-    // trickles in over the next few seconds — long before the kid
-    // finishes Q1 and moves to Q2. parts.intro ("Here are your
-    // choices.") is the same string for every question so it'll hit
-    // the cache instantly after the first synthesis.
-    all.slice(0, 3).forEach((t) => prewarmTts(t));
-    all.slice(2).forEach((t, i) => setTimeout(() => prewarmTts(t), 400 * (i + 1)));
+    const all = quizState.questions.map((q) => buildQuizSpeakParts(q).question);
+    prewarmTts(all[0]);
+    all.slice(1).forEach((t, i) => setTimeout(() => prewarmTts(t), 400 * (i + 1)));
   })();
   renderQuizQuestion();
 }
