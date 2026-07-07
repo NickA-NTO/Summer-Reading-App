@@ -597,6 +597,32 @@ export default async function handler(req, res) {
         }
       } catch {}
     }
+    // #cd-early — ACTIVE fraud cooldown gate, BEFORE the attempt INCR and
+    // before grading. Previously this check lived after grading and only ran
+    // on a PASS, so a kid on cooldown (flag applied by an earlier retell
+    // finalize) who legitimately passed had the attempt consumed AND the pass
+    // thrown away — the punishment landed harder on passing than failing.
+    // Rejecting up-front means: no attempt burned, no graded outcome to
+    // discard, and the client's day-aware cooldown screen (which mirrors
+    // cooldownUntil to localStorage) tells the kid when to come back.
+    // Admin-exempt like every other gate here; fail-open on Redis errors —
+    // a store hiccup must never block a legitimate quiz.
+    if (!isAdminUser) {
+      try {
+        const fraudEarly = await getQuizFraudState(session.email);
+        if (fraudEarly.cooldownUntil && Date.now() < fraudEarly.cooldownUntil) {
+          trackEvent("quiz_submit_cooldown_early", { bookId });
+          res.statusCode = 423;
+          return res.end(JSON.stringify({
+            ok: false,
+            error: "cooldown",
+            cooldownUntil: fraudEarly.cooldownUntil,
+            message:
+              "You're on a reading cool-down. Take a break and come back later!",
+          }));
+        }
+      } catch {}
+    }
     const serverAttempt = isAdminUser
       ? attemptNum // trust the client value for admin (no INCR side effect)
       : await recordQuizAttempt(session.email, bookId, submissionId);
@@ -807,6 +833,10 @@ export default async function handler(req, res) {
           err: String(err?.message || err),
         });
       }
+      // NOTE: normally unreachable since #cd-early rejects an active cooldown
+      // BEFORE the attempt INCR. This only fires if a cooldown was applied
+      // mid-request (e.g. another tab's retell finalize flagged the account
+      // between our early gate and here) — kept as a belt-and-braces backstop.
       if (fraudVerdict.cooldownUntil) {
         res.statusCode = 423;
         return res.end(
