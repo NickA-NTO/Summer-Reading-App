@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "qc-proxy",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["scripts/qc-proxy.mjs"],
+      "port": 3123
+    }
+  ]
+}
